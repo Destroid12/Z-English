@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-English | Premium Learning Platform</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Identity Services (Sign in with Google) — admin accounts only -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+        :root {
+            --z-blue: #65B2E8;
+            --z-blue-dark: #4A94C7;
+            --z-blue-light: #E6F3FB;
+            --z-yellow: #FDCB58;
+            --z-yellow-dark: #E0A92B;
+            --bg-color: #FAFCFE;
+            --text-main: #2D3748;
+            --text-muted: #718096;
+            --card-bg: #FFFFFF;
+            --border-color: #E2E8F0;
+            --danger: #E53E3E;
+            --danger-light: #FDEDED;
+            --success: #38A169;
+            --success-light: #E9F7EF;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --shadow-float: 0 12px 30px rgba(101, 178, 232, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+            font-family: 'Nunito', 'Cairo', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .dropzone {
+    border: 3px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg-color);
+}
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--z-blue);
+    background: var(--z-blue-light);
+}
+.dropzone.dragover { transform: scale(1.01); }
+.dropzone.uploading { opacity: 0.6; pointer-events: none; }
+.dropzone-icon { font-size: 2.2rem; color: var(--z-blue); margin-bottom: 12px; }
+.dropzone-text { font-weight: 800; color: var(--text-main); font-size: 1.05rem; }
+.dropzone-subtext { font-weight: 600; color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; }
+.lesson-file-status { margin-top: 14px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+.lesson-file-status.pending { color: var(--text-muted); }
+.lesson-file-status.ok { color: var(--success); }
+.lesson-file-status.bad { color: var(--danger); }
+
+        html[dir="rtl"] body { font-family: 'Cairo', 'Nunito', sans-serif; }
+        html[dir="rtl"] .post-avatar { margin-left: 15px; margin-right: 0; }
+        html[dir="rtl"] .btn i { margin-right: 8px; margin-left: 0; }
+        html[dir="rtl"] .lang-dropdown { direction: rtl; }
+        html[dir="rtl"] .input-icon { right: auto; left: 14px; }
+        html[dir="rtl"] .input-control.has-icon { padding-left: 44px; padding-right: 14px; }
+        html[dir="rtl"] .session-row .unlock-btn i { margin-right: 6px; margin-left: 0; }
+
+        a { text-decoration: none; color: inherit; }
+        button { cursor: pointer; font-family: inherit; border: none; }
+
+        h1, h2, h3, h4 { font-weight: 800; color: var(--text-main); }
+        h1 { font-size: 3.5rem; line-height: 1.2; letter-spacing: -1px; }
+        h2 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+        p { color: var(--text-muted); }
+
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+        .text-center { text-align: center; }
+
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 2px solid var(--border-color);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            height: 70px;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.5px; }
+        .logo .z { color: var(--z-yellow); }
+        .logo .english { color: var(--z-blue); }
+
+        .nav-links { display: flex; gap: 16px; align-items: center; }
+        .nav-link { font-weight: 700; color: var(--text-muted); transition: color 0.2s; }
+        .nav-link:hover { color: var(--z-blue); }
+
+        /* --- Language switcher --- */
+        .lang-dropdown { position: relative; }
+        .lang-trigger {
+            background: var(--bg-color);
+            border: 2px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: border-color 0.2s;
+        }
+        .lang-trigger:hover { border-color: var(--z-blue); }
+        .lang-trigger .chev { font-size: 0.7rem; transition: transform 0.2s; color: var(--text-muted); }
+        .lang-dropdown.open .lang-trigger .chev { transform: rotate(180deg); }
+        .lang-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-float);
+            min-width: 190px;
+            padding: 6px;
+            display: none;
+            z-index: 1100;
+        }
+        html[dir="rtl"] .lang-menu { right: auto; left: 0; }
+        .lang-dropdown.open .lang-menu { display: block; }
+        .lang-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            background: transparent;
+            color: var(--text-main);
+        }
+        .lang-option:hover { background: var(--z-blue-light); }
+        .lang-option .flag { margin-right: 10px; font-size: 1.1rem; }
+        html[dir="rtl"] .lang-option .flag { margin-right: 0; margin-left: 10px; }
+        .lang-option .fa-check { color: var(--z-blue); display: none; }
+        .lang-option.active .fa-check { display: inline-block; }
+        .lang-option.active { color: var(--z-blue-dark); }
+
+        .btn {
+            display: inline-block;
+            font-weight: 800;
+            font-size: 1.1rem;
+            padding: 14px 28px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+        }
+
+        .btn-primary { background-color: var(--z-blue); color: white; border-bottom: 4px solid var(--z-blue-dark); }
+        .btn-primary:hover { transform: translateY(2px); border-bottom-width: 2px; margin-top: 2px; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn-secondary { background-color: var(--z-yellow); color: white; border-bottom: 4px solid var(--z-yellow-dark); }
+        .btn-secondary:hover { transform: translateY(2px); border-bottom-width: 2px; margin-top: 2px; }
+
+        .btn-outline { background-color: transparent; color: var(--text-muted); border: 2px solid var(--border-color); padding: 12px 26px; }
+        .btn-sm { padding: 8px 16px; font-size: 0.9rem; border-radius: 8px; }
+
+        .btn-google {
+            width: 100%;
+            background: #fff;
+            color: var(--text-main);
+            border: 2px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+        }
+        .btn-google:hover { border-color: var(--z-blue); background: var(--z-blue-light); }
+        .btn-google img { width: 20px; height: 20px; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            border: 2px solid var(--border-color);
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.2s;
+        }
+        .card:hover { box-shadow: var(--shadow-float); transform: translateY(-5px); }
+        .card.no-hover:hover { transform: none; box-shadow: var(--shadow-soft); }
+        .card.tight { padding: 20px; }
+
+        .badge {
+            background-color: var(--z-blue-light);
+            color: var(--z-blue-dark);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .badge.admin { background: #FFF3D6; color: var(--z-yellow-dark); }
+        .badge.locked { background: var(--border-color); color: var(--text-muted); }
+        .badge.unlocked { background: var(--success-light); color: var(--success); }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+        .input-wrapper { position: relative; }
+        .input-control {
+            width: 100%; padding: 14px; border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm); font-size: 1rem; outline: none; background-color: var(--bg-color);
+        }
+        .input-control.has-icon { padding-right: 44px; }
+        .input-control:focus { border-color: var(--z-blue); }
+        .input-control.small { padding: 10px 12px; font-size: 0.92rem; }
+        .input-icon {
+            position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+            background: none; color: var(--text-muted); font-size: 1rem; padding: 4px;
+        }
+        .input-icon:hover { color: var(--z-blue); }
+
+        .divider-or { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--text-muted); font-weight: 700; font-size: 0.85rem; }
+        .divider-or::before, .divider-or::after { content: ""; flex: 1; height: 2px; background: var(--border-color); }
+
+        .alert-box {
+            padding: 12px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.9rem;
+            margin-bottom: 18px; display: none; align-items: center; gap: 10px;
+        }
+        .alert-box.error { background: var(--danger-light); color: var(--danger); }
+        .alert-box.success { background: var(--success-light); color: var(--success); }
+        .alert-box.show { display: flex; }
+
+        .session-pill {
+            display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700;
+            color: var(--text-muted); background: var(--bg-color); border: 1px solid var(--border-color);
+            padding: 6px 12px; border-radius: 20px; margin-top: 10px;
+        }
+        .session-pill i { color: var(--z-blue); }
+
+        main { flex-grow: 1; padding-top: 100px; padding-bottom: 60px; }
+        .page-section { display: none; animation: fadeIn 0.4s ease; }
+        .page-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .hero { text-align: center; padding: 60px 0; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 60px; }
+        .login-wrapper { max-width: 450px; margin: 40px auto; }
+
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; flex-wrap: wrap; gap: 20px; }
+        .avatar { width: 60px; height: 60px; background-color: var(--z-blue-light); border: 3px solid var(--z-blue); color: var(--z-blue-dark); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+
+        .community-wrapper { max-width: 700px; margin: 0 auto; }
+        .post-card { display: flex; gap: 15px; margin-bottom: 20px; padding: 20px; border-radius: var(--radius-md); }
+        .post-avatar { width: 45px; height: 45px; background: var(--z-yellow); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; margin-right: 15px;}
+        .post-actions { display: flex; gap: 20px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; }
+        .post-meta { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+        .empty-feed { text-align: center; padding: 40px 20px; color: var(--text-muted); font-weight: 600; }
+
+        /* --- Curriculum (student dashboard) --- */
+        .track-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: var(--card-bg); border: 2px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; max-width: 420px; }
+        .track-tab { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; background: transparent; color: var(--text-muted); }
+        .track-tab.active { background: var(--z-blue); color: white; }
+
+        .level-list { display: flex; flex-direction: column; gap: 14px; }
+        .level-card { border: 2px solid var(--border-color); border-radius: var(--radius-md); background: var(--card-bg); overflow: hidden; }
+        .level-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; cursor: pointer; }
+        .level-header:hover { background: var(--z-blue-light); }
+        .level-title { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 12px; }
+        .level-num-badge { width: 34px; height: 34px; border-radius: 50%; background: var(--z-blue-light); color: var(--z-blue-dark); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+        .level-chev { transition: transform 0.2s; color: var(--text-muted); }
+        .level-card.open .level-chev { transform: rotate(180deg); }
+        .level-sessions { display: none; padding: 6px 22px 20px; border-top: 2px solid var(--border-color); }
+        .level-card.open .level-sessions { display: block; }
+        .session-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 14px 0; border-bottom: 1px solid var(--border-color); flex-wrap: wrap;
+        }
+        .session-row:last-child { border-bottom: none; }
+        .session-label { font-weight: 700; display: flex; align-items: center; gap: 10px; min-width: 140px; }
+        .session-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .session-controls .input-control.small { width: 160px; }
+        .session-msg { font-size: 0.78rem; font-weight: 700; margin-top: 4px; width: 100%; }
+        .session-msg.error { color: var(--danger); }
+        .session-msg.success { color: var(--success); }
+
+        /* --- Admin dashboard --- */
+        .admin-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: var(--card-bg); border: 2px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; max-width: 560px; flex-wrap: wrap; }
+        .admin-tab { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; background: transparent; color: var(--text-muted); min-width: 160px; }
+        .admin-tab.active { background: var(--z-blue); color: white; }
+        .admin-panel { display: none; }
+        .admin-panel.active { display: block; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table.data-table th, table.data-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        html[dir="rtl"] table.data-table th, html[dir="rtl"] table.data-table td { text-align: right; }
+        table.data-table th { color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 0.75rem; }
+
+        /* --- About / Contact pages --- */
+        .info-hero { text-align: center; padding: 30px 0 50px; }
+        .info-hero p { max-width: 650px; margin: 12px auto 0; font-size: 1.15rem; }
+        .about-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-top: 20px; }
+        .about-grid .card i { font-size: 1.6rem; }
+        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start; }
+        @media (max-width: 760px) { .contact-grid { grid-template-columns: 1fr; } }
+        .contact-info-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 22px; }
+        .contact-info-row i { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: var(--z-blue-light); color: var(--z-blue-dark); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .contact-info-row h4 { font-size: 1rem; margin-bottom: 2px; }
+        .social-row { display: flex; gap: 12px; margin-top: 20px; }
+        .social-row a { width: 42px; height: 42px; border-radius: 50%; background: var(--z-blue-light); color: var(--z-blue-dark); display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s; }
+        .social-row a:hover { background: var(--z-blue); color: #fff; }
+
+        footer { text-align: center; padding: 30px; color: var(--text-muted); border-top: 2px solid var(--border-color); background-color: var(--card-bg); font-weight: 600; }
+
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; align-items: center; justify-content: center; font-size: 2rem; color: var(--z-blue); }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay"><i class="fas fa-spinner fa-spin"></i></div>
+
+    <header>
+        <div class="container flex justify-between items-center">
+            <a href="#" class="logo" onclick="navigate('landing')">
+                <span class="z">Z-</span><span class="english">English</span>
+            </a>
+            <nav class="nav-links" id="nav-links">
+                </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="landing" class="page-section active container">
+            <div class="hero">
+                <div class="hero-img" style="font-size: 4rem; color: var(--z-yellow);"><img src="https://i.postimg.cc/bYQvFz9s/image.png" alt="Z-English Logo" style="width: 350px; height: auto;"></div>
+                <h1 data-i18n="heroTitle">English<br>from A to <span style="color: var(--z-yellow);">Z</span>.</h1>
+                <p data-i18n="heroSub" style="font-size: 1.3rem; margin: 20px auto 40px; max-width: 600px;">
+                   Your English learning destination.
+                </p>
+                <button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
+            </div>
+
+            <div class="features-grid text-center">
+                <div class="card">
+                    <h3 style="color: var(--z-blue);"><i class="fas fa-map-signs"></i> <span data-i18n="feat1Title">Clear Paths</span></h3>
+                    <p data-i18n="feat1Desc" style="margin-top: 10px;">Two structured tracks, ten levels each, seven guided sessions per level.</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--z-yellow);"><i class="fas fa-user-shield"></i> <span data-i18n="feat2Title">Safe Space</span></h3>
+                    <p data-i18n="feat2Desc" style="margin-top: 10px;">Our gender-filtered community feeds keep conversations comfortable.</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--z-blue);"><i class="fas fa-chalkboard-teacher"></i> <span data-i18n="feat3Title">Curated</span></h3>
+                    <p data-i18n="feat3Desc" style="margin-top: 10px;">Every student account is created and issued by administration — no open sign-up.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="login" class="page-section container">
+            <div class="card login-wrapper">
+                <div class="text-center" style="margin-bottom: 10px;">
+                    <h2 data-i18n="signInTitle">Sign In</h2>
+                    <p data-i18n="signInSub" style="margin-bottom: 10px;">Use the ID and password your administrator gave you.</p>
+                </div>
+
+                <div class="alert-box error" id="auth-alert"><i class="fas fa-circle-exclamation"></i> <span id="auth-alert-text"></span></div>
+
+                <!-- Google Sign-In is only ever valid for administrator accounts -->
+                <div id="google-btn-container"></div>
+                <button type="button" class="btn-google" id="google-fallback-btn" onclick="handleGoogleFallback()" style="display:none;">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+                    <span data-i18n="googleAdminBtn">Admin: Continue with Google</span>
+                </button>
+
+                <div class="divider-or" data-i18n="orDivider">or sign in with your ID</div>
+
+                <form onsubmit="handleAuthSubmit(event)" style="text-align: left;" id="login-form">
+                    <div class="input-group">
+                        <label data-i18n="idOrEmailLabel">Student ID</label>
+                        <input type="text" id="auth-email" class="input-control" required autocomplete="username" data-i18n-placeholder="idOrEmailPh" placeholder="e.g. 12345678-9">
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="passwordLabel">Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="auth-password" class="input-control has-icon" required autocomplete="current-password" data-i18n-placeholder="passwordPh" placeholder="Your password">
+                            <button type="button" class="input-icon" onclick="togglePasswordVisibility()"><i class="far fa-eye" id="pw-eye-icon"></i></button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;" id="auth-submit-btn" data-i18n="signInBtn">Sign In</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= ABOUT US ================= -->
+        <section id="about" class="page-section container">
+            <div class="info-hero">
+                <h1 style="font-size: 2.4rem;" data-i18n="aboutHeroTitle">About Z-English</h1>
+                <p data-i18n="aboutHeroSub">Who we are and why we built a calmer, more structured way to learn English.</p>
+            </div>
+
+            <div class="card" style="max-width: 800px; margin: 0 auto 30px;">
+                <p data-i18n="aboutBody1" style="margin-bottom: 14px;">
+                    Z-English is a curated English learning academy built around two structured tracks — Basic and Advanced — each made up of ten levels with seven guided sessions per level. Every session is unlocked step by step, so learners always know exactly where they are and what comes next.
+                </p>
+                <p data-i18n="aboutBody2">
+                    Accounts are never self-registered. Every student is enrolled directly by our administration team, and our community space is gender-filtered to keep discussions comfortable and focused on learning.
+                </p>
+            </div>
+
+            <div class="about-grid">
+                <div class="card text-center">
+                    <i class="fas fa-bullseye" style="color: var(--z-blue);"></i>
+                    <h3 style="margin-top: 12px; font-size: 1.1rem;" data-i18n="aboutMissionTitle">Our Mission</h3>
+                    <p style="margin-top: 8px;" data-i18n="aboutMissionDesc">To make structured, high-quality English learning accessible, clear, and stress-free for every student.</p>
+                </div>
+                <div class="card text-center">
+                    <i class="fas fa-layer-group" style="color: var(--z-yellow-dark);"></i>
+                    <h3 style="margin-top: 12px; font-size: 1.1rem;" data-i18n="aboutMethodTitle">Our Method</h3>
+                    <p style="margin-top: 8px;" data-i18n="aboutMethodDesc">A clear progression of levels and sessions, guided live by instructors rather than left to chance.</p>
+                </div>
+                <div class="card text-center">
+                    <i class="fas fa-people-group" style="color: var(--z-blue);"></i>
+                    <h3 style="margin-top: 12px; font-size: 1.1rem;" data-i18n="aboutCommunityTitle">Our Community</h3>
+                    <p style="margin-top: 8px;" data-i18n="aboutCommunityDesc">A supportive, moderated space where students can ask questions and share progress comfortably.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= CONTACT US ================= -->
+        <section id="contact" class="page-section container">
+            <div class="info-hero">
+                <h1 style="font-size: 2.4rem;" data-i18n="contactHeroTitle">Contact Us</h1>
+                <p data-i18n="contactHeroSub">Questions about enrollment, sessions, or your account? Reach out — we're happy to help.</p>
+            </div>
+
+            <div class="contact-grid">
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;" data-i18n="contactInfoTitle">Get in Touch</h3>
+
+                    <div class="contact-info-row">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4 data-i18n="contactEmailLabel">Email</h4>
+                            <p>support@zenglish.academy</p>
+                        </div>
+                    </div>
+                    <div class="contact-info-row">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4 data-i18n="contactPhoneLabel">Phone</h4>
+                            <p>+20 100 000 0000</p>
+                        </div>
+                    </div>
+                    <div class="social-row">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;" data-i18n="contactFormTitle">Send a Message</h3>
+                    <div class="alert-box error" id="contact-alert"><i class="fas fa-circle-exclamation"></i> <span id="contact-alert-text"></span></div>
+                    <div class="alert-box success" id="contact-success"><i class="fas fa-circle-check"></i> <span id="contact-success-text"></span></div>
+
+                    <form onsubmit="handleContactSubmit(event)">
+                        <div class="input-group">
+                            <label data-i18n="contactFormName">Your Name</label>
+                            <input type="text" id="contact-name" class="input-control" required>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="contactFormEmail">Your Email</label>
+                            <input type="email" id="contact-email" class="input-control" required>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="contactFormMessage">Message</label>
+                            <textarea id="contact-message" class="input-control" rows="4" required data-i18n-placeholder="contactFormMessagePh" placeholder="How can we help?"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;" id="contact-send-btn" data-i18n="contactSendBtn">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STUDENT DASHBOARD ================= -->
+        <section id="student-dashboard" class="page-section container">
+            <div class="dash-header">
+                <div>
+                    <h2 id="dash-greeting">Hi!</h2>
+                    <p data-i18n="dashSub">Pick a track, then a level, then a session.</p>
+                    <div class="session-pill"><i class="fas fa-shield-halved"></i> <span id="session-pill-text">Session secured</span></div>
+                </div>
+                <div class="avatar"><i class="fas fa-user"></i></div>
+            </div>
+
+            <div class="track-tabs">
+                <button type="button" class="track-tab active" id="track-tab-basic" onclick="switchTrack('basic')" data-i18n="basicTrack">Basic</button>
+                <button type="button" class="track-tab" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced</button>
+            </div>
+
+            <div class="level-list" id="level-list"></div>
+        </section>
+
+        <!-- ================= ADMIN DASHBOARD ================= -->
+        <section id="admin-dashboard" class="page-section container">
+            <div class="dash-header">
+                <div>
+                    <h2 id="admin-greeting">Hi, Admin!</h2>
+                    <p data-i18n="adminDashSub">Manage student accounts and session content.</p>
+                    <div class="session-pill"><i class="fas fa-shield-halved"></i> <span id="admin-session-pill-text">Session secured</span></div>
+                </div>
+                <div class="avatar"><i class="fas fa-user-shield"></i></div>
+            </div>
+
+            <div class="admin-tabs">
+                <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
+                <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
+            </div>
+
+            <div class="admin-panel active" id="admin-panel-students">
+                <div class="card">
+                    <h3 data-i18n="createStudentTitle" style="margin-bottom: 20px;">Create Student Account</h3>
+                    <div class="alert-box error" id="create-student-alert"><i class="fas fa-circle-exclamation"></i> <span id="create-student-alert-text"></span></div>
+                    <div class="alert-box success" id="create-student-success"><i class="fas fa-circle-check"></i> <span id="create-student-success-text"></span></div>
+                    <form onsubmit="handleCreateStudent(event)">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label data-i18n="studentIdField">Student ID</label>
+                                <input type="text" id="new-student-id" class="input-control" required data-i18n-placeholder="studentIdPh" placeholder="e.g. STU-1042">
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="studentNameField">Full Name</label>
+                                <input type="text" id="new-student-name" class="input-control" required>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="studentPasswordField">Password</label>
+                                <input type="text" id="new-student-password" class="input-control" required minlength="6" data-i18n-placeholder="studentPasswordPh" placeholder="At least 6 characters">
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="selectGender">Gender</label>
+                                <select id="new-student-gender" class="input-control">
+                                    <option value="male" data-i18n="genderMale">Male</option>
+                                    <option value="female" data-i18n="genderFemale">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;" id="create-student-btn" data-i18n="createStudentBtn">Create Account</button>
+                    </form>
+                </div>
+
+                <div class="card" style="margin-top: 24px;">
+                    <div class="flex justify-between items-center">
+                        <h3 data-i18n="existingStudentsTitle">Existing Students</h3>
+                        <button class="btn btn-outline btn-sm" onclick="loadStudentsList()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+                    </div>
+                    <div id="students-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
+                </div>
+            </div>
+
+            <div class="admin-panel" id="admin-panel-sessions">
+                <div class="card">
+                    <h3 data-i18n="setSessionTitle" style="margin-bottom: 20px;">Set Session Password, Link & Content</h3>
+                    <div class="alert-box error" id="session-form-alert"><i class="fas fa-circle-exclamation"></i> <span id="session-form-alert-text"></span></div>
+                    <div class="alert-box success" id="session-form-success"><i class="fas fa-circle-check"></i> <span id="session-form-success-text"></span></div>
+                    <form onsubmit="handleSetSession(event)" id="combined-session-form">
+                        <!-- Session Selection & Password/Link Section -->
+                        <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                            <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Session Details</legend>
+                            <div class="form-grid">
+                                <div class="input-group">
+                                    <label data-i18n="sectionLabel">Track</label>
+                                    <select id="sess-track" class="input-control">
+                                        <option value="basic" data-i18n="basicTrack">Basic</option>
+                                        <option value="advanced" data-i18n="advancedTrack">Advanced</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label data-i18n="levelLabel">Level</label>
+                                    <select id="sess-level" class="input-control"></select>
+                                </div>
+                                <div class="input-group">
+                                    <label data-i18n="sessionLabel">Session</label>
+                                    <select id="sess-number" class="input-control"></select>
+                                </div>
+                                <div class="input-group">
+                                    <label data-i18n="sessionPasswordLabel">Session Password</label>
+                                    <input type="text" id="sess-password" class="input-control" minlength="4">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="sessionLinkLabel">Session Link (Zoom, Meet, video, etc.)</label>
+                                <input type="url" id="sess-link" class="input-control" placeholder="https://...">
+                            </div>
+                        </fieldset>
+
+                        <!-- Lesson Content Upload Section -->
+                        <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                            <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Lesson Content (JSON)</legend>
+                            <div id="lesson-file-status" class="lesson-file-status" style="margin-bottom: 12px;"></div>
+                            <div id="lesson-dropzone" class="dropzone" onclick="document.getElementById('lesson-file-input').click()">
+                                <input type="file" id="lesson-file-input" accept="application/json,.json" style="display:none;" onchange="handleLessonFileInput(event)">
+                                <div class="dropzone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                                <div class="dropzone-text" id="dropzone-main-text" data-i18n="dropzoneMain">Drag &amp; drop the lesson JSON file here</div>
+                                <div class="dropzone-subtext" data-i18n="dropzoneSub">or click to browse your computer / Drive</div>
+                            </div>
+                            <div style="margin-top: 12px; display: flex; gap: 10px;">
+                                <button type="button" class="btn btn-outline btn-sm" id="clear-lesson-btn" onclick="clearLessonContent()" style="display: none;">
+                                    <i class="fas fa-trash"></i> Clear JSON
+                                </button>
+                            </div>
+                        </fieldset>
+
+                        <!-- Save Buttons -->
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" id="save-session-btn" data-i18n="saveSessionBtn">Save Session & Content</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card" style="margin-top: 24px;">
+                    <div class="flex justify-between items-center">
+                        <h3 data-i18n="configuredSessionsTitle">Configured Sessions</h3>
+                        <button class="btn btn-outline btn-sm" onclick="loadSessionsOverview()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+                    </div>
+                    <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="community" class="page-section container">
+            <div class="community-wrapper">
+                <div style="margin-bottom: 30px;">
+                    <h2 data-i18n="commTitle">Community Chat</h2>
+                    <p id="community-status">Connecting to your peers...</p>
+                </div>
+
+                <div class="alert-box error" id="post-alert"><i class="fas fa-circle-exclamation"></i> <span id="post-alert-text"></span></div>
+
+                <div class="card post-box">
+                    <textarea id="new-post-content" class="input-control" rows="3" placeholder="Share a tip or ask a question..." data-i18n-placeholder="postPh" style="border: none; background: transparent; padding: 0; resize: none;"></textarea>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button class="btn btn-secondary" style="padding: 10px 20px;" id="submit-post-btn" onclick="submitPost()" data-i18n="postBtn">Post Message</button>
+                    </div>
+                </div>
+
+                <div id="feed-container">
+                    </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Z-English Learning Academy.</p>
+    </footer>
+
+    <script>
+        // =====================================================================
+        // CONFIGURATION — fill these in before deploying
+        // =====================================================================
+        const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLKsoECjru-XuRHpJkn5xCIf003gG2JmVdG4OolMR2nN-sF8nAFoavT2oPWwI/exec";
+        const GOOGLE_CLIENT_ID = "952898702818-35ocok77mkno32mfvhkq7bdapqmfoljq.apps.googleusercontent.com";
+
+        const LEVELS_PER_TRACK = 10;
+        const SESSIONS_PER_LEVEL = 7;
+
+        let currentUser = null;      // { id, name, role, gender }
+        let sessionToken = null;
+        let currentLang = 'en';
+        let currentTrack = 'basic';
+        let sessionsCache = {};      // "basic-3-2" -> { link, unlocked }
+
+        // --- Internationalization ---
+        const translations = {
+            en: {
+                uploadLessonTitle: "Upload Lesson Content",
+dropzoneMain: "Drag & drop the lesson JSON file here",
+dropzoneSub: "or click to browse your computer / Drive",
+lessonUploadedMsg: "Lesson content uploaded successfully.",
+                heroTitle: "English<br>from A to <span style=\"color: var(--z-yellow);\">Z</span>.",
+                heroSub: "Your English learning destination.",
+                startLearning: "Start Learning",
+                feat1Title: "Clear Paths", feat1Desc: "Two structured tracks, ten levels each, seven guided sessions per level.",
+                feat2Title: "Safe Space", feat2Desc: "Our gender-filtered community feeds keep conversations comfortable.",
+                feat3Title: "Curated", feat3Desc: "Every student account is created and issued by administration — no open sign-up.",
+                signInTitle: "Sign In", signInSub: "Use the ID and password your administrator gave you.",
+                googleAdminBtn: "Admin: Continue with Google", orDivider: "or sign in with your ID",
+                idOrEmailLabel: "Student ID", idOrEmailPh: "e.g. STU-1042",
+                passwordLabel: "Password", passwordPh: "Your password",
+                signInBtn: "Sign In",
+                dashSub: "Pick a track, then a level, then a session.",
+                basicTrack: "Basic", advancedTrack: "Advanced",
+                levelWord: "Level", sessionWord: "Session",
+                sessionPasswordPh: "Enter session password",
+                unlockBtn: "Unlock", openSessionBtn: "Open Session",
+                wrongPasswordMsg: "Incorrect password for this session.",
+                sessionUnlockedMsg: "Unlocked! Opening your session...",
+                sessionErrGeneric: "Couldn't check that password. Try again.",
+                adminDashSub: "Manage student accounts and session content.",
+                adminTabStudents: "Student Accounts", adminTabSessions: "Session Content",
+                createStudentTitle: "Create Student Account",
+                studentIdField: "Student ID", studentIdPh: "e.g. STU-1042",
+                studentNameField: "Full Name",
+                studentPasswordField: "Password", studentPasswordPh: "At least 6 characters",
+                selectGender: "Gender", genderMale: "Male", genderFemale: "Female",
+                createStudentBtn: "Create Account",
+                existingStudentsTitle: "Existing Students", refreshBtn: "Refresh", loadingText: "Loading...",
+                errCreateStudentFields: "Please fill in every field.",
+                errStudentIdTaken: "That student ID is already in use.",
+                studentCreatedMsg: "Student account created successfully.",
+                setSessionTitle: "Set Session Password & Link",
+                sectionLabel: "Track", levelLabel: "Level", sessionLabel: "Session",
+                sessionPasswordLabel: "Session Password", sessionLinkLabel: "Session Link (Zoom, Meet, video, etc.)",
+                saveSessionBtn: "Save", sessionSavedMsg: "Session content saved.",
+                configuredSessionsTitle: "Configured Sessions",
+                commTitle: "Community Chat", postBtn: "Post Message", postPh: "Share a tip or ask a question...",
+                navHome: "Home", navLogin: "Sign In", navDash: "My Courses", navAdmin: "Admin Panel", navComm: "Community", navLogout: "Log Out",
+                navAbout: "About Us", navContact: "Contact Us",
+                statusAdmin: "Admin View: Seeing all posts.",
+                statusStudentM: "Student View: Showing Male & Admin posts.",
+                statusStudentF: "Student View: Showing Female & Admin posts.",
+                sessionSecured: "Session secured",
+                errFillFields: "Please fill in all required fields.",
+                errLoginFailed: "Incorrect ID or password.",
+                errNetwork: "Couldn't reach the server. Check the Apps Script URL and try again.",
+                errPostEmpty: "Write something before posting.",
+                errPostFailed: "Your message could not be posted. Please try again.",
+                errSessionExpired: "Your session has expired. Please sign in again.",
+                emptyFeed: "No posts yet — be the first to share something!",
+                noStudentsYet: "No student accounts yet.",
+                noSessionsYet: "No sessions configured yet.",
+                aboutHeroTitle: "About Z-English",
+                aboutHeroSub: "Who we are and why we built a calmer, more structured way to learn English.",
+                aboutBody1: "Z-English is a curated English learning academy built around two structured tracks — Basic and Advanced — each made up of ten levels with seven guided sessions per level. Every session is unlocked step by step, so learners always know exactly where they are and what comes next.",
+                aboutBody2: "Accounts are never self-registered. Every student is enrolled directly by our administration team, and our community space is gender-filtered to keep discussions comfortable and focused on learning.",
+                aboutMissionTitle: "Our Mission",
+                aboutMissionDesc: "To make structured, high-quality English learning accessible, clear, and stress-free for every student.",
+                aboutMethodTitle: "Our Method",
+                aboutMethodDesc: "A clear progression of levels and sessions, guided live by instructors rather than left to chance.",
+                aboutCommunityTitle: "Our Community",
+                aboutCommunityDesc: "A supportive, moderated space where students can ask questions and share progress comfortably.",
+                contactHeroTitle: "Contact Us",
+                contactHeroSub: "Questions about enrollment, sessions, or your account? Reach out — we're happy to help.",
+                contactInfoTitle: "Get in Touch",
+                contactEmailLabel: "Email", contactPhoneLabel: "Phone",
+                contactFormTitle: "Send a Message",
+                contactFormName: "Your Name", contactFormEmail: "Your Email",
+                contactFormMessage: "Message", contactFormMessagePh: "How can we help?",
+                contactSendBtn: "Send Message",
+                contactSentMsg: "Thanks! Your message has been sent — we'll get back to you soon.",
+                errContactFields: "Please fill in all fields before sending."
+            },
+            ar: {uploadLessonTitle: "رفع محتوى الجلسة",
+dropzoneMain: "اسحب وأفلت ملف JSON الخاص بالجلسة هنا",
+dropzoneSub: "أو اضغط لاختياره من جهازك أو Drive",
+lessonUploadedMsg: "تم رفع محتوى الجلسة بنجاح.",
+                heroTitle: "الأنجليزية <br>من أ إلى <span style=\"color: var(--z-yellow);\">ي</span>.",
+                heroSub: "وجهة تعلمك للغة الإنجليزية.",
+                startLearning: "ابدأ التعلم",
+                feat1Title: "مسارات واضحة", feat1Desc: "مساران منظمان، عشرة مستويات لكل منهما، وسبع جلسات في كل مستوى.",
+                feat2Title: "مساحة آمنة", feat2Desc: "مجتمع مفلتر حسب الجنس لضمان راحة الجميع.",
+                feat3Title: "إدارة صارمة", feat3Desc: "يتم إنشاء كل حساب طالب من قبل الإدارة فقط — لا تسجيل مفتوح.",
+                signInTitle: "تسجيل الدخول", signInSub: "استخدم الرقم التعريفي وكلمة المرور التي زودتك بها الإدارة.",
+                googleAdminBtn: "المسؤول: الاستمرار مع جوجل", orDivider: "أو سجّل الدخول برقمك التعريفي",
+                idOrEmailLabel: "رقم الطالب", idOrEmailPh: "مثال: 12345678-9",
+                passwordLabel: "كلمة المرور", passwordPh: "كلمة المرور الخاصة بك",
+                signInBtn: "تسجيل الدخول",
+                dashSub: "اختر مسارًا، ثم مستوى، ثم جلسة.",
+                basicTrack: "أساسي", advancedTrack: "متقدم",
+                levelWord: "المستوى", sessionWord: "الجلسة",
+                sessionPasswordPh: "أدخل كلمة مرور الجلسة",
+                unlockBtn: "فتح", openSessionBtn: "فتح الجلسة",
+                wrongPasswordMsg: "كلمة المرور غير صحيحة لهذه الجلسة.",
+                sessionUnlockedMsg: "تم الفتح! جاري فتح جلستك...",
+                sessionErrGeneric: "تعذر التحقق من كلمة المرور. حاول مرة أخرى.",
+                adminDashSub: "إدارة حسابات الطلاب ومحتوى الجلسات.",
+                adminTabStudents: "حسابات الطلاب", adminTabSessions: "محتوى الجلسات",
+                createStudentTitle: "إنشاء حساب طالب",
+                studentIdField: "رقم الطالب", studentIdPh: "مثال: STU-1042",
+                studentNameField: "الاسم الكامل",
+                studentPasswordField: "كلمة المرور", studentPasswordPh: "٦ أحرف على الأقل",
+                selectGender: "الجنس", genderMale: "ذكر", genderFemale: "أنثى",
+                createStudentBtn: "إنشاء الحساب",
+                existingStudentsTitle: "الطلاب الحاليون", refreshBtn: "تحديث", loadingText: "جاري التحميل...",
+                errCreateStudentFields: "يرجى تعبئة جميع الحقول.",
+                errStudentIdTaken: "رقم الطالب هذا مستخدم بالفعل.",
+                studentCreatedMsg: "تم إنشاء حساب الطالب بنجاح.",
+                setSessionTitle: "تعيين كلمة مرور ورابط الجلسة",
+                sectionLabel: "المسار", levelLabel: "المستوى", sessionLabel: "الجلسة",
+                sessionPasswordLabel: "كلمة مرور الجلسة", sessionLinkLabel: "رابط الجلسة (زووم، ميت، فيديو...)",
+                saveSessionBtn: "حفظ", sessionSavedMsg: "تم حفظ محتوى الجلسة.",
+                configuredSessionsTitle: "الجلسات المُعدّة",
+                commTitle: "مجتمع الطلاب", postBtn: "نشر الرسالة", postPh: "شارك نصيحة أو اطرح سؤالاً...",
+                navHome: "الرئيسية", navLogin: "تسجيل الدخول", navDash: "دوراتي", navAdmin: "لوحة المسؤول", navComm: "المجتمع", navLogout: "خروج",
+                navAbout: "من نحن", navContact: "اتصل بنا",
+                statusAdmin: "عرض المسؤول: رؤية جميع المنشورات.",
+                statusStudentM: "عرض الطالب: إظهار منشورات الذكور والإدارة.",
+                statusStudentF: "عرض الطالب: إظهار منشورات الإناث والإدارة.",
+                sessionSecured: "الجلسة مؤمّنة",
+                errFillFields: "يرجى تعبئة جميع الحقول المطلوبة.",
+                errLoginFailed: "الرقم التعريفي أو كلمة المرور غير صحيحة.",
+                errNetwork: "تعذر الاتصال بالخادم. تحقق من رابط Apps Script وحاول مرة أخرى.",
+                errPostEmpty: "اكتب شيئًا قبل النشر.",
+                errPostFailed: "تعذر نشر رسالتك. يرجى المحاولة مرة أخرى.",
+                errSessionExpired: "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+                emptyFeed: "لا توجد منشورات بعد — كن أول من يشارك شيئًا!",
+                noStudentsYet: "لا توجد حسابات طلاب بعد.",
+                noSessionsYet: "لا توجد جلسات مُعدّة بعد.",
+                aboutHeroTitle: "من نحن",
+                aboutHeroSub: "من نحن ولماذا صممنا طريقة أكثر تنظيمًا وهدوءًا لتعلّم الإنجليزية.",
+                aboutBody1: "زد إنجلش هي أكاديمية تعليم إنجليزية منظمة تقوم على مسارين — أساسي ومتقدم — يضم كل منهما عشرة مستويات وسبع جلسات مُوجّهة في كل مستوى. يتم فتح كل جلسة تدريجيًا، حتى يعرف المتعلم دائمًا أين هو وما هي الخطوة التالية.",
+                aboutBody2: "لا يمكن للطلاب التسجيل بأنفسهم؛ يتم تسجيل كل طالب مباشرة من قبل فريق الإدارة، ومساحة المجتمع لدينا مفلترة حسب الجنس لضمان راحة النقاشات وتركيزها على التعلم.",
+                aboutMissionTitle: "مهمتنا",
+                aboutMissionDesc: "أن نجعل تعلّم الإنجليزية المنظم وعالي الجودة متاحًا وواضحًا وخاليًا من التوتر لكل طالب.",
+                aboutMethodTitle: "منهجيتنا",
+                aboutMethodDesc: "تقدّم واضح عبر المستويات والجلسات، بتوجيه مباشر من المدرّبين بدلاً من ترك الأمر للصدفة.",
+                aboutCommunityTitle: "مجتمعنا",
+                aboutCommunityDesc: "مساحة داعمة ومُراقَبة يمكن للطلاب فيها طرح الأسئلة ومشاركة تقدمهم بارتياح.",
+                contactHeroTitle: "اتصل بنا",
+                contactHeroSub: "لديك أسئلة حول التسجيل أو الجلسات أو حسابك؟ تواصل معنا — سنكون سعداء بمساعدتك.",
+                contactInfoTitle: "تواصل معنا",
+                contactEmailLabel: "البريد الإلكتروني", contactPhoneLabel: "الهاتف",
+                contactFormTitle: "أرسل رسالة",
+                contactFormName: "الاسم", contactFormEmail: "البريد الإلكتروني",
+                contactFormMessage: "الرسالة", contactFormMessagePh: "كيف يمكننا مساعدتك؟",
+                contactSendBtn: "إرسال الرسالة",
+                contactSentMsg: "شكرًا لك! تم إرسال رسالتك — سنتواصل معك قريبًا.",
+                errContactFields: "يرجى تعبئة جميع الحقول قبل الإرسال."
+            }
+        };
+
+        let mockPosts = [
+            { id: 1, author: "Admin Sarah", role: "admin", gender: "female", content: "Welcome everyone! Tests are due Friday.", isPinned: true, date: new Date().toISOString() },
+            { id: 2, author: "John D.", role: "student", gender: "male", content: "Is anyone else struggling with past tense verbs?", isPinned: false, date: new Date().toISOString() }
+        ];
+
+        function backendConfigured() {
+            return GOOGLE_APP_SCRIPT_URL && !GOOGLE_APP_SCRIPT_URL.includes('MY-CODE');
+        }
+
+        // --- Session token helpers ---
+        function generateSessionToken() {
+            if (window.crypto && window.crypto.randomUUID) return crypto.randomUUID();
+            return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+        function persistSession() {
+            try { sessionStorage.setItem('zenglish_session', JSON.stringify({ user: currentUser, token: sessionToken })); } catch (e) {}
+        }
+        function restoreSession() {
+            try {
+                const raw = sessionStorage.getItem('zenglish_session');
+                if (!raw) return false;
+                const parsed = JSON.parse(raw);
+                currentUser = parsed.user;
+                sessionToken = parsed.token;
+                return true;
+            } catch (e) { return false; }
+        }
+        function clearSession() {
+            currentUser = null; sessionToken = null;
+            try { sessionStorage.removeItem('zenglish_session'); } catch (e) {}
+        }
+
+        // --- Language ---
+        function toggleLangMenu() { document.getElementById('lang-dropdown').classList.toggle('open'); }
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('lang-dropdown');
+            if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+        });
+
+        function setLanguage(lang) {
+            if (lang !== currentLang) {
+                currentLang = lang;
+                document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+                document.documentElement.lang = currentLang;
+                document.getElementById('login-form').style.textAlign = currentLang === 'ar' ? 'right' : 'left';
+                applyTranslations();
+                updateNavbar();
+                if (currentUser) {
+                    if (currentUser.role === 'student') { updateGreeting(); renderLevelList(); }
+                    if (currentUser.role === 'admin') { document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + currentUser.name + '!'; }
+                    if (document.getElementById('community').classList.contains('active')) { updateCommunityStatusText(); fetchAndRenderCommunity(); }
+                }
+            }
+            document.getElementById('lang-dropdown').classList.remove('open');
+        }
+
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) el.innerHTML = translations[currentLang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[currentLang][key]) el.setAttribute('placeholder', translations[currentLang][key]);
+            });
+            document.querySelectorAll('.lang-option').forEach(el => el.classList.toggle('active', el.dataset.lang === currentLang));
+        }
+
+        function updateNavbar() {
+            const nav = document.getElementById('nav-links');
+            const langSwitcher = `
+                <div class="lang-dropdown" id="lang-dropdown">
+                    <button type="button" class="lang-trigger" onclick="toggleLangMenu()">
+                        <i class="fas fa-globe"></i><span>${currentLang === 'en' ? 'English' : 'العربية'}</span>
+                        <i class="fas fa-chevron-down chev"></i>
+                    </button>
+                    <div class="lang-menu">
+                        <button type="button" class="lang-option ${currentLang === 'en' ? 'active' : ''}" data-lang="en" onclick="setLanguage('en')">
+                            <span><span class="flag">🇬🇧</span>English</span><i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="lang-option ${currentLang === 'ar' ? 'active' : ''}" data-lang="ar" onclick="setLanguage('ar')">
+                            <span><span class="flag">🇪🇬</span>العربية</span><i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </div>`;
+
+            if (currentUser && currentUser.role === 'admin') {
+                nav.innerHTML = `
+                    <a href="#" class="nav-link" onclick="navigate('admin-dashboard')">${translations[currentLang].navAdmin}</a>
+                    <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
+                    <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
+                    <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
+                    <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
+                    ${langSwitcher}`;
+            } else if (currentUser && currentUser.role === 'student') {
+                nav.innerHTML = `
+                    <a href="#" class="nav-link" onclick="navigate('student-dashboard')">${translations[currentLang].navDash}</a>
+                    <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
+                    <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
+                    <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
+                    <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
+                    ${langSwitcher}`;
+            } else {
+                nav.innerHTML = `
+                    <a href="#" class="nav-link" onclick="navigate('landing')">${translations[currentLang].navHome}</a>
+                    <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
+                    <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
+                    <button class="btn btn-primary" style="padding: 8px 16px;" onclick="navigate('login')">${translations[currentLang].navLogin}</button>
+                    ${langSwitcher}`;
+            }
+        }
+
+        function navigate(pageId) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            if (pageId === 'community') fetchAndRenderCommunity();
+            if (pageId === 'login') initGoogleButton();
+            if (pageId === 'student-dashboard') renderLevelList();
+            if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); }
+        }
+
+        // --- Auth ---
+        function togglePasswordVisibility() {
+            const input = document.getElementById('auth-password');
+            const icon = document.getElementById('pw-eye-icon');
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            icon.className = show ? 'far fa-eye-slash' : 'far fa-eye';
+        }
+        function showAuthAlert(msg) { document.getElementById('auth-alert-text').textContent = msg; document.getElementById('auth-alert').classList.add('show'); }
+        function hideAuthAlert() { document.getElementById('auth-alert').classList.remove('show'); }
+
+        async function callBackend(params) {
+            if (!backendConfigured()) throw new Error('Backend not configured');
+            const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        }
+        async function callBackendGet(params) {
+            if (!backendConfigured()) throw new Error('Backend not configured');
+            const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            hideAuthAlert();
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            if (!email || !password) { showAuthAlert(translations[currentLang].errFillFields); return; }
+
+            const btn = document.getElementById('auth-submit-btn');
+            btn.disabled = true; setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'login', email, password });
+                const result = await callBackend(body);
+                if (!result.success) { showAuthAlert(result.message || translations[currentLang].errLoginFailed); return; }
+                completeLogin(result.user, result.sessionToken);
+            } catch (err) {
+                console.error(err);
+                showAuthAlert(translations[currentLang].errNetwork);
+            } finally {
+                btn.disabled = false; setLoading(false);
+            }
+        }
+
+        function initGoogleButton() {
+            if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
+                document.getElementById('google-fallback-btn').style.display = 'flex';
+                return;
+            }
+            
+            // Check if Google API loaded and if we're in an iframe (Google Sites)
+            if (!window.google || !google.accounts) {
+                console.warn('Google Sign-In not available, trying again in 500ms...');
+                setTimeout(initGoogleButton, 500);
+                return;
+            }
+            
+            try {
+                // Initialize with additional options for better iframe compatibility
+                google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleGoogleCredential,
+                    // Use hosted domain for better compatibility
+                    hosted_domain: window.location.hostname,
+                    // Allow sign-in from iframes
+                    ux_mode: 'popup'
+                });
+                google.accounts.id.renderButton(document.getElementById('google-btn-container'), {
+                    theme: 'outline',
+                    size: 'large',
+                    width: 390,
+                    text: 'continue_with'
+                });
+                
+                // Also render a One Tap UI as fallback
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        console.log('One Tap UI not displayed');
+                    }
+                });
+            } catch (e) {
+                console.error('Google Button Init Error:', e);
+                document.getElementById('google-fallback-btn').style.display = 'flex';
+            }
+        }
+        
+        function handleGoogleFallback() {
+            const msg = 'Google Sign-In may not be available in this context. Please use your Student ID and password to sign in instead.';
+            showAuthAlert(msg);
+        }
+
+        async function handleGoogleCredential(response) {
+            hideAuthAlert(); setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'googleLogin', idToken: response.credential });
+                const result = await callBackend(body);
+                if (!result.success) { showAuthAlert(result.message || translations[currentLang].errLoginFailed); return; }
+                completeLogin(result.user, result.sessionToken);
+            } catch (err) {
+                console.error(err);
+                showAuthAlert(translations[currentLang].errNetwork);
+            } finally { setLoading(false); }
+        }
+
+        function completeLogin(user, token) {
+            currentUser = user; sessionToken = token;
+            persistSession();
+            updateNavbar();
+            document.getElementById('login-form').reset();
+            if (user.role === 'admin') {
+                document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + user.name + '!';
+                navigate('admin-dashboard');
+            } else {
+                updateGreeting();
+                navigate('student-dashboard');
+            }
+        }
+
+        function handleLogout() { clearSession(); updateNavbar(); navigate('landing'); }
+
+        function updateGreeting() {
+            const greet = currentLang === 'en' ? 'Hi' : 'مرحباً';
+            document.getElementById('dash-greeting').innerText = `${greet}, ${currentUser.name || currentUser.id}!`;
+            document.getElementById('session-pill-text').textContent = translations[currentLang].sessionSecured;
+        }
+
+        function setLoading(isLoading) { document.getElementById('loading-overlay').style.display = isLoading ? 'flex' : 'none'; }
+
+        function handleAuthOrLogoutOnExpiry() { showAuthAlert(translations[currentLang].errSessionExpired); handleLogout(); navigate('login'); }
+
+        // =====================================================================
+        // Contact form
+        // =====================================================================
+        function showContactAlert(msg) {
+            document.getElementById('contact-alert-text').textContent = msg;
+            document.getElementById('contact-alert').classList.add('show');
+        }
+        function hideContactAlerts() {
+            document.getElementById('contact-alert').classList.remove('show');
+            document.getElementById('contact-success').classList.remove('show');
+        }
+
+        async function handleContactSubmit(e) {
+            e.preventDefault();
+            hideContactAlerts();
+
+            const name = document.getElementById('contact-name').value.trim();
+            const email = document.getElementById('contact-email').value.trim();
+            const message = document.getElementById('contact-message').value.trim();
+
+            if (!name || !email || !message) {
+                showContactAlert(translations[currentLang].errContactFields);
+                return;
+            }
+
+            const btn = document.getElementById('contact-send-btn');
+            btn.disabled = true; setLoading(true);
+            try {
+                if (!backendConfigured()) {
+                    showContactAlert('Backend not configured. Contact form cannot be sent.');
+                    return;
+                }
+
+                const body = new URLSearchParams({ action: 'contactMessage', name, email, message });
+                const result = await callBackend(body);
+                
+                if (!result.success) {
+                    showContactAlert(result.message || translations[currentLang].errNetwork);
+                    return;
+                }
+
+                // Only show success if backend confirmed it was sent
+                document.getElementById('contact-success-text').textContent = translations[currentLang].contactSentMsg;
+                document.getElementById('contact-success').classList.add('show');
+                document.getElementById('contact-name').value = '';
+                document.getElementById('contact-email').value = '';
+                document.getElementById('contact-message').value = '';
+            } catch (err) {
+                console.error('Contact form error:', err);
+                showContactAlert(translations[currentLang].errNetwork);
+            } finally {
+                btn.disabled = false; setLoading(false);
+            }
+        }
+
+        // =====================================================================
+        // Student dashboard: Basic/Advanced -> 10 levels -> 7 sessions each
+        // =====================================================================
+        function switchTrack(track) {
+            currentTrack = track;
+            document.getElementById('track-tab-basic').classList.toggle('active', track === 'basic');
+            document.getElementById('track-tab-advanced').classList.toggle('active', track === 'advanced');
+            renderLevelList();
+        }
+
+        function renderLevelList() {
+            const container = document.getElementById('level-list');
+            container.innerHTML = '';
+            for (let level = 1; level <= LEVELS_PER_TRACK; level++) {
+                const levelCard = document.createElement('div');
+                levelCard.className = 'level-card';
+                levelCard.id = `level-card-${level}`;
+
+                const header = document.createElement('div');
+                header.className = 'level-header';
+                header.onclick = () => toggleLevel(level);
+                header.innerHTML = `
+                    <div class="level-title">
+                        <span class="level-num-badge">${level}</span>
+                        <span>${translations[currentLang].levelWord} ${level}</span>
+                    </div>
+                    <i class="fas fa-chevron-down level-chev"></i>`;
+
+                const sessionsWrap = document.createElement('div');
+                sessionsWrap.className = 'level-sessions';
+                for (let sNum = 1; sNum <= SESSIONS_PER_LEVEL; sNum++) {
+                    sessionsWrap.appendChild(buildSessionRow(level, sNum));
+                }
+
+                levelCard.appendChild(header);
+                levelCard.appendChild(sessionsWrap);
+                container.appendChild(levelCard);
+            }
+        }
+
+        function toggleLevel(level) {
+            document.getElementById(`level-card-${level}`).classList.toggle('open');
+        }
+
+        function buildSessionRow(level, sessionNum) {
+            const key = `${currentTrack}-${level}-${sessionNum}`;
+            const row = document.createElement('div');
+            row.className = 'session-row';
+            row.id = `row-${key}`;
+            row.innerHTML = `
+                <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
+                <div class="session-controls" id="controls-${key}">
+                    <input type="password" class="input-control small" id="pw-${key}" placeholder="${translations[currentLang].sessionPasswordPh}">
+                    <button type="button" class="btn btn-primary btn-sm unlock-btn" onclick="unlockSession('${currentTrack}', ${level}, ${sessionNum})">
+                        <i class="fas fa-unlock"></i> ${translations[currentLang].unlockBtn}
+                    </button>
+                </div>
+                <div class="session-msg" id="msg-${key}"></div>
+            `;
+            return row;
+        }
+
+        async function unlockSession(track, level, sessionNum) {
+    const key = `${track}-${level}-${sessionNum}`;
+    const pwInput = document.getElementById(`pw-${key}`);
+    const password = pwInput.value;
+    const msgEl = document.getElementById(`msg-${key}`);
+    msgEl.textContent = ''; msgEl.className = 'session-msg';
+
+    if (!password) return;
+    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+    setLoading(true);
+    try {
+        if (backendConfigured()) {
+            const body = new URLSearchParams({ action: 'unlockSession', token: sessionToken, track, level, sessionNumber: sessionNum, password });
+            const result = await callBackend(body);
+            if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+            if (!result.success) {
+                msgEl.textContent = translations[currentLang].wrongPasswordMsg;
+                msgEl.classList.add('error');
+                return;
+            }
+            // Build a one-time, short-lived URL into the gated player instead of
+            // opening the raw link. result.link is the player page URL you set
+            // in the admin "Session Link" field (e.g. https://yourdomain.com/lessons/player.html)
+            const playerUrl = `${result.link}?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}`;
+            onSessionUnlocked(key, playerUrl, msgEl);
+        } else {
+            if (password === 'demo') {
+                onSessionUnlocked(key, 'https://example.com/demo-session', msgEl);
+            } else {
+                msgEl.textContent = translations[currentLang].wrongPasswordMsg;
+                msgEl.classList.add('error');
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        msgEl.textContent = translations[currentLang].sessionErrGeneric;
+        msgEl.classList.add('error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+        function onSessionUnlocked(key, link, msgEl) {
+    msgEl.textContent = translations[currentLang].sessionUnlockedMsg;
+    msgEl.classList.add('success');
+    document.getElementById(`icon-${key}`).className = 'fas fa-lock-open';
+    const controls = document.getElementById(`controls-${key}`);
+    controls.innerHTML = `<a href="${link}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-up-right-from-square"></i> ${translations[currentLang].openSessionBtn}</a>`;
+    window.open(link, '_blank');
+}
+
+        // =====================================================================
+        // Admin dashboard
+        // =====================================================================
+        function switchAdminPanel(panel) {
+            document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.admin-tab[onclick="switchAdminPanel('${panel}')"]`).classList.add('active');
+            document.getElementById(`admin-panel-${panel}`).classList.add('active');
+        }
+
+        // =====================================================================
+        // Combined Session & Lesson Management
+        // =====================================================================
+        let cachedLessonContent = null;
+        let cachedLessonFileName = null;
+
+        // Populate level/session selects
+        (function populateCombinedSelects() {
+            const levelSel = document.getElementById('sess-level');
+            const numSel = document.getElementById('sess-number');
+            for (let i = 1; i <= LEVELS_PER_TRACK; i++) levelSel.innerHTML += `<option value="${i}">${i}</option>`;
+            for (let i = 1; i <= SESSIONS_PER_LEVEL; i++) numSel.innerHTML += `<option value="${i}">${i}</option>`;
+        })();
+
+        const dropzone = document.getElementById('lesson-dropzone');
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
+        });
+        dropzone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) processLessonFile(file);
+        });
+
+        function handleLessonFileInput(e) {
+            const file = e.target.files && e.target.files[0];
+            if (file) processLessonFile(file);
+            e.target.value = '';
+        }
+
+        function setLessonStatus(text, kind) {
+            const el = document.getElementById('lesson-file-status');
+            el.textContent = text;
+            el.className = 'lesson-file-status' + (kind ? ' ' + kind : '');
+            document.getElementById('clear-lesson-btn').style.display = (kind === 'ok') ? 'inline-block' : 'none';
+        }
+
+        function processLessonFile(file) {
+            if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
+                setLessonStatus(`"${file.name}" isn't a .json file.`, 'bad');
+                return;
+            }
+
+            setLessonStatus(`Reading "${file.name}"…`, 'pending');
+            const reader = new FileReader();
+            reader.onload = () => {
+                let parsed;
+                try {
+                    parsed = JSON.parse(reader.result);
+                } catch (err) {
+                    setLessonStatus(`"${file.name}" is not valid JSON.`, 'bad');
+                    return;
+                }
+                if (!Array.isArray(parsed) || parsed.length === 0) {
+                    setLessonStatus('Expected a JSON array of slide HTML strings.', 'bad');
+                    return;
+                }
+                cachedLessonContent = JSON.stringify(parsed);
+                cachedLessonFileName = file.name;
+                setLessonStatus(`Ready: "${file.name}" (${parsed.length} slides)`, 'ok');
+            };
+            reader.onerror = () => setLessonStatus(`Couldn't read "${file.name}".`, 'bad');
+            reader.readAsText(file);
+        }
+
+        function clearLessonContent() {
+            cachedLessonContent = null;
+            cachedLessonFileName = null;
+            document.getElementById('lesson-file-input').value = '';
+            setLessonStatus('', '');
+        }
+
+        async function handleSetSession(e) {
+            e.preventDefault();
+            hideElAlert('session-form-alert');
+            hideElAlert('session-form-success');
+
+            const track = document.getElementById('sess-track').value;
+            const level = document.getElementById('sess-level').value;
+            const sessionNumber = document.getElementById('sess-number').value;
+            const password = document.getElementById('sess-password').value;
+            const link = document.getElementById('sess-link').value.trim();
+
+            const btn = document.getElementById('save-session-btn');
+            btn.disabled = true;
+            setLoading(true);
+
+            try {
+                if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+                // Track what we're saving
+                let sessionSaved = false;
+                let lessonSaved = false;
+
+                // Step 1: Save session details if provided
+                if (password && link) {
+                    try {
+                        const body = new URLSearchParams({
+                            action: 'setSessionContent',
+                            token: sessionToken,
+                            track, level, sessionNumber, password, link
+                        });
+                        const result = await callBackend(body);
+                        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                        if (!result.success) {
+                            showElAlert('session-form-alert', 'session-form-alert-text', result.message || translations[currentLang].errNetwork);
+                            return;
+                        }
+                        sessionSaved = true;
+                    } catch (err) {
+                        console.error(err);
+                        showElAlert('session-form-alert', 'session-form-alert-text', translations[currentLang].errNetwork);
+                        return;
+                    }
+                }
+
+                // Step 2: Save lesson content if provided
+                if (cachedLessonContent) {
+                    try {
+                        const body = new URLSearchParams({
+                            action: 'setLessonContent',
+                            token: sessionToken,
+                            track, level, sessionNumber,
+                            slidesJson: cachedLessonContent
+                        });
+                        const result = await callBackend(body);
+                        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                        if (!result.success) {
+                            showElAlert('session-form-alert', 'session-form-alert-text', result.message || translations[currentLang].errNetwork);
+                            return;
+                        }
+                        lessonSaved = true;
+                        cachedLessonContent = null;
+                        cachedLessonFileName = null;
+                        clearLessonContent();
+                    } catch (err) {
+                        console.error(err);
+                        showElAlert('session-form-alert', 'session-form-alert-text', translations[currentLang].errNetwork);
+                        return;
+                    }
+                }
+
+                // Show success and clear form
+                if (sessionSaved || lessonSaved) {
+                    showElAlert('session-form-success', 'session-form-success-text', translations[currentLang].sessionSavedMsg);
+                    if (password) document.getElementById('sess-password').value = '';
+                    if (link) document.getElementById('sess-link').value = '';
+                    loadSessionsOverview();
+                } else {
+                    showElAlert('session-form-alert', 'session-form-alert-text', 'Please fill in session details or upload lesson content.');
+                }
+            } catch (err) {
+                console.error(err);
+                showElAlert('session-form-alert', 'session-form-alert-text', translations[currentLang].errNetwork);
+            } finally {
+                btn.disabled = false;
+                setLoading(false);
+            }
+        }
+
+
+        async function loadSessionsOverview() {
+            const wrap = document.getElementById('sessions-table-wrap');
+            if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noSessionsYet}</p>`; return; }
+            try {
+                const result = await callBackendGet(new URLSearchParams({ action: 'listSessions', token: sessionToken }));
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                const sessions = result.sessions || [];
+                if (sessions.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noSessionsYet}</p>`; return; }
+                let rows = sessions.map(s => `<tr><td>${s.track}</td><td>${s.level}</td><td>${s.sessionNumber}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;">${s.link}</td></tr>`).join('');
+                wrap.innerHTML = `<table class="data-table"><thead><tr><th>${translations[currentLang].sectionLabel}</th><th>${translations[currentLang].levelLabel}</th><th>${translations[currentLang].sessionLabel}</th><th>${translations[currentLang].sessionLinkLabel}</th></tr></thead><tbody>${rows}</tbody></table>`;
+            } catch (err) {
+                console.error(err);
+                wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+            }
+        }
+
+        // Populate level/session selects for the "Set Session" form
+        (function populateSessionSelects() {
+            const levelSel = document.getElementById('sess-level');
+            const numSel = document.getElementById('sess-number');
+            for (let i = 1; i <= LEVELS_PER_TRACK; i++) levelSel.innerHTML += `<option value="${i}">${i}</option>`;
+            for (let i = 1; i <= SESSIONS_PER_LEVEL; i++) numSel.innerHTML += `<option value="${i}">${i}</option>`;
+        })();
+
+        function showElAlert(id, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(id).classList.add('show'); }
+        function hideElAlert(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function handleCreateStudent(e) {
+            e.preventDefault();
+            hideElAlert('create-student-alert'); hideElAlert('create-student-success');
+
+            const studentId = document.getElementById('new-student-id').value.trim();
+            const name = document.getElementById('new-student-name').value.trim();
+            const password = document.getElementById('new-student-password').value;
+            const gender = document.getElementById('new-student-gender').value;
+
+            if (!studentId || !name || !password) {
+                showElAlert('create-student-alert', 'create-student-alert-text', translations[currentLang].errCreateStudentFields);
+                return;
+            }
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+            const btn = document.getElementById('create-student-btn');
+            btn.disabled = true; setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'createStudent', token: sessionToken, studentId, name, password, gender });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) {
+                    showElAlert('create-student-alert', 'create-student-alert-text', result.message || translations[currentLang].errStudentIdTaken);
+                    return;
+                }
+                showElAlert('create-student-success', 'create-student-success-text', translations[currentLang].studentCreatedMsg);
+                document.getElementById('new-student-id').value = '';
+                document.getElementById('new-student-name').value = '';
+                document.getElementById('new-student-password').value = '';
+                loadStudentsList();
+            } catch (err) {
+                console.error(err);
+                showElAlert('create-student-alert', 'create-student-alert-text', translations[currentLang].errNetwork);
+            } finally {
+                btn.disabled = false; setLoading(false);
+            }
+        }
+
+        async function loadStudentsList() {
+            const wrap = document.getElementById('students-table-wrap');
+            if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+            try {
+                const result = await callBackendGet(new URLSearchParams({ action: 'listStudents', token: sessionToken }));
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                const students = result.students || [];
+                if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+                let rows = students.map(s => `<tr><td>${s.id}</td><td>${s.name}</td><td>${s.gender}</td></tr>`).join('');
+                wrap.innerHTML = `<table class="data-table"><thead><tr><th>ID</th><th>${translations[currentLang].studentNameField}</th><th>${translations[currentLang].selectGender}</th></tr></thead><tbody>${rows}</tbody></table>`;
+            } catch (err) {
+                console.error(err);
+                wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+            }
+        }
+
+        // =====================================================================
+        // Community
+        // =====================================================================
+        function updateCommunityStatusText() {
+            const statusText = document.getElementById('community-status');
+            if (currentUser.role === 'admin') statusText.innerText = translations[currentLang].statusAdmin;
+            else statusText.innerText = currentUser.gender === 'male' ? translations[currentLang].statusStudentM : translations[currentLang].statusStudentF;
+        }
+
+        function showPostAlert(message) {
+            document.getElementById('post-alert-text').textContent = message;
+            document.getElementById('post-alert').classList.add('show');
+            setTimeout(() => document.getElementById('post-alert').classList.remove('show'), 4000);
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        async function fetchAndRenderCommunity() {
+            if (!currentUser) return;
+            const container = document.getElementById('feed-container');
+            updateCommunityStatusText();
+
+            let posts = mockPosts;
+            if (backendConfigured()) {
+                try {
+                    setLoading(true);
+                    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                    posts = Array.isArray(data) ? data : (data.posts || mockPosts);
+                } catch (err) {
+                    console.error('DB Fetch Error, falling back to local demo data', err);
+                } finally { setLoading(false); }
+            }
+
+            container.innerHTML = '';
+            let visiblePosts = currentUser.role === 'admin' ? posts : posts.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
+            visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
+
+            if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
+
+            visiblePosts.forEach(post => {
+                const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
+                const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
+                const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                container.innerHTML += `
+                    <div class="card post-card">
+                        <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
+                        <div class="post-content" style="flex-grow: 1;">
+                            ${isPinned}
+                            <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
+                            <p>${escapeHtml(post.content)}</p>
+                            <div class="post-meta">${dateStr}</div>
+                            <div class="post-actions"><button class="btn-outline" style="border:none; padding:0; color:var(--text-muted);"><i class="far fa-heart"></i> ${currentLang === 'en' ? 'Like' : 'إعجاب'}</button></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        async function submitPost() {
+            const contentInput = document.getElementById('new-post-content');
+            const content = contentInput.value.trim();
+            if (!content) { showPostAlert(translations[currentLang].errPostEmpty); return; }
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+            const btn = document.getElementById('submit-post-btn');
+            btn.disabled = true; setLoading(true);
+            try {
+                if (backendConfigured()) {
+                    const body = new URLSearchParams({ action: 'createPost', token: sessionToken, content });
+                    const result = await callBackend(body);
+                    if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                    if (!result.success) { showPostAlert(result.message || translations[currentLang].errPostFailed); return; }
+                } else {
+                    mockPosts.unshift({ id: Date.now(), author: currentUser.name, role: currentUser.role, gender: currentUser.gender, content, isPinned: false, date: new Date().toISOString() });
+                }
+                contentInput.value = '';
+                await fetchAndRenderCommunity();
+            } catch (err) {
+                console.error(err);
+                showPostAlert(translations[currentLang].errPostFailed);
+            } finally {
+                btn.disabled = false; setLoading(false);
+            }
+        }
+
+        // Initialize App
+        applyTranslations();
+        updateNavbar();
+        if (restoreSession()) {
+            updateNavbar();
+            if (currentUser.role === 'admin') {
+                document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + currentUser.name + '!';
+                navigate('admin-dashboard');
+            } else if (currentUser.role === 'student') {
+                updateGreeting();
+                navigate('student-dashboard');
+            }
+        }
+    </script>
+</body>
+</html>

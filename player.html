@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-English — Lesson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue: #6DB3E2; --blue-mid: #4CA8DD; --blue-dark: #1E6FA6; --blue-ink: #123B57;
+    --gold: #FDC846; --gold-dark: #E2A100; --highlight-bg: #FFF3CE; --highlight-text: #A66B00;
+    --paper: rgba(255, 255, 255, 0.98); --bg: #EFF5F9; --ink: #2B3844; --ink-soft: #5C6C79; --line: #DCE6EC;
+    --success: #4CAF6D; --error: #D9455C;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{ margin:0; font-family:'Nunito', sans-serif; background: var(--bg); color: var(--ink); overflow:hidden; position: relative; min-height: 100vh; }
+  body::before, body::after { content: ''; position: absolute; border-radius: 50%; z-index: -1; filter: blur(120px); opacity: 0.6; animation: blobDrift 25s infinite linear; }
+  body::before { width: 40vw; height: 40vw; background: var(--blue-mid); top: -10%; left: -10%; }
+  body::after { width: 35vw; height: 35vw; background: var(--gold); bottom: -10%; right: -10%; animation-delay: -12s; }
+  @keyframes blobDrift { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(15vw, 5vh) scale(1.1); } 66% { transform: translate(-10vw, 15vh) scale(0.9); } 100% { transform: translate(0, 0) scale(1); } }
+
+  .deck-wrap{ position:relative; width:100vw; height:100vh; height:100dvh; display:flex; flex-direction:column; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 26px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom:1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 15px rgba(0,0,0,0.03); z-index:50; flex:0 0 auto; }
+  .brand{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+  .brand-logo { height: 42px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .brand-word{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:19px; color:var(--gold); line-height:1; }
+  .brand-word span{ color: var(--blue-mid); }
+  .brand small{ display:block; font-weight:800; font-size:10px; letter-spacing:.1em; color: var(--ink-soft); text-transform:uppercase; margin-top:2px; }
+  .counter{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:14px; color:var(--ink-soft); flex:0 0 auto; min-width:52px; text-align:right; background: rgba(0,0,0,0.04); padding: 4px 10px; border-radius: 20px; }
+  .progress-track{ height:5px; width:100%; background: rgba(0,0,0,0.05); z-index:50; flex:0 0 auto; }
+  .progress-fill{ height:100%; background: linear-gradient(90deg, var(--gold), #ffda73); transition: width .4s cubic-bezier(0.25, 0.1, 0.25, 1); box-shadow: 0 0 10px rgba(253, 200, 70, 0.5); }
+
+  .stage{ position:relative; flex:1 1 auto; overflow:hidden; padding: 26px 26px 84px; }
+  .slide{ position:absolute; inset:26px 26px 84px; display:flex; align-items:stretch; justify-content:center; opacity:0; transform: translateY(20px) scale(0.98); pointer-events:none; transition: opacity .4s ease, transform .4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; z-index:5; }
+  .frame{ position:relative; width:100%; max-width:1100px; background: var(--paper); box-shadow: 0 20px 50px rgba(18, 59, 87, 0.08); border-radius:28px; padding: 34px 50px; overflow-y:auto; display:flex; flex-direction:column; justify-content:center; border: 1px solid rgba(255,255,255,0.8); }
+  .frame::-webkit-scrollbar{width:8px;}
+  .frame::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px;}
+  .frame-tag{ position:absolute; top:18px; right:24px; font-family:'Baloo 2'; font-size:12px; font-weight:800; color: var(--blue-mid); background: rgba(76, 168, 221, 0.1); padding: 4px 12px; border-radius: 20px; letter-spacing:.08em; }
+
+  h1.t-content{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:clamp(26px, 3vw, 36px); color: var(--blue-ink); margin:0 0 18px; line-height: 1.2; }
+  h1.t-activity{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:clamp(24px, 2.8vw, 32px); color: var(--blue-mid); margin:0 0 24px; position: relative; display:inline-block; }
+  h1.t-activity::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 100%; height: 6px; background: var(--gold); border-radius: 4px; opacity: 0.8; }
+  .lead{ font-size:17px; font-weight:700; color:var(--ink); margin: -8px 0 18px; }
+  .instr{ font-size:15.5px; color: var(--ink-soft); font-weight:800; margin: 0 0 16px; display: flex; align-items: center; }
+  .instr b{ color:var(--ink); }
+  .exletter{ display:inline-flex; width:28px;height:28px; border-radius:8px; background: var(--gold); color: var(--blue-ink); align-items:center;justify-content:center; font-family:'Baloo 2'; font-weight:800; font-size:15px; margin-right:12px; flex:0 0 auto; box-shadow: 0 3px 6px rgba(253, 200, 70, 0.3); }
+  .question-block { background: #FAFCFD; border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; font-size: 16px; font-weight: 700; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; transition: background 0.3s; }
+  .question-block:hover { background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+  .interactive-input, .interactive-select { border: 2px dashed var(--blue-mid); border-radius: 8px; padding: 8px 12px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 16px; color: var(--blue-dark); outline: none; background: rgba(255, 255, 255, 0.8); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 100px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+  .interactive-input::placeholder { color: #A0B9C9; font-weight: 600; }
+  .interactive-input:focus, .interactive-select:focus { border-style: solid; border-color: var(--blue-mid); background: #fff; box-shadow: 0 0 0 4px rgba(109, 179, 226, 0.15); transform: scale(1.02); }
+  .interactive-input.correct, .interactive-select.correct { border-style: solid; border-color: var(--success); background: #E8F5E9; color: #2E7D32; box-shadow: 0 0 0 4px rgba(76, 175, 109, 0.15); }
+  .interactive-input.incorrect, .interactive-select.incorrect { border-style: solid; border-color: var(--error); background: #FFEBEE; color: #C62828; box-shadow: 0 0 0 4px rgba(217, 69, 92, 0.15); animation: shake 0.4s; }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .check-btn { align-self: flex-start; margin-top: 16px; background: var(--blue-mid); color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 17px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(76, 168, 221, 0.3); display: flex; align-items: center; gap: 8px; }
+  .check-btn:hover { transform: translateY(-2px); background: var(--blue-dark); box-shadow: 0 6px 15px rgba(76, 168, 221, 0.4); }
+  .check-btn:active { transform: translateY(0); }
+  .fill{ color: var(--highlight-text); background: var(--highlight-bg); font-weight:800; padding: 2px 10px; border-radius:6px; display:inline-block; }
+  ol.agenda{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  ol.agenda li{ display:flex; align-items:baseline; gap:14px; font-size:18px; font-weight:700; color:var(--ink); border-bottom:1px solid rgba(0,0,0,0.04); padding-bottom:12px; transition: transform 0.2s; }
+  ol.agenda li:hover { transform: translateX(5px); }
+  ol.agenda li .n{ font-family:'Baloo 2'; font-weight:800; color:#fff; width:30px;height:30px; border-radius:10px; display:flex;align-items:center;justify-content:center; font-size:15px; flex:0 0 auto; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+  ol.agenda li:nth-child(odd) .n{ background:var(--blue-mid); }
+  ol.agenda li:nth-child(even) .n{ background:var(--gold-dark); }
+  ol.agenda li .time{ margin-left:auto; font-weight:800; color:var(--ink-soft); font-size:14px; background:#f0f4f8; padding:2px 8px; border-radius:6px; }
+  .numbox{ border:2px solid var(--blue-mid); background: linear-gradient(to bottom, #ffffff, #f9fcff); border-radius:20px; padding:18px 26px; box-shadow: 0 8px 24px rgba(109, 179, 226, 0.1); }
+  .numbox .row{ display:flex; align-items:baseline; gap:10px; font-family:'Baloo 2'; font-size:17px; padding:4px 0; }
+  .numbox .row b{ color: var(--gold-dark); min-width:32px; text-align:right; font-size: 19px; }
+  .numbox .row span.eq{ color:var(--ink-soft); font-family:'Nunito'; font-weight:800; }
+  .numbox .row span.word{ color: var(--blue-dark); font-weight:700; }
+  .rule-item{ display:flex; align-items:center; gap:16px; background: #fff; padding: 12px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
+  .rule-ic{ width:56px;height:56px;border-radius:16px; display:flex;align-items:center;justify-content:center; font-size:28px; flex:0 0 auto; background: var(--bg); border:2px solid var(--blue-mid); }
+  .rule-item b{ display:block; font-size:16px; color:var(--blue-ink); font-weight:800;}
+  .rule-item span{ font-size:14px; color:var(--ink-soft); font-weight:600; }
+  .day-row{ display:flex; align-items:center; gap:14px; padding:12px 20px; border-radius:12px; font-family:'Baloo 2'; font-size:20px; font-weight:700; color:var(--blue-ink); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .structbox{ display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; background: #f4f9fd; padding: 16px; border-radius: 16px; border: 1px dashed var(--blue-mid); }
+  .structbox .part{ background: var(--blue-dark); color:#fff; font-family:'Baloo 2'; font-weight:800; font-size:15px; padding:10px 18px; border-radius:12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+  .structbox .part.gold{ background: var(--gold-dark); color: #fff;}
+  .example{ font-size:18px; padding:12px 16px; background: #fff; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .example .hl{ color:var(--blue-dark); font-weight:800; }
+  .example .hl2{ color: var(--gold-dark); font-weight:800; }
+  .wheel-wrap{ display:flex; align-items:center; gap:40px; flex-wrap:wrap; justify-content: center;}
+  .wheel-container { position: relative; width: 320px; height: 320px; display: flex; align-items: center; justify-content: center; }
+  .wheel{ position:absolute; inset: 0; border-radius:50%; border: 8px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.15), inset 0 0 20px rgba(0,0,0,0.1); transition: transform 3.5s cubic-bezier(0.25, 0.1, 0.1, 1); }
+  .wheel-pointer{ width:0;height:0; border-top:16px solid transparent; border-bottom:16px solid transparent; border-left:24px solid var(--error); position:absolute; left:-14px; top:50%; transform:translateY(-50%); z-index: 10; filter: drop-shadow(-2px 2px 4px rgba(0,0,0,0.3)); }
+  .spin-btn { position: absolute; width: 80px; height: 80px; background: #fff; border: 6px solid var(--gold); border-radius: 50%; z-index: 15; font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 800; color: var(--blue-dark); cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.1s, background 0.2s; }
+  .spin-btn:hover { background: #fdfdfd; transform: scale(1.05); }
+  .spin-btn:active { transform: scale(0.95); }
+  .spin-btn:disabled { opacity: 0.8; cursor: not-allowed; transform: scale(1); }
+  .flow{ display:grid; grid-template-columns:1fr 1fr; gap:16px 26px; }
+  .flow .box{ background:#fff; border:2px solid var(--line); border-radius:14px; padding:12px 16px; font-weight:800; font-size:15.5px; text-align:center; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+  .flow .box.accent{ border-color: var(--blue-mid); color:var(--blue-dark); background:#f4f9fd;}
+  .flow .box.accent2{ border-color: var(--gold-dark); color:#8a6000; background:#fffbf0;}
+  .flow .arrow{ text-align:center; color:var(--ink-soft); font-weight:800; grid-column:1/-1; margin:-8px 0; font-size:18px;}
+  .link-row{ display:flex; align-items:center; gap:16px; padding:16px 20px; border:2px solid var(--line); border-radius:16px; text-decoration:none; color:var(--blue-ink); font-weight:800; background: #fff; transition: all 0.2s; }
+  .link-row:hover{ border-color:var(--blue-mid); box-shadow:0 8px 20px rgba(76, 168, 221, 0.15); transform: translateY(-2px);}
+  .link-row small{ display:block; font-weight:700; color:var(--ink-soft); font-size:13px; margin-top:4px;}
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .center-icon{ width:90px;height:90px; border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:42px; background: #fff; border:3px solid var(--blue-mid); box-shadow: 0 8px 20px rgba(109, 179, 226, 0.2); }
+  .footer-tag{ margin-top:auto; padding-top:20px; font-size:13px; color:var(--ink-soft); font-weight:800; }
+  .video { position: relative; z-index: 100; cursor: pointer; }
+
+  .controls{ position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border:1px solid rgba(0,0,0,0.08); border-radius:999px; padding:8px 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); z-index:60; }
+  .nav-btn{ width:42px;height:42px; border-radius:50%; border:none; cursor:pointer; background: var(--blue-mid); color:#fff; font-size:18px; display:flex;align-items:center;justify-content:center; transition: all .2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 10px rgba(76, 168, 221, 0.3); }
+  .nav-btn:hover{ background:var(--blue-dark); transform: scale(1.1); }
+  .nav-btn:disabled{ background:#D7E1E8; cursor:not-allowed; transform: scale(1); box-shadow: none;}
+  .nav-hint{ font-size:12.5px; font-weight:800; color: var(--ink-soft); padding:0 8px; }
+
+  /* --- Gate / lock overlay --- */
+  #gateOverlay{
+    position:fixed; inset:0; z-index:9999; background: var(--bg);
+    display:flex; align-items:center; justify-content:center; text-align:center; padding:24px;
+  }
+  #gateOverlay .gate-card{
+    max-width:440px; background:#fff; border-radius:24px; padding:40px 34px;
+    box-shadow: 0 20px 50px rgba(18,59,87,0.12); border:1px solid rgba(255,255,255,0.8);
+  }
+  #gateOverlay .gate-icon{ font-size:44px; margin-bottom:14px; }
+  #gateOverlay h2{ font-family:'Baloo 2', sans-serif; font-weight:800; color:var(--blue-ink); margin:0 0 10px; font-size:22px; }
+  #gateOverlay p{ color: var(--ink-soft); font-weight:700; font-size:15px; margin:0; line-height:1.5; }
+  #gateOverlay.spinner .gate-icon{ animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 860px){ .frame{ padding:26px 24px; } .grid3{ grid-template-columns:repeat(2,1fr); } .grid2{ grid-template-columns:1fr; } .wheel-container { width:260px; height:260px; } }
+  @media (prefers-reduced-motion: reduce){ .slide, .wheel, body::before, body::after { transition:none; animation:none;} }
+</style>
+</head>
+<body>
+
+<div id="gateOverlay" class="spinner">
+  <div class="gate-card">
+    <div class="gate-icon">⏳</div>
+    <h2>Checking your access…</h2>
+    <p>Hang tight while we verify this lesson link.</p>
+  </div>
+</div>
+
+<div class="deck-wrap" id="deckWrap" style="visibility:hidden;">
+  <div class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="https://i.postimg.cc/bYQvFz9s/image.png" alt="Z-English Logo">
+      <div>
+        <div class="brand-word">Z-<span>English</span></div>
+        <small id="lessonLabel">Lesson</small>
+      </div>
+    </div>
+    <div class="counter"><span id="curNum">1</span> / <span id="totalNum">1</span></div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="controls">
+    <button class="nav-btn" id="prevBtn" aria-label="Previous slide">&#8592;</button>
+    <span class="nav-hint">← Nav →</span>
+    <button class="nav-btn" id="nextBtn" aria-label="Next slide">&#8594;</button>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// CONFIGURATION — Must match the URL in your index.html exactly!
+// =====================================================================
+const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLKsoECjru-XuRHpJkn5xCIf003gG2JmVdG4OolMR2nN-sF8nAFoavT2oPWwI/exec";
+
+// --- Read the params the dashboard put in the URL ---
+const params = new URLSearchParams(window.location.search);
+const track = params.get('track');
+const level = params.get('level');
+const sessionNumber = params.get('sessionNumber');
+const accessToken = params.get('lt');
+
+const gateOverlay = document.getElementById('gateOverlay');
+const deckWrap = document.getElementById('deckWrap');
+
+function showBlocked(message){
+  gateOverlay.classList.remove('spinner');
+  gateOverlay.innerHTML = `
+    <div class="gate-card">
+      <div class="gate-icon">🔒</div>
+      <h2>This link doesn't work here</h2>
+      <p>${message || "This lesson can only be opened by unlocking it from the Z-English dashboard. Please go back and open it from there."}</p>
+    </div>`;
+}
+
+async function loadLesson(){
+  if (!track || !level || !sessionNumber || !accessToken) {
+    showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
+    return;
+  }
+  try {
+    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}`;
+    console.log('Fetching lesson from:', url);
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      console.error('HTTP Error:', res.status, res.statusText);
+      showBlocked(`Server error (${res.status}). Please try opening the lesson again.`);
+      return;
+    }
+    
+    const data = await res.json();
+    console.log('Lesson response:', data);
+    
+    if (!data.success) {
+      showBlocked(data.message || "This link is invalid or has expired. Please open the lesson again from the dashboard.");
+      return;
+    }
+    
+    if (!data.slides || !Array.isArray(data.slides)) {
+      showBlocked("Lesson content is missing. Please contact your administrator.");
+      return;
+    }
+    
+    initDeck(data.slides);
+  } catch (err) {
+    console.error('Lesson Load Error:', err);
+    showBlocked("Couldn't reach the server. Check your internet connection and try opening the lesson again from the dashboard.");
+  }
+}
+
+// =====================================================================
+// Deck rendering (structure only — content comes from the backend)
+// =====================================================================
+function initDeck(slides){
+  gateOverlay.style.display = 'none';
+  deckWrap.style.visibility = 'visible';
+  document.getElementById('lessonLabel').textContent = `${track === 'advanced' ? 'Advanced' : 'Basic'} · Level ${level} · Session ${sessionNumber}`;
+
+  const stage = document.getElementById('stage');
+  slides.forEach((html, i) => {
+    const sec = document.createElement('div');
+    sec.className = 'slide';
+    sec.dataset.index = i;
+    sec.innerHTML = html;
+    stage.appendChild(sec);
+  });
+
+  window.checkAnswers = function(btn) {
+    const slide = btn.closest('.slide');
+    const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
+    inputs.forEach(input => {
+      const answer = input.dataset.answer.toLowerCase().trim();
+      let val = input.value.toLowerCase().trim();
+      if (val.endsWith('?')) val = val.slice(0, -1).trim();
+
+      let isCorrect = false;
+      if (val === answer) { isCorrect = true; }
+      else if (input.dataset.alt) { if (val === input.dataset.alt.toLowerCase().trim()) isCorrect = true; }
+      else if (answer.endsWith('?')) { if (val === answer.slice(0, -1).trim()) isCorrect = true; }
+
+      input.classList.remove('correct', 'incorrect');
+      void input.offsetWidth;
+      if (val !== "") {
+        if (isCorrect) input.classList.add('correct');
+        else input.classList.add('incorrect');
+      }
+    });
+  };
+
+  window.triggerSpin = function(btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const wheel = document.getElementById('mainWheel');
+    if (!wheel) return;
+    const extraSpins = 1800 + Math.floor(Math.random() * 360);
+    let currentRot = parseInt(wheel.dataset.rot || '0');
+    currentRot += extraSpins;
+    wheel.dataset.rot = currentRot;
+    wheel.style.transform = `rotate(${currentRot}deg)`;
+    setTimeout(() => { btn.disabled = false; }, 3600);
+  };
+
+  let current = 0;
+  const total = slides.length;
+  document.getElementById('totalNum').textContent = total;
+  const slideEls = Array.from(document.querySelectorAll('.slide'));
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const progressFill = document.getElementById('progressFill');
+  const curNum = document.getElementById('curNum');
+
+  function render(){
+    slideEls.forEach((el, i) => el.classList.toggle('active', i === current));
+    curNum.textContent = current + 1;
+    progressFill.style.width = ((current + 1) / total * 100) + '%';
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === total - 1;
+  }
+  function goTo(i){ current = Math.max(0, Math.min(total - 1, i)); render(); }
+  prevBtn.onclick = () => goTo(current - 1);
+  nextBtn.onclick = () => goTo(current + 1);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const activeSlide = document.querySelector('.slide.active');
+    const video = activeSlide ? activeSlide.querySelector('video') : null;
+    if (e.code === 'Space') {
+      if (!video || video.paused) { e.preventDefault(); goTo(current + 1); }
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      if (!video || video.paused) { e.preventDefault(); goTo(current + 1); }
+      return;
+    } else if (e.key === 'ArrowLeft') {
+      if (!video || video.paused) { e.preventDefault(); goTo(current - 1); }
+      return;
+    }
+  });
+
+  let touchStartX = null;
+  stage.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  stage.addEventListener('touchend', e => {
+    if (touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (dx > 50) goTo(current - 1);
+    if (dx < -50) goTo(current + 1);
+    touchStartX = null;
+  });
+
+  document.addEventListener('click', function(e) { if (e.target.tagName === 'VIDEO') e.target.blur(); });
+  document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space') {
+      const video = document.querySelector('video:focus');
+      if (video) setTimeout(() => { video.blur(); }, 50);
+    }
+  });
+
+  render();
+}
+
+document.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener('keydown', (e) => {
+  if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) {
+    e.preventDefault();
+  }
+});
+
+loadLesson();
+</script>
+
+</body>
+</html>
