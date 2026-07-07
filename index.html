@@ -862,11 +862,11 @@
             return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         }
         function persistSession() {
-            try { sessionStorage.setItem('zenglish_session', JSON.stringify({ user: currentUser, token: sessionToken })); } catch (e) {}
+            try { localStorage.setItem('zenglish_session', JSON.stringify({ user: currentUser, token: sessionToken })); } catch (e) {}
         }
         function restoreSession() {
             try {
-                const raw = sessionStorage.getItem('zenglish_session');
+                const raw = localStorage.getItem('zenglish_session');
                 if (!raw) return false;
                 const parsed = JSON.parse(raw);
                 currentUser = parsed.user;
@@ -876,7 +876,7 @@
         }
         function clearSession() {
             currentUser = null; sessionToken = null; adminSessionsCache = {};
-            try { sessionStorage.removeItem('zenglish_session'); } catch (e) {}
+            try { localStorage.removeItem('zenglish_session'); } catch (e) {}
         }
 
         async function fetchAdminSessions() {
