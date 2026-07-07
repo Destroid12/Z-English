@@ -36,7 +36,7 @@
   .stage{ position:relative; flex:1 1 auto; overflow:hidden; padding: 26px 26px 84px; }
   .slide{ position:absolute; inset:26px 26px 84px; display:flex; align-items:stretch; justify-content:center; opacity:0; transform: translateY(20px) scale(0.98); pointer-events:none; transition: opacity .4s ease, transform .4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
   .slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; z-index:5; }
-  .frame{ position:relative; width:100%; max-width:1100px; background: var(--paper); box-shadow: 0 20px 50px rgba(18, 59, 87, 0.08); border-radius:28px; padding: 34px 50px; overflow-y:auto; display:flex; flex-direction:column; justify-content:center; border: 1px solid rgba(255,255,255,0.8); }
+  .frame{ position:relative; width:100%; max-width:1100px; background: var(--paper); box-shadow: 0 20px 50px rgba(18, 59, 87, 0.08); border-radius:28px; padding: 34px 50px; overflow-y:auto; display:flex; flex-direction:column; justify-content:flex-start; border: 1px solid rgba(255,255,255,0.8); }
   .frame::-webkit-scrollbar{width:8px;}
   .frame::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px;}
   .frame-tag{ position:absolute; top:18px; right:24px; font-family:'Baloo 2'; font-size:12px; font-weight:800; color: var(--blue-mid); background: rgba(76, 168, 221, 0.1); padding: 4px 12px; border-radius: 20px; letter-spacing:.08em; }
