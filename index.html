@@ -1053,7 +1053,6 @@
                 google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: handleGoogleCredential,
-                    hosted_domain: window.location.hostname,
                     ux_mode: 'popup'
                 });
                 google.accounts.id.renderButton(document.getElementById('google-btn-container'), {
