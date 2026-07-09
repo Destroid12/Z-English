@@ -902,6 +902,7 @@
         function setLanguage(lang) {
             if (lang !== currentLang) {
                 currentLang = lang;
+                try { localStorage.setItem('zenglish_lang', currentLang); } catch (e) {}
                 document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.lang = currentLang;
                 document.getElementById('login-form').style.textAlign = currentLang === 'ar' ? 'right' : 'left';
@@ -1607,6 +1608,13 @@
         }
 
         // Initialize App
+        try {
+            const savedLang = localStorage.getItem('zenglish_lang');
+            if (savedLang === 'en' || savedLang === 'ar') currentLang = savedLang;
+        } catch (e) {}
+        document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        document.documentElement.lang = currentLang;
+        document.getElementById('login-form').style.textAlign = currentLang === 'ar' ? 'right' : 'left';
         applyTranslations();
         updateNavbar();
         
