@@ -1612,6 +1612,7 @@
         
         async function initFromSession() {
             if (restoreSession()) {
+                updateNavbar();
                 if (currentUser.role === 'admin') {
                     document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + currentUser.name + '!';
                     await fetchAdminSessions();
