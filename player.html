@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Z-English — Lesson</title>
+<link rel="icon" type="image/png" href="https://i.postimg.cc/bYQvFz9s/image.png">
+<link rel="shortcut icon" type="image/png" href="https://i.postimg.cc/bYQvFz9s/image.png">
+<link rel="apple-touch-icon" href="https://i.postimg.cc/bYQvFz9s/image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
@@ -230,7 +233,9 @@ async function loadLesson(){
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
-  document.getElementById('lessonLabel').textContent = `${track === 'advanced' ? 'Advanced' : 'Basic'} · Level ${level} · Session ${sessionNumber}`;
+  const trackLabel = track === 'advanced' ? 'Advanced' : 'Basic';
+  document.getElementById('lessonLabel').textContent = `${trackLabel} · Level ${level} · Session ${sessionNumber}`;
+  document.title = `${trackLabel} | Session ${sessionNumber}`;
 
   const stage = document.getElementById('stage');
   slides.forEach((html, i) => {
