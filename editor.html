@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Z-English — Slide Editor</title>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/bYQvFz9s/image.png">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Georgia&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   :root{
@@ -93,7 +93,7 @@
   .empty-state{ text-align:center; color:var(--ink-soft); font-weight:700; padding:60px 20px; font-size:0.9rem; }
 
   .add-elem-menu{ position:relative; }
-  .add-elem-dropdown{ position:absolute; top:calc(100% + 6px); left:0; background:#fff; border:2px solid var(--line); border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.1); padding:6px; z-index:20; min-width:200px; display:none; }
+  .add-elem-dropdown{ position:fixed; background:#fff; border:2px solid var(--line); border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); padding:6px; z-index:500; min-width:200px; display:none; }
   .add-elem-dropdown.open{ display:block; }
   .add-elem-dropdown button{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:9px 10px; border-radius:7px; background:transparent; font-weight:700; font-size:0.85rem; color:var(--ink); }
   .add-elem-dropdown button:hover{ background:var(--z-blue-light); }
@@ -282,6 +282,20 @@ function blankSlide(type) {
   return { id: uid(), type: type, title: type === 'activity' ? 'New Activity' : 'New Slide', elements: [] };
 }
 
+// Browsers normalize inline style colors to rgb(...)/rgba(...) even if the source HTML used hex.
+// The color <input> needs a #rrggbb string, so convert back.
+function cssColorToHex(str) {
+  if (!str) return '';
+  str = str.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(str)) return str.length === 4
+    ? '#' + str[1]+str[1]+str[2]+str[2]+str[3]+str[3]
+    : str;
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(str);
+  if (!m) return '';
+  const toHex = n => Number(n).toString(16).padStart(2, '0');
+  return '#' + toHex(m[1]) + toHex(m[2]) + toHex(m[3]);
+}
+
 // ---------- normalize legacy elements loaded from previously-saved slides ----------
 function normalizeSlide(slide) {
   slide.elements = (slide.elements || []).map(el => {
@@ -312,6 +326,7 @@ function compileSlide(slide) {
   if (slide.titleSize) titleStyle += `font-size:${escAttr(slide.titleSize)}px;`;
   if (slide.titleAlign) titleStyle += `text-align:${escAttr(slide.titleAlign)};`;
   if (slide.titleBold === false) titleStyle += `font-weight:600;`;
+  if (slide.titleFont) titleStyle += `font-family:${escAttr(slide.titleFont)};`;
   const titleStyleAttr = titleStyle ? ` style="${titleStyle}"` : '';
 
   let body = `<span class="frame-tag">${esc(tagText)}</span>\n<h1 class="${h1Class}"${titleStyleAttr}>${esc(slide.title || '')}</h1>\n`;
@@ -326,35 +341,38 @@ function compileSlide(slide) {
       if (el.color) pStyle += `color:${escAttr(el.color)};`;
       if (el.bold) pStyle += 'font-weight:800;';
       if (el.align) pStyle += `text-align:${escAttr(el.align)};`;
+      if (el.font) pStyle += `font-family:${escAttr(el.font)};`;
       chunk = `<p style="${pStyle}">${esc(el.text)}</p>\n`;
     } else if (el.kind === 'image') {
       if (el.url) {
         chunk += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
-        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'video') {
       if (el.url) {
         chunk += `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>\n`;
-        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'audio') {
       if (el.url) {
         chunk += `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>\n`;
-        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'question') {
       hasQuestion = true;
       const altList = (el.altAnswers || []).filter(Boolean);
       const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+      const qStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
       if (el.qtype === 'select') {
         const opts = (el.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
-        chunk = `<div class="question-block"><span class="exletter">?</span> ${esc(el.prompt)} <select class="interactive-select" data-answer="${escAttr(el.answer)}"${altAttr}><option value="">--</option>${opts}</select></div>\n`;
+        chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> ${esc(el.prompt)} <select class="interactive-select" data-answer="${escAttr(el.answer)}"${altAttr}><option value="">--</option>${opts}</select></div>\n`;
       } else {
-        chunk = `<div class="question-block"><span class="exletter">?</span> ${esc(el.prompt)} <input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(el.answer)}"${altAttr}></div>\n`;
+        chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> ${esc(el.prompt)} <input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(el.answer)}"${altAttr}></div>\n`;
       }
     } else if (el.kind === 'list') {
       let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
-      chunk = `<ol class="agenda">${items}</ol>\n`;
+      const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
+      chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
     }
@@ -384,8 +402,114 @@ function parseSlideHTML(html) {
       if (slide && slide.id && Array.isArray(slide.elements)) return normalizeSlide(slide);
     } catch (e) { /* fall through to legacy handling */ }
   }
-  // Legacy / externally-authored slide — keep as a single editable raw block.
-  return { id: uid(), type: 'content', title: '(Legacy slide — edit as raw HTML)', elements: [{ id: uid(), kind: 'raw', html: html }] };
+  // No EDITOR_DATA comment — this slide was hand-authored (or built by some other JSON
+  // tool) directly as HTML. Parse its structure into real, editable elements instead of
+  // dumping the whole thing into one raw block. Anything we don't recognize is kept as
+  // an editable "raw" element so it round-trips without data loss.
+  try {
+    return parseLegacySlideHTML(html);
+  } catch (e) {
+    console.error('Legacy slide parse failed, falling back to raw block:', e);
+    return { id: uid(), type: 'content', title: '(Unparsed slide — edit as raw HTML)', elements: [{ id: uid(), kind: 'raw', html: html }] };
+  }
+}
+
+function parseLegacySlideHTML(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const frame = doc.querySelector('.frame') || doc.body;
+
+  const h1 = frame.querySelector('h1');
+  const type = (h1 && h1.classList.contains('t-activity')) ? 'activity' : 'content';
+  const slide = { id: uid(), type: type, title: h1 ? h1.textContent.trim() : '(untitled)', elements: [] };
+
+  if (h1) {
+    const c = cssColorToHex(h1.style.color);
+    if (c) slide.titleColor = c;
+    if (h1.style.fontSize) { const n = parseInt(h1.style.fontSize, 10); if (!isNaN(n)) slide.titleSize = String(n); }
+    if (h1.style.textAlign) slide.titleAlign = h1.style.textAlign;
+    if (h1.style.fontFamily) slide.titleFont = h1.style.fontFamily;
+    if (h1.style.fontWeight === '600') slide.titleBold = false;
+  }
+
+  const kids = Array.from(frame.children).filter(n =>
+    n.tagName !== 'H1' && !(n.classList && n.classList.contains('frame-tag')) &&
+    !(n.tagName === 'BUTTON' && n.classList.contains('check-btn'))
+  );
+
+  const isCaptionP = (node) => node && node.tagName === 'P' && /(^|;)\s*font-size:\s*13px/i.test(node.getAttribute('style') || '');
+
+  for (let i = 0; i < kids.length; i++) {
+    const node = kids[i];
+    const tag = node.tagName;
+
+    if (tag === 'P' && !isCaptionP(node)) {
+      slide.elements.push({
+        id: uid(), kind: 'paragraph', pos: null,
+        text: node.textContent.trim(),
+        color: cssColorToHex(node.style.color) || '',
+        size: node.style.fontSize ? String(parseInt(node.style.fontSize, 10)) : '',
+        bold: node.style.fontWeight === '800' || node.style.fontWeight === 'bold',
+        align: node.style.textAlign || '',
+        font: node.style.fontFamily || ''
+      });
+    } else if (tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO') {
+      const next = kids[i + 1];
+      let caption = '';
+      if (isCaptionP(next)) { caption = next.textContent.trim(); i++; }
+      const kindMap = { IMG: 'image', VIDEO: 'video', AUDIO: 'audio' };
+      slide.elements.push({
+        id: uid(), kind: kindMap[tag], pos: null,
+        url: node.getAttribute('src') || '',
+        caption: caption
+      });
+    } else if (tag === 'DIV' && node.classList.contains('question-block')) {
+      const input = node.querySelector('input.interactive-input');
+      const select = node.querySelector('select.interactive-select');
+      // Build the prompt only from direct text nodes (ignores the "?" letter badge and the input/select).
+      let prompt = Array.from(node.childNodes)
+        .filter(n => n.nodeType === Node.TEXT_NODE)
+        .map(n => n.textContent)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const el = { id: uid(), kind: 'question', pos: null, prompt, font: node.style.fontFamily || '' };
+      if (select) {
+        el.qtype = 'select';
+        el.answer = select.getAttribute('data-answer') || '';
+        el.altAnswers = (select.getAttribute('data-alt') || '').split('|').map(s => s.trim()).filter(Boolean);
+        el.options = Array.from(select.querySelectorAll('option'))
+          .map(o => o.value).filter(v => v !== '');
+      } else if (input) {
+        el.qtype = 'text';
+        el.answer = input.getAttribute('data-answer') || '';
+        el.altAnswers = (input.getAttribute('data-alt') || '').split('|').map(s => s.trim()).filter(Boolean);
+        el.options = [];
+      } else {
+        // Question block without a recognizable input — keep it editable as raw so nothing is lost.
+        slide.elements.push({ id: uid(), kind: 'raw', pos: null, html: node.outerHTML });
+        continue;
+      }
+      slide.elements.push(el);
+    } else if (tag === 'OL' && node.classList.contains('agenda')) {
+      const items = Array.from(node.querySelectorAll('li')).map(li => {
+        const timeEl = li.querySelector('.time');
+        const time = timeEl ? timeEl.textContent.trim() : '';
+        const numEl = li.querySelector('.n');
+        let text = li.textContent.trim();
+        if (numEl) text = text.replace(numEl.textContent, '');
+        if (timeEl) text = text.replace(timeEl.textContent, '');
+        return { text: text.trim(), time };
+      });
+      slide.elements.push({ id: uid(), kind: 'list', pos: null, items, font: node.style.fontFamily || '' });
+    } else {
+      // Anything unrecognized (custom markup, tables, embeds, etc.) stays fully intact
+      // and still editable — just as a raw HTML block instead of structured fields.
+      slide.elements.push({ id: uid(), kind: 'raw', pos: null, html: node.outerHTML });
+    }
+  }
+
+  return slide;
 }
 
 // ---------- slide list rendering ----------
@@ -446,6 +570,26 @@ function selectSlide(id) {
 }
 function getSelectedSlide() { return slides.find(s => s.id === selectedSlideId) || null; }
 
+// ---------- fonts ----------
+const FONT_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: "'Nunito', sans-serif", label: 'Nunito' },
+  { value: "'Baloo 2', sans-serif", label: 'Baloo 2 (Rounded)' },
+  { value: "'Poppins', sans-serif", label: 'Poppins' },
+  { value: "'Fredoka', sans-serif", label: 'Fredoka (Playful)' },
+  { value: "'Comic Neue', cursive", label: 'Comic Neue (Playful)' },
+  { value: "'Cairo', sans-serif", label: 'Cairo (Arabic)' },
+  { value: "'Tajawal', sans-serif", label: 'Tajawal (Arabic)' },
+  { value: "Georgia, serif", label: 'Georgia (Serif)' },
+  { value: "'Courier New', monospace", label: 'Courier New (Mono)' }
+];
+function fontSelectHTML(currentValue, onChangeJs) {
+  const opts = FONT_OPTIONS.map(f =>
+    `<option value="${escAttr(f.value)}" ${((currentValue || '') === f.value) ? 'selected' : ''}>${esc(f.label)}</option>`
+  ).join('');
+  return `<select onchange="${onChangeJs}" style="font-family:${escAttr(currentValue || 'inherit')};">${opts}</select>`;
+}
+
 // ---------- element list rendering ----------
 const ELEM_LABELS = {
   paragraph: { icon: 'fa-paragraph', label: 'Paragraph' },
@@ -480,6 +624,9 @@ function renderElements() {
     <div class="field-row">
       <div class="field"><label>Title Color</label><input type="color" value="${escAttr(slide.titleColor || '#123B57')}" oninput="updateSlideField('titleColor', this.value)"></div>
       <div class="field"><label>Title Size (px)</label><input type="text" value="${escAttr(slide.titleSize || '')}" placeholder="auto" oninput="updateSlideField('titleSize', this.value)"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Title Font</label>${fontSelectHTML(slide.titleFont, "updateSlideField('titleFont', this.value)")}</div>
     </div>
     <div class="field-row">
       <div class="field">
@@ -519,12 +666,36 @@ function renderElements() {
 }
 
 function toggleAddElemMenu() {
-  document.getElementById('addElemDropdown').classList.toggle('open');
+  const dropdown = document.getElementById('addElemDropdown');
+  const opening = !dropdown.classList.contains('open');
+  if (opening) positionAddElemDropdown();
+  dropdown.classList.toggle('open', opening);
+}
+function positionAddElemDropdown() {
+  const btn = document.querySelector('.add-elem-menu > .btn');
+  const dropdown = document.getElementById('addElemDropdown');
+  if (!btn || !dropdown) return;
+  const rect = btn.getBoundingClientRect();
+  dropdown.style.top = (rect.bottom + 6) + 'px';
+  // Anchor to the button's right edge (via `right`) so it never overflows off the right
+  // side of the narrow column, and clamp so it never goes off the left edge either.
+  let right = window.innerWidth - rect.right;
+  if (right < 8) right = 8;
+  dropdown.style.right = right + 'px';
+  dropdown.style.left = 'auto';
 }
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('addElemDropdown');
   if (menu && !e.target.closest('.add-elem-menu')) menu.classList.remove('open');
 });
+window.addEventListener('resize', () => {
+  const dropdown = document.getElementById('addElemDropdown');
+  if (dropdown && dropdown.classList.contains('open')) positionAddElemDropdown();
+});
+document.addEventListener('scroll', () => {
+  const dropdown = document.getElementById('addElemDropdown');
+  if (dropdown && dropdown.classList.contains('open')) dropdown.classList.remove('open');
+}, true);
 
 function updateSlideField(field, value) {
   const slide = getSelectedSlide();
@@ -583,6 +754,9 @@ function elemCardHTML(el, i, total) {
         <div class="field"><label>Font Size (px)</label><input type="text" value="${escAttr(el.size || '')}" placeholder="16" oninput="updateElField('${el.id}','size',this.value)"></div>
       </div>
       <div class="field-row">
+        <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>
+      </div>
+      <div class="field-row">
         <div class="field">
           <label>Align</label>
           <select onchange="updateElField('${el.id}','align',this.value)">
@@ -614,11 +788,13 @@ function elemCardHTML(el, i, total) {
         <div class="hint">Images upload to Drive automatically. For video/audio, paste a hosted URL (YouTube, Vimeo, etc.) instead — direct upload isn't reliable for those.</div>
       </div>
       <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
+      <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
     `;
   } else if (el.kind === 'video' || el.kind === 'audio') {
     fields = `
       <div class="field"><label>${el.kind === 'video' ? 'Video' : 'Audio'} URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
       <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
+      <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
     `;
   } else if (el.kind === 'question') {
     const isSelect = el.qtype === 'select';
@@ -630,6 +806,7 @@ function elemCardHTML(el, i, total) {
         </select>
       </div>
       <div class="field"><label>Prompt</label><input type="text" value="${escAttr(el.prompt)}" oninput="updateElField('${el.id}','prompt',this.value)"></div>
+      <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>
       ${isSelect ? `
         <div class="field"><label>Options (one per line)</label><textarea oninput="updateElOptions('${el.id}',this.value)">${esc((el.options || []).join('\\n'))}</textarea></div>
         <div class="field"><label>Correct Option (must match one option exactly)</label><input type="text" value="${escAttr(el.answer)}" oninput="updateElField('${el.id}','answer',this.value)"></div>
@@ -640,7 +817,8 @@ function elemCardHTML(el, i, total) {
     `;
   } else if (el.kind === 'list') {
     const itemsText = (el.items || []).map(it => it.time ? `${it.text} | ${it.time}` : it.text).join('\n');
-    fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>`;
+    fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>
+      <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>`;
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
   }
@@ -848,6 +1026,18 @@ const PREVIEW_CSS = `
   h1.t-activity::after{ content:''; position:absolute; bottom:-4px; left:0; width:100%; height:5px; background:var(--gold); border-radius:4px; opacity:.8; }
   .question-block{ background:#FAFCFD; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; font-size:15px; font-weight:700; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
   .interactive-input, .interactive-select{ border:2px dashed var(--blue-mid); border-radius:8px; padding:7px 10px; font-weight:800; font-size:15px; color:var(--blue-dark); min-width:90px; text-align:center; background:rgba(255,255,255,0.8); }
+  .interactive-select{
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    border-style:solid; border-color:var(--blue-mid); border-width:2px;
+    padding:8px 32px 8px 14px; border-radius:10px; cursor:pointer;
+    background-color:#fff;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%231E6FA6' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
+    box-shadow:0 2px 6px rgba(30,111,166,0.12);
+    transition:border-color .15s, box-shadow .15s, background-color .15s;
+  }
+  .interactive-select:hover{ border-color:var(--blue-dark); box-shadow:0 3px 10px rgba(30,111,166,0.18); }
+  .interactive-select:focus{ outline:none; border-color:var(--blue-dark); box-shadow:0 0 0 3px rgba(76,168,221,0.25); }
   .exletter{ display:inline-flex; width:26px; height:26px; border-radius:8px; background:var(--gold); color:var(--blue-ink); align-items:center; justify-content:center; font-family:'Baloo 2'; font-weight:800; font-size:14px; }
   .check-btn{ margin-top:14px; background:var(--blue-mid); color:#fff; padding:10px 24px; border-radius:10px; font-family:'Baloo 2'; font-weight:800; font-size:14px; border:none; }
   ol.agenda{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
@@ -864,7 +1054,7 @@ function updatePreview() {
   if (!slide) { frame.srcdoc = ''; return; }
   const compiled = compileSlide(slide).replace(/^<!--EDITOR_DATA:.*?-->\n?/, '');
   frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <style>${PREVIEW_CSS}</style></head><body>${compiled}</body></html>`;
   frame.onload = attachPosDragHandlers;
 }
