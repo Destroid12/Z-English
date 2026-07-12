@@ -181,6 +181,7 @@
 
         .btn-secondary { background-color: var(--z-yellow); color: white; border-bottom: 4px solid var(--z-yellow-dark); }
         .btn-secondary:hover { transform: translateY(2px); border-bottom-width: 2px; margin-top: 2px; }
+        .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
         .btn-outline { background-color: transparent; color: var(--text-muted); border: 2px solid var(--border-color); padding: 12px 26px; }
         .btn-sm { padding: 8px 16px; font-size: 0.9rem; border-radius: 8px; }
@@ -538,6 +539,7 @@
             <div class="admin-tabs">
                 <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
                 <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
+                <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
             </div>
 
             <div class="admin-panel active" id="admin-panel-students">
@@ -979,7 +981,7 @@
         async function navigate(pageId) {
             document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
             document.getElementById(pageId).classList.add('active');
-            
+
             if (pageId === 'community') fetchAndRenderCommunity();
             if (pageId === 'login') initGoogleButton();
             if (pageId === 'student-dashboard') {
@@ -1044,14 +1046,14 @@
                 document.getElementById('google-fallback-btn').style.display = 'flex';
                 return;
             }
-            
+
             // Check if Google API loaded and if we're in an iframe (Google Sites)
             if (!window.google || !google.accounts) {
                 console.warn('Google Sign-In not available, trying again in 500ms...');
                 setTimeout(initGoogleButton, 500);
                 return;
             }
-            
+
             try {
                 google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
@@ -1071,7 +1073,7 @@
                 document.getElementById('google-fallback-btn').style.display = 'flex';
             }
         }
-        
+
         function handleGoogleFallback() {
             const msg = 'Google Sign-In may not be available in this context. Please use your Student ID and password to sign in instead.';
             showAuthAlert(msg);
@@ -1095,7 +1097,7 @@
             persistSession();
             updateNavbar();
             document.getElementById('login-form').reset();
-            
+
             if (user.role === 'admin') {
                 document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + user.name + '!';
                 await fetchAdminSessions();
@@ -1152,7 +1154,7 @@
                 }
                 const body = new URLSearchParams({ action: 'contactMessage', name, email, message });
                 const result = await callBackend(body);
-                
+
                 if (!result.success) {
                     showContactAlert(result.message || translations[currentLang].errNetwork);
                     return;
@@ -1223,15 +1225,17 @@
             row.id = `row-${key}`;
 
             if (isAdmin) {
-                const link = adminSessionsCache[key] || '#';
-                const playerUrl = link !== '#' ? `${link}?track=${encodeURIComponent(currentTrack)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(sessionToken)}` : '#';
-                
+                // SECURITY FIX: we no longer embed the admin's login session token
+                // in a shareable preview URL. Instead, clicking "Open (Admin)" asks
+                // the backend to mint a fresh, single-purpose, short-lived preview
+                // token (see openAdminPreview()) scoped to just this one lesson.
+                const hasLink = !!adminSessionsCache[key];
                 row.innerHTML = `
                     <div class="session-label"><i class="fas fa-lock-open" id="icon-${key}" style="color:var(--success);"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
                     <div class="session-controls" id="controls-${key}">
-                        <a href="${playerUrl}" ${link !== '#' ? 'target="_blank" rel="noopener"' : 'onclick="alert(\'No link/content set for this session yet\')"'} class="btn btn-secondary btn-sm">
+                        <button type="button" class="btn btn-secondary btn-sm" id="preview-btn-${key}" onclick="openAdminPreview('${currentTrack}', ${level}, ${sessionNum})" ${hasLink ? '' : 'disabled'}>
                             <i class="fas fa-arrow-up-right-from-square"></i> Open (Admin)
-                        </a>
+                        </button>
                     </div>
                     <div class="session-msg" id="msg-${key}"></div>
                 `;
@@ -1248,6 +1252,47 @@
                 `;
             }
             return row;
+        }
+
+        // SECURITY FIX: mints a fresh, scoped, short-lived (3 min) preview token
+        // server-side instead of ever putting the admin's real login session
+        // token into a URL. If this URL leaks, the worst case is a brief,
+        // single-lesson view — not full admin API access.
+        async function openAdminPreview(track, level, sessionNum) {
+            const key = `${track}-${level}-${sessionNum}`;
+            const msgEl = document.getElementById(`msg-${key}`);
+            const btn = document.getElementById(`preview-btn-${key}`);
+            msgEl.textContent = ''; msgEl.className = 'session-msg';
+
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+            if (btn) btn.disabled = true;
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'getPreviewToken', token: sessionToken, track, level, sessionNumber: sessionNum });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) {
+                    msgEl.textContent = result.message || translations[currentLang].errNetwork;
+                    msgEl.classList.add('error');
+                    return;
+                }
+                const link = adminSessionsCache[key];
+                if (!link) {
+                    msgEl.textContent = 'No link/content set for this session yet.';
+                    msgEl.classList.add('error');
+                    return;
+                }
+                const playerUrl = `${link}?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}`;
+                window.open(playerUrl, '_blank');
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = translations[currentLang].errNetwork;
+                msgEl.classList.add('error');
+            } finally {
+                if (btn) btn.disabled = false;
+                setLoading(false);
+            }
         }
 
         async function unlockSession(track, level, sessionNum) {
@@ -1619,7 +1664,7 @@
         document.getElementById('login-form').style.textAlign = currentLang === 'ar' ? 'right' : 'left';
         applyTranslations();
         updateNavbar();
-        
+
         async function initFromSession() {
             if (restoreSession()) {
                 updateNavbar();
@@ -1633,7 +1678,7 @@
                 }
             }
         }
-        
+
         initFromSession();
     </script>
 </body>
