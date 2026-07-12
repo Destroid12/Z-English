@@ -98,15 +98,24 @@
   .add-elem-dropdown button{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:9px 10px; border-radius:7px; background:transparent; font-weight:700; font-size:0.85rem; color:var(--ink); }
   .add-elem-dropdown button:hover{ background:var(--z-blue-light); }
 
-  .preview-toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .preview-toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
   .preview-toolbar .btn{ font-size:0.75rem; padding:7px 12px; }
+  .preview-toolbar .toolbar-btns{ display:flex; gap:8px; }
   .preview-frame-wrap{ background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(18,59,87,0.08); overflow:hidden; flex:1; min-height:300px; }
   .preview-frame-wrap iframe{ width:100%; height:100%; border:none; display:block; }
+
+  /* ---- Fullscreen preview mode ---- */
+  .col-preview.fullscreen{
+    position:fixed; inset:0; z-index:200; border:none;
+    padding:20px; background:#EFF5F9;
+  }
+  .col-preview.fullscreen .preview-frame-wrap{ border-radius:16px; }
+  body.preview-fullscreen-active{ overflow:hidden; }
 
   ::-webkit-scrollbar{ width:8px; }
   ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
   @media (max-width:1200px){ .layout{ grid-template-columns:210px 1fr 340px; } }
-  @media (max-width:1000px){ .layout{ grid-template-columns:200px 1fr; } .col-preview{ display:none; } }
+  @media (max-width:1000px){ .layout{ grid-template-columns:200px 1fr; } .col-preview{ display:none; } .col-preview.fullscreen{ display:flex; } }
 </style>
 </head>
 <body>
@@ -154,12 +163,17 @@
       <div class="empty-state">Select or add a slide to start editing.</div>
     </div>
 
-    <div class="col col-preview">
+    <div class="col col-preview" id="previewCol">
       <div class="preview-toolbar">
         <div class="panel-title" style="margin:0;">Live Preview</div>
-        <button class="btn btn-outline" id="posModeBtn" onclick="togglePosMode()" title="Drag freely-positioned elements directly in the preview">
-          <i class="fas fa-arrows-up-down-left-right"></i> Reposition mode: off
-        </button>
+        <div class="toolbar-btns">
+          <button class="btn btn-outline" id="posModeBtn" onclick="togglePosMode()" title="Drag freely-positioned elements directly in the preview">
+            <i class="fas fa-arrows-up-down-left-right"></i> Reposition mode: off
+          </button>
+          <button class="btn btn-outline" id="fullscreenBtn" onclick="toggleFullscreen()" title="Expand the live preview to fill the screen">
+            <i class="fas fa-expand"></i> Fullscreen
+          </button>
+        </div>
       </div>
       <div class="preview-frame-wrap">
         <iframe id="previewFrame"></iframe>
@@ -178,6 +192,7 @@ let slides = [];          // in-memory structured model
 let selectedSlideId = null;
 let openAddElemMenuFor = null;
 let posModeOn = false;
+let previewFullscreenOn = false;
 
 // ---------- auth (reuses the same localStorage session as index.html) ----------
 function restoreSession() {
@@ -211,14 +226,40 @@ function setStatus(msg, kind) {
 }
 
 async function callBackend(params) {
-  const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  let res;
+  try {
+    res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
+  } catch (networkErr) {
+    // fetch() itself rejected: DNS/CORS/offline/blocked — not an HTTP error.
+    throw new Error('Network/CORS error reaching Apps Script: ' + networkErr.message);
+  }
+  const rawText = await res.text();
+  if (!res.ok) {
+    throw new Error('HTTP ' + res.status + ' from Apps Script: ' + rawText.slice(0, 300));
+  }
+  try {
+    return JSON.parse(rawText);
+  } catch (parseErr) {
+    // Apps Script returned non-JSON (often an HTML auth/error page) — surface it instead of hiding it.
+    throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
+  }
 }
 async function callBackendGet(params) {
-  const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  let res;
+  try {
+    res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
+  } catch (networkErr) {
+    throw new Error('Network/CORS error reaching Apps Script: ' + networkErr.message);
+  }
+  const rawText = await res.text();
+  if (!res.ok) {
+    throw new Error('HTTP ' + res.status + ' from Apps Script: ' + rawText.slice(0, 300));
+  }
+  try {
+    return JSON.parse(rawText);
+  } catch (parseErr) {
+    throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
+  }
 }
 
 // ---------- utils ----------
@@ -702,6 +743,21 @@ function togglePosMode() {
   attachPosDragHandlers();
 }
 
+// ---------- fullscreen preview mode ----------
+function toggleFullscreen() {
+  previewFullscreenOn = !previewFullscreenOn;
+  const col = document.getElementById('previewCol');
+  const btn = document.getElementById('fullscreenBtn');
+  col.classList.toggle('fullscreen', previewFullscreenOn);
+  document.body.classList.toggle('preview-fullscreen-active', previewFullscreenOn);
+  btn.innerHTML = previewFullscreenOn
+    ? '<i class="fas fa-compress"></i> Exit Fullscreen'
+    : '<i class="fas fa-expand"></i> Fullscreen';
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && previewFullscreenOn) toggleFullscreen();
+});
+
 function attachPosDragHandlers() {
   const frame = document.getElementById('previewFrame');
   let doc;
@@ -772,7 +828,7 @@ function uploadImage(elId, input) {
       renderElemCards(slide);
       updatePreview();
     } catch (err) {
-      statusEl.textContent = 'Upload failed — check your connection.'; statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
     }
   };
   reader.readAsDataURL(file);
@@ -837,7 +893,8 @@ async function loadSession() {
     }
     renderSlideList(); renderElements(); updatePreview();
   } catch (err) {
-    setStatus('Could not reach the server.', 'error');
+    console.error('loadSession failed:', err);
+    setStatus('Could not reach the server: ' + err.message, 'error');
   }
 }
 
@@ -851,13 +908,16 @@ async function saveSession() {
   setStatus('Saving...', 'info');
   try {
     const compiledSlides = slides.map(compileSlide);
-    const body = new URLSearchParams({ action: 'setLessonContent', token: sessionToken, track, level, sessionNumber, slidesJson: JSON.stringify(compiledSlides) });
+    const slidesJson = JSON.stringify(compiledSlides);
+    console.log('Saving payload size (bytes):', new Blob([slidesJson]).size);
+    const body = new URLSearchParams({ action: 'setLessonContent', token: sessionToken, track, level, sessionNumber, slidesJson });
     const result = await callBackend(body);
     if (result.expired) { setStatus('Your session expired — please sign in again from the dashboard.', 'error'); return; }
     if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
     setStatus('Saved ✓', 'success');
   } catch (err) {
-    setStatus('Could not reach the server.', 'error');
+    console.error('saveSession failed:', err);
+    setStatus('Could not reach the server: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
   }
