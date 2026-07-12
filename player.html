@@ -32,6 +32,7 @@
   .brand-word{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:19px; color:var(--gold); line-height:1; }
   .brand-word span{ color: var(--blue-mid); }
   .brand small{ display:block; font-weight:800; font-size:10px; letter-spacing:.1em; color: var(--ink-soft); text-transform:uppercase; margin-top:2px; }
+  .topbar-right{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
   .counter{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:14px; color:var(--ink-soft); flex:0 0 auto; min-width:52px; text-align:right; background: rgba(0,0,0,0.04); padding: 4px 10px; border-radius: 20px; }
   .progress-track{ height:5px; width:100%; background: rgba(0,0,0,0.05); z-index:50; flex:0 0 auto; }
   .progress-fill{ height:100%; background: linear-gradient(90deg, var(--gold), #ffda73); transition: width .4s cubic-bezier(0.25, 0.1, 0.25, 1); box-shadow: 0 0 10px rgba(253, 200, 70, 0.5); }
@@ -107,6 +108,7 @@
   .center-icon{ width:90px;height:90px; border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:42px; background: #fff; border:3px solid var(--blue-mid); box-shadow: 0 8px 20px rgba(109, 179, 226, 0.2); }
   .footer-tag{ margin-top:auto; padding-top:20px; font-size:13px; color:var(--ink-soft); font-weight:800; }
   .video { position: relative; z-index: 100; cursor: pointer; }
+  .editor-pos-el{ z-index: 5; }
 
   .controls{ position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border:1px solid rgba(0,0,0,0.08); border-radius:999px; padding:8px 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); z-index:60; }
   .nav-btn{ width:42px;height:42px; border-radius:50%; border:none; cursor:pointer; background: var(--blue-mid); color:#fff; font-size:18px; display:flex;align-items:center;justify-content:center; transition: all .2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 10px rgba(76, 168, 221, 0.3); }
@@ -132,41 +134,46 @@
   @media (max-width: 860px){ .frame{ padding:26px 24px; } .grid3{ grid-template-columns:repeat(2,1fr); } .grid2{ grid-template-columns:1fr; } .wheel-container { width:260px; height:260px; } }
   @media (prefers-reduced-motion: reduce){ .slide, .wheel, body::before, body::after { transition:none; animation:none;} }
 
-  /* --- In-session AI tutor --- */
+  /* --- In-session AI tutor (lives in the top bar) --- */
   #tutorToggle{
-    position:absolute; bottom:20px; left:20px; z-index:70;
-    width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
-    background: var(--gold); color: var(--blue-ink); font-size:22px;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(226,161,0,0.4); transition: transform .2s;
+    display:none; align-items:center; gap:8px;
+    background: linear-gradient(135deg, var(--blue-mid), var(--blue-dark)); color:#fff;
+    border:none; border-radius:999px; padding:9px 16px 9px 12px; cursor:pointer;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:13.5px;
+    box-shadow: 0 6px 16px rgba(30,111,166,0.28); transition: transform .15s, box-shadow .15s;
   }
-  #tutorToggle:hover{ transform: scale(1.08); }
+  #tutorToggle i{ font-size:15px; }
+  #tutorToggle:hover{ transform: translateY(-1px); box-shadow: 0 8px 20px rgba(30,111,166,0.35); }
+  #tutorToggle.open{ background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: var(--blue-ink); }
+
   #tutorPanel{
-    position:absolute; bottom:86px; left:20px; z-index:70;
-    width:340px; max-width:calc(100vw - 40px); height:min(60vh, 480px);
-    background:#fff; border-radius:20px; box-shadow:0 16px 40px rgba(18,59,87,0.18);
+    position:fixed; top:76px; right:22px; z-index:80;
+    width:360px; max-width:calc(100vw - 32px);
+    height:500px; max-height:calc(100vh - 110px);
+    background:#fff; border-radius:20px; box-shadow:0 20px 46px rgba(18,59,87,0.22);
     display:none; flex-direction:column; overflow:hidden; border:1px solid rgba(255,255,255,0.8);
   }
   #tutorPanel.open{ display:flex; }
-  #tutorHeader{ background: var(--blue-mid); color:#fff; padding:14px 16px; font-family:'Baloo 2'; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:space-between; }
-  #tutorHeader button{ background:rgba(255,255,255,0.2); border:none; color:#fff; width:26px;height:26px; border-radius:50%; cursor:pointer; font-size:13px; }
-  #tutorMsgs{ flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:#FAFCFD; }
-  .tutor-msg{ max-width:85%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.45; font-weight:600; }
+  #tutorHeader{ background: linear-gradient(135deg, var(--blue-mid), var(--blue-dark)); color:#fff; padding:14px 16px; font-family:'Baloo 2'; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; }
+  #tutorHeader .htxt{ display:flex; align-items:center; gap:8px; }
+  #tutorHeader button{ background:rgba(255,255,255,0.2); border:none; color:#fff; width:26px;height:26px; border-radius:50%; cursor:pointer; font-size:13px; flex:0 0 auto; }
+  #tutorMsgs{ flex:1 1 auto; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:#FAFCFD; min-height:0; }
+  .tutor-msg{ max-width:85%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.45; font-weight:600; word-wrap:break-word; }
   .tutor-msg.user{ align-self:flex-end; background: var(--blue-mid); color:#fff; border-bottom-right-radius:4px; }
   .tutor-msg.bot{ align-self:flex-start; background:#fff; border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
   .tutor-msg.system{ align-self:center; background:var(--highlight-bg); color:var(--highlight-text); font-size:12.5px; font-weight:700; text-align:center; }
-  #tutorInputRow{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); background:#fff; }
+  #tutorInputRow{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); background:#fff; flex:0 0 auto; }
   #tutorInput{ flex:1; border:2px solid var(--line); border-radius:10px; padding:9px 12px; font-family:'Nunito'; font-size:14px; outline:none; resize:none; max-height:70px; }
   #tutorInput:focus{ border-color: var(--blue-mid); }
   #tutorSend{ background: var(--blue-mid); color:#fff; border:none; border-radius:10px; width:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
   #tutorSend:disabled{ opacity:0.5; cursor:not-allowed; }
-  #tutorHint{ font-size:11px; color:var(--ink-soft); font-weight:700; padding:0 14px 8px; text-align:center; }
+  #tutorHint{ font-size:11px; color:var(--ink-soft); font-weight:700; padding:0 14px 8px; text-align:center; flex:0 0 auto; }
   .tutor-typing{ display:flex; gap:4px; align-self:flex-start; padding:10px 14px; }
   .tutor-typing span{ width:6px;height:6px;border-radius:50%; background:var(--blue-mid); animation: tdot 1.2s infinite; }
   .tutor-typing span:nth-child(2){ animation-delay:.2s; }
   .tutor-typing span:nth-child(3){ animation-delay:.4s; }
   @keyframes tdot{ 0%,60%,100%{ opacity:.3; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
-  @media (max-width:480px){ #tutorPanel{ left:10px; right:10px; width:auto; } #tutorToggle{ left:14px; } }
+  @media (max-width:480px){ #tutorPanel{ left:10px; right:10px; width:auto; top:72px; } #tutorToggle span.tt-label{ display:none; } }
 </style>
 </head>
 <body>
@@ -188,7 +195,12 @@
         <small id="lessonLabel">Lesson</small>
       </div>
     </div>
-    <div class="counter"><span id="curNum">1</span> / <span id="totalNum">1</span></div>
+    <div class="topbar-right">
+      <button id="tutorToggle" aria-label="Ask the tutor" title="Ask the tutor">
+        <i class="fas fa-graduation-cap"></i><span class="tt-label">Ask Tutor</span>
+      </button>
+      <div class="counter"><span id="curNum">1</span> / <span id="totalNum">1</span></div>
+    </div>
   </div>
   <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 
@@ -200,16 +212,15 @@
     <button class="nav-btn" id="nextBtn" aria-label="Next slide">&#8594;</button>
   </div>
 
-  <button id="tutorToggle" aria-label="Ask the tutor" title="Ask the tutor" style="display:none;">💬</button>
   <div id="tutorPanel">
     <div id="tutorHeader">
-      <span>Ask the Tutor</span>
+      <span class="htxt"><i class="fas fa-graduation-cap"></i> Ask the Tutor</span>
       <button id="tutorCloseBtn" aria-label="Close">✕</button>
     </div>
     <div id="tutorMsgs"></div>
-    <div id="tutorHint">Explains this slide — won't just hand you quiz answers.</div>
+    <div id="tutorHint">Knows this whole session and can quiz you — but stays on English &amp; this lesson only.</div>
     <div id="tutorInputRow">
-      <textarea id="tutorInput" rows="1" placeholder="Ask about this slide..."></textarea>
+      <textarea id="tutorInput" rows="1" placeholder="Ask about this lesson, or say 'quiz me'..."></textarea>
       <button id="tutorSend" aria-label="Send">&#10148;</button>
     </div>
   </div>
@@ -281,6 +292,8 @@ async function loadLesson(){
 // =====================================================================
 // Deck rendering (structure only — content comes from the backend)
 // =====================================================================
+window.currentSlideIndex = 0;
+
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
@@ -305,10 +318,16 @@ function initDeck(slides){
       let val = input.value.toLowerCase().trim();
       if (val.endsWith('?')) val = val.slice(0, -1).trim();
 
-      let isCorrect = false;
-      if (val === answer) { isCorrect = true; }
-      else if (input.dataset.alt) { if (val === input.dataset.alt.toLowerCase().trim()) isCorrect = true; }
-      else if (answer.endsWith('?')) { if (val === answer.slice(0, -1).trim()) isCorrect = true; }
+      const candidates = [answer];
+      if (answer.endsWith('?')) candidates.push(answer.slice(0, -1).trim());
+      if (input.dataset.alt) {
+        input.dataset.alt.split('|').forEach(a => {
+          const t = a.toLowerCase().trim();
+          if (t) candidates.push(t);
+        });
+      }
+
+      const isCorrect = val !== '' && candidates.includes(val);
 
       input.classList.remove('correct', 'incorrect');
       void input.offsetWidth;
@@ -347,19 +366,16 @@ function initDeck(slides){
     progressFill.style.width = ((current + 1) / total * 100) + '%';
     prevBtn.disabled = current === 0;
     nextBtn.disabled = current === total - 1;
+    window.currentSlideIndex = current;
   }
   function goTo(i){ current = Math.max(0, Math.min(total - 1, i)); render(); }
   prevBtn.onclick = () => goTo(current - 1);
   nextBtn.onclick = () => goTo(current + 1);
 
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
     const activeSlide = document.querySelector('.slide.active');
     const video = activeSlide ? activeSlide.querySelector('video') : null;
-    if (e.code === 'Space') {
-      if (!video || video.paused) { e.preventDefault(); goTo(current + 1); }
-      return;
-    }
     if (e.key === 'ArrowRight') {
       if (!video || video.paused) { e.preventDefault(); goTo(current + 1); }
       return;
@@ -399,7 +415,7 @@ const TUTOR_MAX_HISTORY_TURNS = 6;
 
 function initTutor(token) {
   tutorToken = token;
-  document.getElementById('tutorToggle').style.display = 'flex';
+  document.getElementById('tutorToggle').style.display = 'inline-flex';
 }
 
 function getCurrentSlideText() {
@@ -407,14 +423,27 @@ function getCurrentSlideText() {
   if (!activeSlide) return '';
   // innerText only reflects rendered, visible text — it does not include
   // attribute values like data-answer, so quiz answers are never leaked here.
-  return (activeSlide.innerText || '').trim().slice(0, 4000);
+  return (activeSlide.innerText || '').trim().slice(0, 1500);
+}
+
+// Escapes HTML first (so nothing the model wrote can inject markup), then turns
+// **bold** into <strong> and newlines into <br> — this is what was showing up
+// as raw "**" before.
+function mdToSafeHtml(text) {
+  const escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
 }
 
 function tutorAddMessage(role, text) {
   const msgs = document.getElementById('tutorMsgs');
   const div = document.createElement('div');
   div.className = 'tutor-msg ' + (role === 'user' ? 'user' : role === 'system' ? 'system' : 'bot');
-  div.textContent = text;
+  div.innerHTML = mdToSafeHtml(text);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -439,6 +468,7 @@ async function tutorSend() {
   if (!question || !tutorToken) return;
 
   input.value = '';
+  input.style.height = 'auto';
   const sendBtn = document.getElementById('tutorSend');
   sendBtn.disabled = true;
 
@@ -454,6 +484,7 @@ async function tutorSend() {
       tutorToken: tutorToken,
       question: question,
       slideContext: getCurrentSlideText(),
+      slideIndex: String((window.currentSlideIndex || 0) + 1),
       history: JSON.stringify(tutorHistory.slice(-TUTOR_MAX_HISTORY_TURNS))
     });
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
@@ -478,13 +509,16 @@ async function tutorSend() {
 
 document.getElementById('tutorToggle').addEventListener('click', () => {
   const panel = document.getElementById('tutorPanel');
+  const toggle = document.getElementById('tutorToggle');
   panel.classList.toggle('open');
+  toggle.classList.toggle('open', panel.classList.contains('open'));
   if (panel.classList.contains('open') && document.getElementById('tutorMsgs').children.length === 0) {
-    tutorAddMessage('system', "Ask me anything about this slide — grammar, vocabulary, or what to do.");
+    tutorAddMessage('system', "Ask me anything about this lesson — grammar, vocabulary, or say 'quiz me' for practice questions.");
   }
 });
 document.getElementById('tutorCloseBtn').addEventListener('click', () => {
   document.getElementById('tutorPanel').classList.remove('open');
+  document.getElementById('tutorToggle').classList.remove('open');
 });
 document.getElementById('tutorSend').addEventListener('click', tutorSend);
 document.getElementById('tutorInput').addEventListener('keydown', (e) => {
