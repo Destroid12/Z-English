@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-English — Slide Editor</title>
+<link rel="icon" type="image/png" href="https://i.postimg.cc/bYQvFz9s/image.png">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{
+    --z-blue:#65B2E8; --z-blue-dark:#4A94C7; --z-blue-light:#E6F3FB;
+    --z-yellow:#FDCB58; --z-yellow-dark:#E0A92B;
+    --bg:#FAFCFE; --ink:#2D3748; --ink-soft:#718096; --line:#E2E8F0;
+    --danger:#E53E3E; --danger-light:#FDEDED; --success:#38A169; --success-light:#E9F7EF;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:'Nunito',sans-serif; background:var(--bg); color:var(--ink); }
+  button{ cursor:pointer; font-family:inherit; border:none; }
+  h1,h2,h3{ font-family:'Baloo 2',sans-serif; font-weight:800; margin:0; }
+
+  #blocked{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; z-index:999; }
+  #blocked .card{ max-width:420px; background:#fff; border-radius:20px; padding:36px; box-shadow:0 12px 30px rgba(0,0,0,0.08); }
+  #blocked .card i{ font-size:36px; color:var(--z-blue); margin-bottom:12px; }
+  #blocked a{ color:var(--z-blue-dark); font-weight:800; text-decoration:none; }
+
+  .topbar{ background:#fff; border-bottom:2px solid var(--line); padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; position:sticky; top:0; z-index:50; }
+  .brand{ font-weight:800; font-size:17px; display:flex; align-items:center; gap:8px; }
+  .brand .z{ color:var(--z-yellow-dark); }
+  .brand .e{ color:var(--z-blue-dark); }
+  .topbar select, .topbar input.small{ padding:8px 10px; border:2px solid var(--line); border-radius:8px; font-weight:700; font-size:0.85rem; }
+  .btn{ padding:9px 16px; border-radius:8px; font-weight:800; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition: all .15s; }
+  .btn-primary{ background:var(--z-blue); color:#fff; }
+  .btn-primary:hover{ background:var(--z-blue-dark); }
+  .btn-secondary{ background:var(--z-yellow); color:#fff; }
+  .btn-secondary:hover{ background:var(--z-yellow-dark); }
+  .btn-outline{ background:#fff; border:2px solid var(--line); color:var(--ink-soft); }
+  .btn-outline:hover{ border-color:var(--z-blue); color:var(--z-blue-dark); }
+  .btn-danger{ background:var(--danger-light); color:var(--danger); }
+  .btn-danger:hover{ background:var(--danger); color:#fff; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-icon{ width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:7px; background:#f0f4f8; color:var(--ink-soft); font-size:12px; }
+  .btn-icon:hover{ background:var(--z-blue-light); color:var(--z-blue-dark); }
+  .spacer{ flex:1; }
+
+  #statusMsg{ font-size:0.82rem; font-weight:700; padding:4px 12px; }
+  #statusMsg.error{ color:var(--danger); }
+  #statusMsg.success{ color:var(--success); }
+  #statusMsg.info{ color:var(--ink-soft); }
+
+  .layout{ display:grid; grid-template-columns:230px 1fr 380px; gap:0; height:calc(100vh - 60px); }
+  .col{ overflow-y:auto; padding:16px; }
+  .col-slides{ background:#fff; border-right:2px solid var(--line); }
+  .col-elements{ background:var(--bg); }
+  .col-preview{ background:#EFF5F9; border-left:2px solid var(--line); }
+
+  .panel-title{ font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); margin-bottom:10px; }
+
+  .slide-card{ background:#fff; border:2px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:border-color .15s; }
+  .slide-card:hover{ border-color:var(--z-blue); }
+  .slide-card.active{ border-color:var(--z-blue); background:var(--z-blue-light); }
+  .slide-card .row1{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .slide-card .badge{ font-size:0.65rem; font-weight:800; text-transform:uppercase; padding:2px 7px; border-radius:10px; background:var(--z-blue-light); color:var(--z-blue-dark); }
+  .slide-card .badge.activity{ background:#FFF3D6; color:var(--z-yellow-dark); }
+  .slide-card .title{ font-weight:700; font-size:0.85rem; margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .slide-card .actions{ display:flex; gap:4px; margin-top:8px; }
+  .add-slide-menu{ display:flex; gap:6px; margin-top:12px; }
+  .add-slide-menu .btn{ flex:1; justify-content:center; font-size:0.78rem; padding:8px 6px; }
+
+  .elem-card{ background:#fff; border:2px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .elem-card .head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .elem-card .kind{ font-weight:800; font-size:0.78rem; color:var(--z-blue-dark); display:flex; align-items:center; gap:6px; }
+  .elem-card .actions{ display:flex; gap:4px; }
+  .field{ margin-bottom:10px; }
+  .field label{ display:block; font-size:0.72rem; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; }
+  .field input[type=text], .field input[type=url], .field textarea, .field select{
+    width:100%; padding:9px 10px; border:2px solid var(--line); border-radius:8px; font-family:inherit; font-size:0.88rem; outline:none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color:var(--z-blue); }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row > .field{ flex:1; }
+  .thumb{ max-width:100%; max-height:120px; border-radius:8px; margin-top:6px; display:block; }
+  .upload-row{ display:flex; gap:8px; align-items:center; }
+  .upload-row input[type=file]{ display:none; }
+  .hint{ font-size:0.75rem; color:var(--ink-soft); margin-top:4px; }
+
+  .empty-state{ text-align:center; color:var(--ink-soft); font-weight:700; padding:60px 20px; font-size:0.9rem; }
+
+  .add-elem-menu{ position:relative; }
+  .add-elem-dropdown{ position:absolute; top:calc(100% + 6px); left:0; background:#fff; border:2px solid var(--line); border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.1); padding:6px; z-index:20; min-width:200px; display:none; }
+  .add-elem-dropdown.open{ display:block; }
+  .add-elem-dropdown button{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:9px 10px; border-radius:7px; background:transparent; font-weight:700; font-size:0.85rem; color:var(--ink); }
+  .add-elem-dropdown button:hover{ background:var(--z-blue-light); }
+
+  .preview-frame-wrap{ background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(18,59,87,0.08); overflow:hidden; height:70vh; }
+  .preview-frame-wrap iframe{ width:100%; height:100%; border:none; }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+  @media (max-width:1100px){ .layout{ grid-template-columns:200px 1fr; } .col-preview{ display:none; } }
+</style>
+</head>
+<body>
+
+<div id="blocked" style="display:none;">
+  <div class="card">
+    <i class="fas fa-lock"></i>
+    <h2 style="margin-bottom:8px;">Admin sign-in required</h2>
+    <p style="color:var(--ink-soft); font-weight:700; margin-bottom:16px;">Please sign in as an admin from the main dashboard, then come back to this page.</p>
+    <a href="index.html">&larr; Back to dashboard</a>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="brand"><span class="z">Z-</span><span class="e">English</span> &nbsp;·&nbsp; Slide Editor</div>
+
+    <select id="sel-track">
+      <option value="basic">Basic</option>
+      <option value="advanced">Advanced</option>
+    </select>
+    <select id="sel-level"></select>
+    <select id="sel-session"></select>
+
+    <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
+    <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+
+    <span id="statusMsg" class="info"></span>
+
+    <div class="spacer"></div>
+    <a href="index.html" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Dashboard</a>
+  </div>
+
+  <div class="layout">
+    <div class="col col-slides">
+      <div class="panel-title">Slides</div>
+      <div id="slideList"></div>
+      <div class="add-slide-menu">
+        <button class="btn btn-outline" onclick="addSlide('content')"><i class="fas fa-plus"></i> Content</button>
+        <button class="btn btn-outline" onclick="addSlide('activity')"><i class="fas fa-plus"></i> Activity</button>
+      </div>
+    </div>
+
+    <div class="col col-elements" id="elementsCol">
+      <div class="empty-state">Select or add a slide to start editing.</div>
+    </div>
+
+    <div class="col col-preview">
+      <div class="panel-title">Live Preview</div>
+      <div class="preview-frame-wrap">
+        <iframe id="previewFrame"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLKsoECjru-XuRHpJkn5xCIf003gG2JmVdG4OolMR2nN-sF8nAFoavT2oPWwI/exec";
+const LEVELS_PER_TRACK = 10;
+const SESSIONS_PER_LEVEL = 7;
+
+let currentUser = null, sessionToken = null;
+let slides = [];          // in-memory structured model
+let selectedSlideId = null;
+let openAddElemMenuFor = null;
+
+// ---------- auth (reuses the same localStorage session as index.html) ----------
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem('zenglish_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    currentUser = parsed.user; sessionToken = parsed.token;
+    return !!(currentUser && sessionToken);
+  } catch (e) { return false; }
+}
+
+if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
+  document.getElementById('blocked').style.display = 'flex';
+} else {
+  document.getElementById('app').style.display = 'block';
+  initSelects();
+}
+
+function initSelects() {
+  const levelSel = document.getElementById('sel-level');
+  const numSel = document.getElementById('sel-session');
+  for (let i = 1; i <= LEVELS_PER_TRACK; i++) levelSel.innerHTML += `<option value="${i}">Level ${i}</option>`;
+  for (let i = 1; i <= SESSIONS_PER_LEVEL; i++) numSel.innerHTML += `<option value="${i}">Session ${i}</option>`;
+}
+
+function setStatus(msg, kind) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg || '';
+  el.className = kind || 'info';
+}
+
+async function callBackend(params) {
+  const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+async function callBackendGet(params) {
+  const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ---------- utils ----------
+function uid() { return 'e' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+
+function b64EncodeUnicode(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+}
+function b64DecodeUnicode(str) {
+  return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+}
+
+function blankSlide(type) {
+  return { id: uid(), type: type, title: type === 'activity' ? 'New Activity' : 'New Slide', elements: [] };
+}
+
+// ---------- compile: structured slide -> HTML string the player/backend expect ----------
+function compileSlide(slide) {
+  const dataComment = '<!--EDITOR_DATA:' + b64EncodeUnicode(JSON.stringify(slide)) + '-->';
+  const tagText = slide.type === 'activity' ? 'ACTIVITY' : 'CONTENT';
+  const h1Class = slide.type === 'activity' ? 't-activity' : 't-content';
+
+  let body = `<span class="frame-tag">${esc(tagText)}</span>\n<h1 class="${h1Class}">${esc(slide.title || '')}</h1>\n`;
+  let hasQuestion = false;
+
+  slide.elements.forEach(el => {
+    if (el.kind === 'paragraph') {
+      body += `<p style="font-size:16px;line-height:1.6;color:var(--ink);margin:0 0 16px;">${esc(el.text)}</p>\n`;
+    } else if (el.kind === 'image') {
+      if (el.url) {
+        body += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
+        if (el.caption) body += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'video') {
+      if (el.url) {
+        body += `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>\n`;
+        if (el.caption) body += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'audio') {
+      if (el.url) {
+        body += `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>\n`;
+        if (el.caption) body += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'question') {
+      hasQuestion = true;
+      if (el.qtype === 'select') {
+        const opts = (el.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
+        body += `<div class="question-block"><span class="exletter">?</span> ${esc(el.prompt)} <select class="interactive-select" data-answer="${escAttr(el.answer)}"><option value="">--</option>${opts}</select></div>\n`;
+      } else {
+        body += `<div class="question-block"><span class="exletter">?</span> ${esc(el.prompt)} <input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(el.answer)}"${el.alt ? ` data-alt="${escAttr(el.alt)}"` : ''}></div>\n`;
+      }
+    } else if (el.kind === 'list') {
+      let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
+      body += `<ol class="agenda">${items}</ol>\n`;
+    } else if (el.kind === 'raw') {
+      body += (el.html || '') + '\n';
+    }
+  });
+
+  if (hasQuestion) {
+    body += `<button class="check-btn" onclick="checkAnswers(this)">&#10003; Check Answers</button>\n`;
+  }
+
+  return dataComment + `\n<div class="frame">\n${body}</div>`;
+}
+
+// ---------- parse: HTML string (from backend) -> structured slide ----------
+function parseSlideHTML(html) {
+  const m = /^<!--EDITOR_DATA:([A-Za-z0-9+/=]+)-->/.exec(html);
+  if (m) {
+    try {
+      const slide = JSON.parse(b64DecodeUnicode(m[1]));
+      if (slide && slide.id && Array.isArray(slide.elements)) return slide;
+    } catch (e) { /* fall through to legacy handling */ }
+  }
+  // Legacy / externally-authored slide — keep as a single editable raw block.
+  return { id: uid(), type: 'content', title: '(Legacy slide — edit as raw HTML)', elements: [{ id: uid(), kind: 'raw', html: html }] };
+}
+
+// ---------- slide list rendering ----------
+function renderSlideList() {
+  const list = document.getElementById('slideList');
+  list.innerHTML = '';
+  slides.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'slide-card' + (s.id === selectedSlideId ? ' active' : '');
+    card.onclick = () => selectSlide(s.id);
+    card.innerHTML = `
+      <div class="row1">
+        <span class="badge ${s.type === 'activity' ? 'activity' : ''}">${s.type}</span>
+        <span style="font-size:0.72rem; color:var(--ink-soft); font-weight:700;">#${i + 1}</span>
+      </div>
+      <div class="title">${esc(s.title || '(untitled)')}</div>
+      <div class="actions">
+        <button class="btn-icon" title="Move up" onclick="event.stopPropagation(); moveSlide('${s.id}', -1)"><i class="fas fa-arrow-up"></i></button>
+        <button class="btn-icon" title="Move down" onclick="event.stopPropagation(); moveSlide('${s.id}', 1)"><i class="fas fa-arrow-down"></i></button>
+        <button class="btn-icon" title="Duplicate" onclick="event.stopPropagation(); duplicateSlide('${s.id}')"><i class="fas fa-copy"></i></button>
+        <button class="btn-icon" title="Delete" onclick="event.stopPropagation(); deleteSlide('${s.id}')"><i class="fas fa-trash"></i></button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function addSlide(type) {
+  const s = blankSlide(type);
+  slides.push(s);
+  selectSlide(s.id);
+}
+function moveSlide(id, dir) {
+  const i = slides.findIndex(s => s.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= slides.length) return;
+  [slides[i], slides[j]] = [slides[j], slides[i]];
+  renderSlideList(); updatePreview();
+}
+function duplicateSlide(id) {
+  const i = slides.findIndex(s => s.id === id);
+  if (i === -1) return;
+  const copy = JSON.parse(JSON.stringify(slides[i]));
+  copy.id = uid();
+  copy.elements.forEach(el => el.id = uid());
+  copy.title += ' (copy)';
+  slides.splice(i + 1, 0, copy);
+  selectSlide(copy.id);
+}
+function deleteSlide(id) {
+  if (!confirm('Delete this slide?')) return;
+  slides = slides.filter(s => s.id !== id);
+  if (selectedSlideId === id) selectedSlideId = slides.length ? slides[0].id : null;
+  renderSlideList(); renderElements(); updatePreview();
+}
+function selectSlide(id) {
+  selectedSlideId = id;
+  renderSlideList(); renderElements(); updatePreview();
+}
+function getSelectedSlide() { return slides.find(s => s.id === selectedSlideId) || null; }
+
+// ---------- element list rendering ----------
+const ELEM_LABELS = {
+  paragraph: { icon: 'fa-paragraph', label: 'Paragraph' },
+  image: { icon: 'fa-image', label: 'Image' },
+  video: { icon: 'fa-video', label: 'Video (URL)' },
+  audio: { icon: 'fa-volume-high', label: 'Audio (URL)' },
+  question: { icon: 'fa-circle-question', label: 'Question' },
+  list: { icon: 'fa-list', label: 'List / Agenda' },
+  raw: { icon: 'fa-code', label: 'Raw HTML (legacy)' }
+};
+
+function renderElements() {
+  const col = document.getElementById('elementsCol');
+  const slide = getSelectedSlide();
+  if (!slide) { col.innerHTML = '<div class="empty-state">Select or add a slide to start editing.</div>'; return; }
+
+  let html = `
+    <div class="panel-title">Slide Settings</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Type</label>
+        <select onchange="updateSlideField('type', this.value)">
+          <option value="content" ${slide.type === 'content' ? 'selected' : ''}>Content</option>
+          <option value="activity" ${slide.type === 'activity' ? 'selected' : ''}>Activity</option>
+        </select>
+      </div>
+      <div class="field" style="flex:2;">
+        <label>Title</label>
+        <input type="text" value="${escAttr(slide.title)}" oninput="updateSlideField('title', this.value)">
+      </div>
+    </div>
+    <div class="panel-title" style="margin-top:20px; display:flex; align-items:center; justify-content:space-between;">
+      <span>Elements</span>
+      <div class="add-elem-menu">
+        <button class="btn btn-outline" onclick="toggleAddElemMenu()"><i class="fas fa-plus"></i> Add</button>
+        <div class="add-elem-dropdown" id="addElemDropdown">
+          <button onclick="addElement('paragraph')"><i class="fas fa-paragraph"></i> Paragraph</button>
+          <button onclick="addElement('image')"><i class="fas fa-image"></i> Image</button>
+          <button onclick="addElement('video')"><i class="fas fa-video"></i> Video (URL)</button>
+          <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
+          <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
+          <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
+        </div>
+      </div>
+    </div>
+    <div id="elemList"></div>
+  `;
+  col.innerHTML = html;
+  renderElemCards(slide);
+}
+
+function toggleAddElemMenu() {
+  document.getElementById('addElemDropdown').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('addElemDropdown');
+  if (menu && !e.target.closest('.add-elem-menu')) menu.classList.remove('open');
+});
+
+function updateSlideField(field, value) {
+  const slide = getSelectedSlide();
+  if (!slide) return;
+  slide[field] = value;
+  renderSlideList(); updatePreview();
+}
+
+function addElement(kind) {
+  const slide = getSelectedSlide();
+  if (!slide) return;
+  document.getElementById('addElemDropdown').classList.remove('open');
+  let el = { id: uid(), kind };
+  if (kind === 'paragraph') el.text = '';
+  if (kind === 'image') el = { ...el, url: '', caption: '' };
+  if (kind === 'video') el = { ...el, url: '', caption: '' };
+  if (kind === 'audio') el = { ...el, url: '', caption: '' };
+  if (kind === 'question') el = { ...el, qtype: 'text', prompt: '', answer: '', alt: '', options: [] };
+  if (kind === 'list') el = { ...el, items: [{ text: '', time: '' }] };
+  slide.elements.push(el);
+  renderElemCards(slide); updatePreview();
+}
+function moveElement(elId, dir) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const i = slide.elements.findIndex(e => e.id === elId);
+  const j = i + dir;
+  if (j < 0 || j >= slide.elements.length) return;
+  [slide.elements[i], slide.elements[j]] = [slide.elements[j], slide.elements[i]];
+  renderElemCards(slide); updatePreview();
+}
+function deleteElement(elId) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  slide.elements = slide.elements.filter(e => e.id !== elId);
+  renderElemCards(slide); updatePreview();
+}
+
+function renderElemCards(slide) {
+  const wrap = document.getElementById('elemList');
+  if (!wrap) return;
+  if (slide.elements.length === 0) {
+    wrap.innerHTML = '<div class="empty-state" style="padding:30px 10px;">No elements yet — click "Add" above.</div>';
+    return;
+  }
+  wrap.innerHTML = slide.elements.map((el, i) => elemCardHTML(el, i, slide.elements.length)).join('');
+}
+
+function elemCardHTML(el, i, total) {
+  const meta = ELEM_LABELS[el.kind] || { icon: 'fa-cube', label: el.kind };
+  let fields = '';
+
+  if (el.kind === 'paragraph') {
+    fields = `<div class="field"><label>Text</label><textarea oninput="updateElField('${el.id}','text',this.value)">${esc(el.text)}</textarea></div>`;
+  } else if (el.kind === 'image') {
+    fields = `
+      <div class="field"><label>Image URL (or upload below)</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value); refreshThumb('${el.id}')" placeholder="https://...">
+        <img id="thumb-${el.id}" class="thumb" src="${escAttr(el.url)}" style="${el.url ? '' : 'display:none;'}" onerror="this.style.display='none'">
+      </div>
+      <div class="field">
+        <div class="upload-row">
+          <input type="file" id="file-${el.id}" accept="image/*" onchange="uploadImage('${el.id}', this)">
+          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload Image</button>
+          <span id="uploadStatus-${el.id}" class="hint"></span>
+        </div>
+        <div class="hint">Images upload to Drive automatically. For video/audio, paste a hosted URL (YouTube, Vimeo, etc.) instead — direct upload isn't reliable for those.</div>
+      </div>
+      <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
+    `;
+  } else if (el.kind === 'video' || el.kind === 'audio') {
+    fields = `
+      <div class="field"><label>${el.kind === 'video' ? 'Video' : 'Audio'} URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
+      <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
+    `;
+  } else if (el.kind === 'question') {
+    const isSelect = el.qtype === 'select';
+    fields = `
+      <div class="field"><label>Question Type</label>
+        <select onchange="updateElField('${el.id}','qtype',this.value)">
+          <option value="text" ${!isSelect ? 'selected' : ''}>Type the answer</option>
+          <option value="select" ${isSelect ? 'selected' : ''}>Choose from options</option>
+        </select>
+      </div>
+      <div class="field"><label>Prompt</label><input type="text" value="${escAttr(el.prompt)}" oninput="updateElField('${el.id}','prompt',this.value)"></div>
+      ${isSelect ? `
+        <div class="field"><label>Options (one per line)</label><textarea oninput="updateElOptions('${el.id}',this.value)">${esc((el.options || []).join('\\n'))}</textarea></div>
+        <div class="field"><label>Correct Option (must match one option exactly)</label><input type="text" value="${escAttr(el.answer)}" oninput="updateElField('${el.id}','answer',this.value)"></div>
+      ` : `
+        <div class="field-row">
+          <div class="field"><label>Correct Answer</label><input type="text" value="${escAttr(el.answer)}" oninput="updateElField('${el.id}','answer',this.value)"></div>
+          <div class="field"><label>Alternate Accepted Answer (optional)</label><input type="text" value="${escAttr(el.alt)}" oninput="updateElField('${el.id}','alt',this.value)"></div>
+        </div>
+      `}
+    `;
+  } else if (el.kind === 'list') {
+    const itemsText = (el.items || []).map(it => it.time ? `${it.text} | ${it.time}` : it.text).join('\n');
+    fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>`;
+  } else if (el.kind === 'raw') {
+    fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
+  }
+
+  return `
+    <div class="elem-card">
+      <div class="head">
+        <div class="kind"><i class="fas ${meta.icon}"></i> ${meta.label}</div>
+        <div class="actions">
+          <button class="btn-icon" ${i === 0 ? 'disabled' : ''} onclick="moveElement('${el.id}', -1)"><i class="fas fa-arrow-up"></i></button>
+          <button class="btn-icon" ${i === total - 1 ? 'disabled' : ''} onclick="moveElement('${el.id}', 1)"><i class="fas fa-arrow-down"></i></button>
+          <button class="btn-icon" onclick="deleteElement('${el.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      ${fields}
+    </div>
+  `;
+}
+
+function updateElField(elId, field, value) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  el[field] = value;
+  updatePreview();
+}
+function updateElOptions(elId, text) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  el.options = text.split('\n').map(s => s.trim()).filter(Boolean);
+  updatePreview();
+}
+function updateElItems(elId, text) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  el.items = text.split('\n').map(line => {
+    const parts = line.split('|');
+    return { text: (parts[0] || '').trim(), time: (parts[1] || '').trim() };
+  }).filter(it => it.text);
+  updatePreview();
+}
+function refreshThumb(elId) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  const img = document.getElementById('thumb-' + elId);
+  if (img) { img.src = el.url; img.style.display = el.url ? 'block' : 'none'; }
+}
+
+// ---------- image upload ----------
+function uploadImage(elId, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('uploadStatus-' + elId);
+  if (file.size > 8 * 1024 * 1024) {
+    statusEl.textContent = 'Too large (max 8MB).'; statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    try {
+      const body = new URLSearchParams({ action: 'uploadMedia', token: sessionToken, filename: file.name, mimeType: file.type, dataBase64: base64 });
+      const result = await callBackend(body);
+      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; return; }
+      const slide = getSelectedSlide();
+      const el = slide.elements.find(e => e.id === elId);
+      el.url = result.url;
+      statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
+      renderElemCards(slide);
+      updatePreview();
+    } catch (err) {
+      statusEl.textContent = 'Upload failed — check your connection.'; statusEl.style.color = 'var(--danger)';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---------- live preview ----------
+const PREVIEW_CSS = `
+  body{ margin:0; padding:26px; font-family:'Nunito',sans-serif; background:#EFF5F9;
+    --blue:#6DB3E2; --blue-mid:#4CA8DD; --blue-dark:#1E6FA6; --blue-ink:#123B57;
+    --gold:#FDC846; --gold-dark:#E2A100; --ink:#2B3844; --ink-soft:#5C6C79; --line:#DCE6EC; --success:#4CAF6D; --error:#D9455C; }
+  .frame{ position:relative; background:#fff; box-shadow:0 20px 50px rgba(18,59,87,0.08); border-radius:28px; padding:34px 40px; border:1px solid rgba(255,255,255,0.8); }
+  .frame-tag{ position:absolute; top:18px; right:24px; font-family:'Baloo 2'; font-size:12px; font-weight:800; color:var(--blue-mid); background:rgba(76,168,221,0.1); padding:4px 12px; border-radius:20px; letter-spacing:.08em; }
+  h1.t-content{ font-family:'Baloo 2'; font-weight:800; font-size:30px; color:var(--blue-ink); margin:0 0 18px; }
+  h1.t-activity{ font-family:'Baloo 2'; font-weight:800; font-size:28px; color:var(--blue-mid); margin:0 0 24px; position:relative; display:inline-block; }
+  h1.t-activity::after{ content:''; position:absolute; bottom:-4px; left:0; width:100%; height:6px; background:var(--gold); border-radius:4px; opacity:.8; }
+  .question-block{ background:#FAFCFD; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:12px; font-size:16px; font-weight:700; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .interactive-input, .interactive-select{ border:2px dashed var(--blue-mid); border-radius:8px; padding:8px 12px; font-weight:800; font-size:16px; color:var(--blue-dark); min-width:100px; text-align:center; background:rgba(255,255,255,0.8); }
+  .exletter{ display:inline-flex; width:28px; height:28px; border-radius:8px; background:var(--gold); color:var(--blue-ink); align-items:center; justify-content:center; font-family:'Baloo 2'; font-weight:800; font-size:15px; }
+  .check-btn{ margin-top:16px; background:var(--blue-mid); color:#fff; padding:12px 28px; border-radius:10px; font-family:'Baloo 2'; font-weight:800; font-size:16px; border:none; }
+  ol.agenda{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  ol.agenda li{ display:flex; align-items:baseline; gap:14px; font-size:17px; font-weight:700; border-bottom:1px solid rgba(0,0,0,0.04); padding-bottom:12px; }
+  ol.agenda li .n{ font-family:'Baloo 2'; font-weight:800; color:var(--blue-dark); }
+  ol.agenda li .time{ margin-left:auto; font-weight:800; color:var(--ink-soft); font-size:13px; background:#f0f4f8; padding:2px 8px; border-radius:6px; }
+  .video{ position:relative; cursor:pointer; }
+`;
+
+function updatePreview() {
+  const slide = getSelectedSlide();
+  const frame = document.getElementById('previewFrame');
+  if (!slide) { frame.srcdoc = ''; return; }
+  const compiled = compileSlide(slide).replace(/^<!--EDITOR_DATA:.*?-->\n?/, '');
+  frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>${PREVIEW_CSS}</style></head><body>${compiled}</body></html>`;
+}
+
+// ---------- load / save ----------
+document.getElementById('loadBtn').onclick = loadSession;
+document.getElementById('saveBtn').onclick = saveSession;
+
+async function loadSession() {
+  const track = document.getElementById('sel-track').value;
+  const level = document.getElementById('sel-level').value;
+  const sessionNumber = document.getElementById('sel-session').value;
+  setStatus('Loading...', 'info');
+  try {
+    const result = await callBackendGet(new URLSearchParams({ action: 'getLessonContentForEdit', token: sessionToken, track, level, sessionNumber }));
+    if (result.expired) { setStatus('Your session expired — please sign in again from the dashboard.', 'error'); return; }
+    if (!result.success) {
+      slides = [blankSlide('content')];
+      selectedSlideId = slides[0].id;
+      setStatus(result.message || 'No content yet for this session — starting blank.', 'info');
+    } else {
+      slides = (result.slides || []).map(parseSlideHTML);
+      if (slides.length === 0) slides = [blankSlide('content')];
+      selectedSlideId = slides[0].id;
+      setStatus(`Loaded ${slides.length} slide(s).`, 'success');
+    }
+    renderSlideList(); renderElements(); updatePreview();
+  } catch (err) {
+    setStatus('Could not reach the server.', 'error');
+  }
+}
+
+async function saveSession() {
+  if (slides.length === 0) { setStatus('Add at least one slide before saving.', 'error'); return; }
+  const track = document.getElementById('sel-track').value;
+  const level = document.getElementById('sel-level').value;
+  const sessionNumber = document.getElementById('sel-session').value;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  setStatus('Saving...', 'info');
+  try {
+    const compiledSlides = slides.map(compileSlide);
+    const body = new URLSearchParams({ action: 'setLessonContent', token: sessionToken, track, level, sessionNumber, slidesJson: JSON.stringify(compiledSlides) });
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired — please sign in again from the dashboard.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
+    setStatus('Saved ✓', 'success');
+  } catch (err) {
+    setStatus('Could not reach the server.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
