@@ -34,6 +34,20 @@
             --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
             --shadow-float: 0 12px 30px rgba(101, 178, 232, 0.15);
         }
+        .category-card{ border:2px solid var(--border-color); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+.category-card:hover{ border-color:var(--z-blue); }
+.category-card.active{ border-color:var(--z-blue); background:var(--z-blue-light); }
+.category-card .cat-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.category-card .cat-type{ font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); }
+.status-badge{ font-size:0.68rem; font-weight:800; padding:3px 9px; border-radius:12px; text-transform:uppercase; white-space:nowrap; }
+.status-badge.active{ background:var(--success-light); color:var(--success); }
+.status-badge.expired{ background:var(--danger-light); color:var(--danger); }
+.custom-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
+.custom-session-row:last-child{ border-bottom:none; }
+.custom-session-meta{ font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:2px; }
+.practice-section-card{ border:2px solid var(--border-color); border-radius:var(--radius-md); padding:18px 22px; margin-bottom:14px; background:var(--card-bg); }
+.practice-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
+.practice-session-row:last-child{ border-bottom:none; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -524,6 +538,7 @@
             </div>
 
             <div class="level-list" id="level-list"></div>
+            <div id="practice-sections-wrap" style="margin-top: 40px;"></div>
         </section>
 
         <section id="admin-dashboard" class="page-section container">
@@ -539,6 +554,7 @@
             <div class="admin-tabs">
                 <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
                 <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
+                <button type="button" class="admin-tab" onclick="switchAdminPanel('sections')" data-i18n="adminTabSections">Sections</button>
                 <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
             </div>
 
@@ -646,6 +662,72 @@
                     <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
                 </div>
             </div>
+            <div class="admin-panel" id="admin-panel-sections">
+    <div class="card">
+        <h3 style="margin-bottom: 20px;">Categories</h3>
+        <div class="alert-box error" id="cat-alert"><i class="fas fa-circle-exclamation"></i> <span id="cat-alert-text"></span></div>
+        <form onsubmit="handleCreateCategory(event)" style="margin-bottom: 20px;">
+            <div class="form-grid">
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Category Label</label>
+                    <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Exam Prep, Grammar Clinic">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Type</label>
+                    <select id="new-cat-type" class="input-control">
+                        <option value="practice">Practice (link-only)</option>
+                        <option value="curriculum">Curriculum</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
+        </form>
+        <div id="categories-list"></div>
+    </div>
+
+    <div class="card" style="margin-top: 24px;" id="sessions-manager-card" style="display:none;">
+        <h3 id="sessions-manager-title" style="margin-bottom: 20px;">Sessions</h3>
+        <div class="alert-box error" id="custom-sess-alert"><i class="fas fa-circle-exclamation"></i> <span id="custom-sess-alert-text"></span></div>
+        <div class="alert-box success" id="custom-sess-success"><i class="fas fa-circle-check"></i> <span id="custom-sess-success-text"></span></div>
+
+        <form onsubmit="handleCreateCustomSession(event)">
+            <div class="form-grid">
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Title</label>
+                    <input type="text" id="cs-title" class="input-control" required>
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Link</label>
+                    <input type="url" id="cs-link" class="input-control" required placeholder="https://...">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Password (optional)</label>
+                    <input type="text" id="cs-password" class="input-control">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Mode</label>
+                    <select id="cs-mode" class="input-control" onchange="toggleTempFields()">
+                        <option value="permanent">Permanent</option>
+                        <option value="temporary">Temporary</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid" id="cs-temp-fields" style="display:none; margin-top: 16px;">
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Expires At (optional)</label>
+                    <input type="datetime-local" id="cs-expires" class="input-control">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label>Max Uses (optional)</label>
+                    <input type="number" id="cs-maxuses" class="input-control" min="1" placeholder="e.g. 30">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
+        </form>
+
+        <div id="custom-sessions-list" style="margin-top: 20px;"></div>
+    </div>
+</div>
         </section>
 
         <section id="community" class="page-section container">
@@ -992,7 +1074,7 @@
                 }
                 renderLevelList();
             }
-            if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); }
+            if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); loadCategories(); }
         }
 
         // --- Auth ---
@@ -1507,6 +1589,241 @@
                 wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
             }
         }
+
+        // =====================================================================
+// Categories & custom (link-only) sessions
+// =====================================================================
+let selectedCategoryId = null;
+let categoriesCache = [];
+
+async function loadCategories() {
+    if (!sessionToken) return;
+    try {
+        const result = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        categoriesCache = result.categories || [];
+        renderCategoriesList();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderCategoriesList() {
+    const wrap = document.getElementById('categories-list');
+    if (!wrap) return;
+    if (categoriesCache.length === 0) { wrap.innerHTML = '<p style="margin-top:10px;">No categories yet.</p>'; return; }
+    wrap.innerHTML = categoriesCache.map(c => `
+        <div class="category-card ${c.id === selectedCategoryId ? 'active' : ''}" onclick="selectCategory('${c.id}', '${escapeHtml(c.label)}')">
+            <div class="cat-head">
+                <div>
+                    <strong>${escapeHtml(c.label)}</strong>
+                    <div class="cat-type">${c.type}</div>
+                </div>
+                <button class="btn-icon-del" onclick="event.stopPropagation(); handleDeleteCategory('${c.id}')" style="background:none; color:var(--danger); font-size:1rem;"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function handleCreateCategory(e) {
+    e.preventDefault();
+    document.getElementById('cat-alert').classList.remove('show');
+    const label = document.getElementById('new-cat-label').value.trim();
+    const type = document.getElementById('new-cat-type').value;
+    if (!label) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'createCategory', token: sessionToken, label, type });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) {
+            document.getElementById('cat-alert-text').textContent = result.message || 'Could not create category.';
+            document.getElementById('cat-alert').classList.add('show');
+            return;
+        }
+        document.getElementById('new-cat-label').value = '';
+        await loadCategories();
+    } catch (err) {
+        document.getElementById('cat-alert-text').textContent = translations[currentLang].errNetwork;
+        document.getElementById('cat-alert').classList.add('show');
+    } finally { setLoading(false); }
+}
+
+async function handleDeleteCategory(id) {
+    if (!confirm('Delete this category? Its sessions will stop being listed.')) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'deleteCategory', token: sessionToken, id });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (selectedCategoryId === id) { selectedCategoryId = null; document.getElementById('sessions-manager-card').style.display = 'none'; }
+        await loadCategories();
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+}
+
+function selectCategory(id, label) {
+    selectedCategoryId = id;
+    renderCategoriesList();
+    document.getElementById('sessions-manager-card').style.display = 'block';
+    document.getElementById('sessions-manager-title').textContent = `Sessions — ${label}`;
+    loadCustomSessions();
+}
+
+function toggleTempFields() {
+    const mode = document.getElementById('cs-mode').value;
+    document.getElementById('cs-temp-fields').style.display = mode === 'temporary' ? 'grid' : 'none';
+}
+
+async function handleCreateCustomSession(e) {
+    e.preventDefault();
+    document.getElementById('custom-sess-alert').classList.remove('show');
+    document.getElementById('custom-sess-success').classList.remove('show');
+    if (!selectedCategoryId) return;
+
+    const title = document.getElementById('cs-title').value.trim();
+    const link = document.getElementById('cs-link').value.trim();
+    const password = document.getElementById('cs-password').value;
+    const sessionMode = document.getElementById('cs-mode').value;
+    const expiresAtRaw = document.getElementById('cs-expires').value;
+    const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : '';
+    const maxUses = document.getElementById('cs-maxuses').value || '';
+
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'createCustomSession', token: sessionToken, categoryId: selectedCategoryId, title, link, password, sessionMode, expiresAt, maxUses });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) {
+            document.getElementById('custom-sess-alert-text').textContent = result.message || 'Could not create session.';
+            document.getElementById('custom-sess-alert').classList.add('show');
+            return;
+        }
+        document.getElementById('custom-sess-success-text').textContent = 'Session created.';
+        document.getElementById('custom-sess-success').classList.add('show');
+        document.getElementById('cs-title').value = '';
+        document.getElementById('cs-link').value = '';
+        document.getElementById('cs-password').value = '';
+        document.getElementById('cs-expires').value = '';
+        document.getElementById('cs-maxuses').value = '';
+        await loadCustomSessions();
+    } catch (err) {
+        document.getElementById('custom-sess-alert-text').textContent = translations[currentLang].errNetwork;
+        document.getElementById('custom-sess-alert').classList.add('show');
+    } finally { setLoading(false); }
+}
+
+async function loadCustomSessions() {
+    if (!selectedCategoryId) return;
+    const wrap = document.getElementById('custom-sessions-list');
+    try {
+        const result = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: selectedCategoryId }));
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        const sessions = result.sessions || [];
+        if (sessions.length === 0) { wrap.innerHTML = '<p>No sessions in this category yet.</p>'; return; }
+        wrap.innerHTML = sessions.map(s => `
+            <div class="custom-session-row">
+                <div>
+                    <strong>${escapeHtml(s.title)}</strong>
+                    <div class="custom-session-meta">
+                        ${s.sessionMode}${s.hasPassword ? ' · password protected' : ''}
+                        ${s.expiresAt ? ' · expires ' + new Date(s.expiresAt).toLocaleString() : ''}
+                        ${s.maxUses ? ` · ${s.useCount}/${s.maxUses} uses` : ''}
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="status-badge ${s.isActive ? 'active' : 'expired'}">${s.isActive ? 'Active' : 'Expired'}</span>
+                    <button class="btn btn-outline btn-sm" onclick="handleDeleteCustomSession('${s.id}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+    }
+}
+
+async function handleDeleteCustomSession(id) {
+    if (!confirm('Delete this session?')) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'deleteCustomSession', token: sessionToken, id });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        await loadCustomSessions();
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+}
+
+// =====================================================================
+// Student-facing practice sections
+// =====================================================================
+async function loadPracticeSections() {
+    const wrap = document.getElementById('practice-sections-wrap');
+    if (!wrap || !currentUser || currentUser.role !== 'student') return;
+    try {
+        const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
+        if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        const practiceCategories = (catResult.categories || []).filter(c => c.type === 'practice');
+        if (practiceCategories.length === 0) { wrap.innerHTML = ''; return; }
+
+        let html = '';
+        for (const cat of practiceCategories) {
+            const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: cat.id }));
+            const sessions = (sessResult.sessions || []).filter(s => s.isActive);
+            if (sessions.length === 0) continue;
+
+            html += `<div class="practice-section-card"><h3 style="margin-bottom: 14px;">${escapeHtml(cat.label)}</h3>`;
+            sessions.forEach(s => {
+                const key = `custom-${s.id}`;
+                html += `
+                    <div class="practice-session-row" id="row-${key}">
+                        <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${escapeHtml(s.title)}</div>
+                        <div class="session-controls" id="controls-${key}">
+                            ${s.hasPassword ? `<input type="password" class="input-control small" id="pw-${key}" placeholder="${translations[currentLang].sessionPasswordPh}">` : ''}
+                            <button type="button" class="btn btn-primary btn-sm" onclick="unlockCustomSessionUI('${s.id}')">
+                                <i class="fas fa-unlock"></i> ${translations[currentLang].unlockBtn}
+                            </button>
+                        </div>
+                        <div class="session-msg" id="msg-${key}"></div>
+                    </div>`;
+            });
+            html += `</div>`;
+        }
+        wrap.innerHTML = html || '';
+    } catch (err) {
+        console.error('Failed to load practice sections', err);
+    }
+}
+
+async function unlockCustomSessionUI(id) {
+    const key = `custom-${id}`;
+    const pwInput = document.getElementById(`pw-${key}`);
+    const password = pwInput ? pwInput.value : '';
+    const msgEl = document.getElementById(`msg-${key}`);
+    msgEl.textContent = ''; msgEl.className = 'session-msg';
+
+    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'unlockCustomSession', token: sessionToken, id, password });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) {
+            msgEl.textContent = result.message || translations[currentLang].wrongPasswordMsg;
+            msgEl.classList.add('error');
+            return;
+        }
+        msgEl.textContent = translations[currentLang].sessionUnlockedMsg;
+        msgEl.classList.add('success');
+        document.getElementById(`icon-${key}`).className = 'fas fa-lock-open';
+        document.getElementById(`controls-${key}`).innerHTML =
+            `<a href="${result.link}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-up-right-from-square"></i> ${translations[currentLang].openSessionBtn}</a>`;
+        window.open(result.link, '_blank');
+    } catch (err) {
+        msgEl.textContent = translations[currentLang].sessionErrGeneric;
+        msgEl.classList.add('error');
+    } finally { setLoading(false); }
+}
 
         function showElAlert(id, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(id).classList.add('show'); }
         function hideElAlert(id) { document.getElementById(id).classList.remove('show'); }
