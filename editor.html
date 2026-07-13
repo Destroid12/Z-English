@@ -880,8 +880,19 @@ function elemCardHTML(el, i, total) {
       <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
     `;
   } else if (el.kind === 'video' || el.kind === 'audio') {
+    const accept = el.kind === 'video' ? 'video/*' : 'audio/*';
     fields = `
-      <div class="field"><label>${el.kind === 'video' ? 'Video' : 'Audio'} URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
+      <div class="field"><label>${el.kind === 'video' ? 'Video' : 'Audio'} URL (or upload below)</label>
+        <input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" onblur="normalizeElUrl('${el.id}', this)" placeholder="https://...">
+      </div>
+      <div class="field">
+        <div class="upload-row">
+          <input type="file" id="file-${el.id}" accept="${accept}" onchange="uploadMediaFile('${el.id}', this, '${el.kind}')">
+          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload ${el.kind === 'video' ? 'Video' : 'Audio'}</button>
+          <span id="uploadStatus-${el.id}" class="hint"></span>
+        </div>
+        <div class="hint">Uploads go to Drive automatically. Prefer uploading over pasting Dropbox/Drive share links — those often expire or block hotlinking.</div>
+      </div>
       <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
       <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
     `;
@@ -985,6 +996,37 @@ function refreshThumb(elId) {
   const el = slide.elements.find(e => e.id === elId); if (!el) return;
   const img = document.getElementById('thumb-' + elId);
   if (img) { img.src = el.url; img.style.display = el.url ? 'block' : 'none'; }
+}
+
+  function uploadMediaFile(elId, input, kind) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('uploadStatus-' + elId);
+  const maxMB = kind === 'image' ? 8 : 64;
+  if (file.size > maxMB * 1024 * 1024) {
+    statusEl.textContent = `Too large (max ${maxMB}MB).`; statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    try {
+      const body = new URLSearchParams({ action: 'uploadMedia', token: sessionToken, filename: file.name, mimeType: file.type, dataBase64: base64 });
+      const result = await callBackend(body);
+      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; return; }
+      const slide = getSelectedSlide();
+      const el = slide.elements.find(e => e.id === elId);
+      el.url = result.url;
+      statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
+      renderElemCards(slide);
+      updatePreview();
+    } catch (err) {
+      statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ---------- free-position tool ----------
