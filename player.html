@@ -145,7 +145,14 @@
   #tutorToggle i{ font-size:15px; }
   #tutorToggle:hover{ transform: translateY(-1px); box-shadow: 0 8px 20px rgba(30,111,166,0.35); }
   #tutorToggle.open{ background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: var(--blue-ink); }
-
+#tutorSpeakToggle{ background:rgba(255,255,255,0.2); border:none; color:#fff; width:26px;height:26px; border-radius:50%; cursor:pointer; font-size:12px; flex:0 0 auto; margin-right:6px; }
+#tutorSpeakToggle.on{ background:#fff; color:var(--blue-dark); }
+.tutor-msg .replay-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:11px; margin-left:6px; vertical-align:middle; }
+.tutor-msg .replay-btn:hover{ color:var(--blue-mid); }
+#tutorMic{ background:#fff; color:var(--blue-mid); border:2px solid var(--line); border-radius:10px; width:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; }
+#tutorMic.listening{ background:var(--error); color:#fff; border-color:var(--error); animation: micPulse 1s infinite; }
+#tutorMic:disabled{ opacity:0.4; cursor:not-allowed; }
+@keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,69,92,0.4); } 50%{ box-shadow:0 0 0 8px rgba(217,69,92,0); } }
   #tutorPanel{
     position:fixed; top:76px; right:22px; z-index:80;
     width:360px; max-width:calc(100vw - 32px);
@@ -214,9 +221,12 @@
 
   <div id="tutorPanel">
     <div id="tutorHeader">
-      <span class="htxt"><i class="fas fa-graduation-cap"></i> Ask the Tutor</span>
-      <button id="tutorCloseBtn" aria-label="Close">✕</button>
-    </div>
+  <span class="htxt"><i class="fas fa-graduation-cap"></i> Ask the Tutor</span>
+  <div style="display:flex; align-items:center;">
+    <button id="tutorSpeakToggle" aria-label="Toggle spoken replies" title="Read replies aloud"><i class="fas fa-volume-high"></i></button>
+    <button id="tutorCloseBtn" aria-label="Close">✕</button>
+  </div>
+</div>
     <div id="tutorMsgs"></div>
     <div id="tutorHint">Knows this whole session and can quiz you — but stays on English &amp; this lesson only.</div>
     <div id="tutorInputRow">
@@ -444,10 +454,103 @@ function tutorAddMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'tutor-msg ' + (role === 'user' ? 'user' : role === 'system' ? 'system' : 'bot');
   div.innerHTML = mdToSafeHtml(text);
+
+  if (role === 'assistant' || role === 'bot') {
+    const replayBtn = document.createElement('button');
+    replayBtn.className = 'replay-btn';
+    replayBtn.innerHTML = '<i class="fas fa-volume-high"></i>';
+    replayBtn.title = 'Read this aloud';
+    replayBtn.onclick = () => speakText(text);
+    div.appendChild(replayBtn);
+    if (speakModeOn) speakText(text);
+  }
+
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
+// =====================================================================
+// Speaking mode (TTS) + voice input (STT) — both via the browser's native
+// Web Speech API. No backend/API-key needed. TTS works broadly; STT is
+// Chrome/Edge-best, limited/absent on Firefox and some Safari versions.
+// =====================================================================
+let speakModeOn = false;
+try { speakModeOn = localStorage.getItem('zenglish_tutor_speak') === '1'; } catch (e) {}
+
+function detectSpeechLang(text) {
+  return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US';
+}
+
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel(); // stop any current speech before starting new
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = detectSpeechLang(text);
+  utter.rate = 1;
+  window.speechSynthesis.speak(utter);
+}
+
+function updateSpeakToggleUI() {
+  const btn = document.getElementById('tutorSpeakToggle');
+  btn.classList.toggle('on', speakModeOn);
+  btn.title = speakModeOn ? 'Spoken replies: on (click to mute)' : 'Read replies aloud';
+}
+
+document.getElementById('tutorSpeakToggle').addEventListener('click', () => {
+  speakModeOn = !speakModeOn;
+  try { localStorage.setItem('zenglish_tutor_speak', speakModeOn ? '1' : '0'); } catch (e) {}
+  if (!speakModeOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  updateSpeakToggleUI();
+});
+updateSpeakToggleUI();
+
+// --- Voice input ---
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+let isListening = false;
+
+if (SpeechRecognitionCtor) {
+  recognizer = new SpeechRecognitionCtor();
+  recognizer.continuous = false;
+  recognizer.interimResults = false;
+
+  recognizer.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const input = document.getElementById('tutorInput');
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    input.dispatchEvent(new Event('input'));
+  };
+  recognizer.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    tutorAddMessage('system', event.error === 'not-allowed'
+      ? "Microphone access was blocked. Allow mic access in your browser to use voice input."
+      : "Couldn't hear that clearly — please try again or type your question.");
+  };
+  recognizer.onend = () => {
+    isListening = false;
+    document.getElementById('tutorMic').classList.remove('listening');
+  };
+} else {
+  document.getElementById('tutorMic').addEventListener('click', () => {
+    tutorAddMessage('system', "Voice input isn't supported in this browser — try Chrome or Edge, or just type your question.");
+  });
+}
+
+if (recognizer) {
+  document.getElementById('tutorMic').addEventListener('click', () => {
+    if (isListening) { recognizer.stop(); return; }
+    // Guess spoken language from whatever's already typed; defaults to English.
+    recognizer.lang = detectSpeechLang(document.getElementById('tutorInput').value || 'en');
+    try {
+      recognizer.start();
+      isListening = true;
+      document.getElementById('tutorMic').classList.add('listening');
+    } catch (e) {
+      console.error('Could not start recognition:', e);
+    }
+  });
+}
+  
 function tutorShowTyping() {
   const msgs = document.getElementById('tutorMsgs');
   const div = document.createElement('div');
