@@ -626,13 +626,36 @@ recognizer.onend = () => {
       ? "Microphone access was blocked. Allow mic access in your browser to use voice input."
       : "Couldn't hear that clearly — please try again or type your question.");
   };
-  recognizer.onend = () => {
-    isListening = false;
-    document.getElementById('tutorMic').classList.remove('listening');
-  };
 } else {
   document.getElementById('tutorMic').addEventListener('click', () => {
     tutorAddMessage('system', "Voice input isn't supported in this browser — try Chrome or Edge, or just type your question.");
+  });
+}
+
+  let mediaRecorder = null, audioChunks = [], recordedAudioB64 = null, recordedAudioMime = null;
+function startAudioRecording(stream) {
+  try {
+    audioChunks = [];
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start();
+  } catch (e) { console.warn('Audio recording unavailable:', e); }
+}
+function stopAudioRecording() {
+  return new Promise(resolve => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(); return; }
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        recordedAudioB64 = reader.result.split(',')[1];
+        recordedAudioMime = blob.type;
+        resolve();
+      };
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorder.stop();
   });
 }
 
@@ -676,6 +699,11 @@ async function tutorSend() {
 
   tutorAddMessage('user', question);
   tutorShowTyping();
+  if (recordedAudioB64) {
+  body.set('audioBase64', recordedAudioB64);
+  body.set('audioMime', recordedAudioMime);
+  recordedAudioB64 = null; recordedAudioMime = null;
+}
 
   try {
     const body = new URLSearchParams({
