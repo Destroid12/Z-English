@@ -284,7 +284,21 @@
         .track-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: var(--card-bg); border: 2px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; max-width: 420px; }
         .track-tab { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; background: transparent; color: var(--text-muted); }
         .track-tab.active { background: var(--z-blue); color: white; }
-
+.st-bubble-row { display:flex; align-items:flex-end; gap:10px; max-width:80%; }
+.st-bubble-row.user { align-self:flex-end; flex-direction:row-reverse; }
+.st-bubble-row.bot { align-self:flex-start; }
+.st-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; }
+.st-avatar.user { background: var(--z-blue-light); color: var(--z-blue-dark); }
+.st-avatar.bot { background: var(--z-yellow); color:#fff; }
+.st-bubble { padding:11px 15px; border-radius:16px; font-size:0.92rem; font-weight:600; line-height:1.45; word-wrap:break-word; }
+.st-bubble-row.user .st-bubble { background: var(--z-blue); color:#fff; border-bottom-right-radius:4px; }
+.st-bubble-row.bot .st-bubble { background:#fff; border:2px solid var(--border-color); color:var(--text-main); border-bottom-left-radius:4px; }
+.st-time { font-size:0.68rem; color:var(--text-muted); font-weight:700; margin-top:3px; }
+.st-typing { display:flex; gap:4px; align-self:flex-start; padding:11px 15px; background:#fff; border:2px solid var(--border-color); border-radius:16px; border-bottom-left-radius:4px; }
+.st-typing span { width:6px; height:6px; border-radius:50%; background: var(--z-blue); animation: stdot 1.2s infinite; }
+.st-typing span:nth-child(2){ animation-delay:.2s; }
+.st-typing span:nth-child(3){ animation-delay:.4s; }
+@keyframes stdot { 0%,60%,100%{ opacity:.3; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
         .level-list { display: flex; flex-direction: column; gap: 14px; }
         .level-card { border: 2px solid var(--border-color); border-radius: var(--radius-md); background: var(--card-bg); overflow: hidden; }
         .level-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; cursor: pointer; }
@@ -758,25 +772,25 @@
         </section>
 <section id="ai-tutor" class="page-section container">
   <div class="community-wrapper">
-    <h2 style="margin-bottom:4px;">AI Tutor</h2>
-    <p style="margin-bottom:20px;">Ask about anything in the curriculum, or say "quiz me".</p>
-    <div class="card" style="height:60vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
-      <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px;"></div>
-      <div style="display:flex; gap:8px; padding:12px; border-top:2px solid var(--border-color);">
+    <div class="flex justify-between items-center" style="margin-bottom: 16px;">
+      <div>
+        <h2 style="margin-bottom:2px;">Mr.Z</h2>
+        <p style="margin:0;">Ask about anything in the curriculum, or say "quiz me".</p>
+      </div>
+      <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
+        <i class="fas fa-volume-high"></i> Read aloud: off
+      </button>
+    </div>
+    <div class="card" style="height:65vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+      <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; background:var(--bg-color);"></div>
+      <div style="display:flex; gap:8px; padding:14px; border-top:2px solid var(--border-color); background:var(--card-bg);">
+        <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()" style="flex:0 0 44px; display:flex; align-items:center; justify-content:center;">
+          <i class="fas fa-microphone"></i>
+        </button>
         <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
         <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
       </div>
     </div>
-      <div style="display:flex; justify-content:flex-end; padding:10px 16px 0;">
-  <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
-    <i class="fas fa-volume-high"></i> Read replies aloud: off
-  </button>
-</div>
-      <div style="display:flex; gap:8px; padding:12px; border-top:2px solid var(--border-color);">
-  <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()"><i class="fas fa-microphone"></i></button>
-  <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
-  <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
-</div>
   </div>
 </section>
         <section id="community" class="page-section container">
@@ -825,7 +839,7 @@
         // --- Internationalization ---
         const translations = {
             en: {
-                navAITutor: "AI Tutor",
+                navAITutor: "Mr.Z",
                 uploadLessonTitle: "Upload Lesson Content",
                 dropzoneMain: "Drag & drop the lesson JSON file here",
                 dropzoneSub: "or click to browse your computer / Drive",
@@ -1093,7 +1107,7 @@
                     <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
                     <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
                     <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
-                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'AI Tutor'}</a>
+                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Mr.Z'}</a>
                     <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
                     ${langSwitcher}`;
             } else if (currentUser && currentUser.role === 'student') {
@@ -1102,7 +1116,7 @@
                     <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
                     <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
                     <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
-                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'AI Tutor'}</a>
+                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Mr.Z'}</a>
                     <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
                     ${langSwitcher}`;
             } else {
@@ -1941,22 +1955,33 @@
 let siteTutorHistory = [];
 function siteTutorAddMsg(role, text) {
   const wrap = document.getElementById('siteTutorMsgs');
-  const div = document.createElement('div');
-  div.style.maxWidth = '85%';
-  div.style.padding = '10px 14px';
-  div.style.borderRadius = '14px';
-  div.style.fontWeight = '600';
-  div.style.fontSize = '0.9rem';
-  if (role === 'user') {
-    div.style.alignSelf = 'flex-end'; div.style.background = 'var(--z-blue)'; div.style.color = '#fff';
-  } else {
-    div.style.alignSelf = 'flex-start'; div.style.background = 'var(--bg-color)'; div.style.border = '1px solid var(--border-color)';
-    if (siteTutorSpeakOn) speakSiteTutorText(text);
-  }
-  div.textContent = text;
-  wrap.appendChild(div);
+  const row = document.createElement('div');
+  row.className = 'st-bubble-row ' + (role === 'user' ? 'user' : 'bot');
+  const avatar = document.createElement('div');
+  avatar.className = 'st-avatar ' + (role === 'user' ? 'user' : 'bot');
+  avatar.textContent = role === 'user' ? (currentUser.name || '?').charAt(0).toUpperCase() : 'Z';
+  const col = document.createElement('div');
+  const bubble = document.createElement('div');
+  bubble.className = 'st-bubble';
+  bubble.textContent = text;
+  const time = document.createElement('div');
+  time.className = 'st-time';
+  time.style.textAlign = role === 'user' ? 'right' : 'left';
+  time.textContent = new Date().toLocaleTimeString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  col.appendChild(bubble); col.appendChild(time);
+  row.appendChild(avatar); row.appendChild(col);
+  wrap.appendChild(row);
   wrap.scrollTop = wrap.scrollHeight;
+  if (role === 'bot' && siteTutorSpeakOn) speakSiteTutorText(text);
 }
+function siteTutorShowTyping() {
+  const wrap = document.getElementById('siteTutorMsgs');
+  const div = document.createElement('div');
+  div.className = 'st-typing'; div.id = 'siteTutorTyping';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(div); wrap.scrollTop = wrap.scrollHeight;
+}
+function siteTutorHideTyping() { const el = document.getElementById('siteTutorTyping'); if (el) el.remove(); }
 
 async function sendSiteTutorMsg() {
   const input = document.getElementById('siteTutorInput');
@@ -1964,18 +1989,21 @@ async function sendSiteTutorMsg() {
   if (!question || !currentUser || !sessionToken) return;
   input.value = '';
   siteTutorAddMsg('user', question);
+  siteTutorShowTyping();
   try {
     const body = new URLSearchParams({
       action: 'askSiteTutor', token: sessionToken, question,
       history: JSON.stringify(siteTutorHistory.slice(-8))
     });
     const result = await callBackend(body);
+    siteTutorHideTyping();
     if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
     if (!result.success) { siteTutorAddMsg('bot', result.message || 'Something went wrong.'); return; }
     siteTutorHistory.push({ role: 'user', content: question });
     siteTutorHistory.push({ role: 'assistant', content: result.reply });
     siteTutorAddMsg('bot', result.reply);
   } catch (err) {
+    siteTutorHideTyping();
     siteTutorAddMsg('bot', translations[currentLang].errNetwork);
   }
 }
