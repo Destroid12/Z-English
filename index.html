@@ -774,7 +774,7 @@
   <div class="community-wrapper">
     <div class="flex justify-between items-center" style="margin-bottom: 16px;">
       <div>
-        <h2 style="margin-bottom:2px;">Mr.Z</h2>
+        <h2 style="margin-bottom:2px;">Z-AI</h2>
         <p style="margin:0;">Ask about anything in the curriculum, or say "quiz me".</p>
       </div>
       <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
@@ -839,7 +839,7 @@
         // --- Internationalization ---
         const translations = {
             en: {
-                navAITutor: "Mr.Z",
+                navAITutor: "Z-AI",
                 uploadLessonTitle: "Upload Lesson Content",
                 dropzoneMain: "Drag & drop the lesson JSON file here",
                 dropzoneSub: "or click to browse your computer / Drive",
@@ -1107,7 +1107,7 @@
                     <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
                     <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
                     <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
-                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Mr.Z'}</a>
+                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Z-AI'}</a>
                     <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
                     ${langSwitcher}`;
             } else if (currentUser && currentUser.role === 'student') {
@@ -1116,7 +1116,7 @@
                     <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
                     <a href="#" class="nav-link" onclick="navigate('about')">${translations[currentLang].navAbout}</a>
                     <a href="#" class="nav-link" onclick="navigate('contact')">${translations[currentLang].navContact}</a>
-                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Mr.Z'}</a>
+                    <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Z-AI'}</a>
                     <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
                     ${langSwitcher}`;
             } else {
