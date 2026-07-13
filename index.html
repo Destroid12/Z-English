@@ -299,6 +299,7 @@
 .st-typing span:nth-child(2){ animation-delay:.2s; }
 .st-typing span:nth-child(3){ animation-delay:.4s; }
 @keyframes stdot { 0%,60%,100%{ opacity:.3; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
+        @keyframes stdot2 { 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
         .level-list { display: flex; flex-direction: column; gap: 14px; }
         .level-card { border: 2px solid var(--border-color); border-radius: var(--radius-md); background: var(--card-bg); overflow: hidden; }
         .level-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; cursor: pointer; }
@@ -781,16 +782,26 @@
         <i class="fas fa-volume-high"></i> Read aloud: off
       </button>
     </div>
-    <div class="card" style="height:65vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
-      <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; background:var(--bg-color);"></div>
-      <div style="display:flex; gap:8px; padding:14px; border-top:2px solid var(--border-color); background:var(--card-bg);">
-        <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()" style="flex:0 0 44px; display:flex; align-items:center; justify-content:center;">
-          <i class="fas fa-microphone"></i>
-        </button>
-        <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
-        <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
-      </div>
-    </div>
+    <div style="display:flex; gap:8px; padding:14px; border-top:2px solid var(--border-color); background:var(--card-bg); align-items:center;">
+  <button id="siteTutorAutoSend" class="btn btn-outline" onclick="toggleSiteTutorAutoSend()"
+          title="When on, your speech is sent automatically as soon as you stop talking"
+          style="flex:0 0 38px; padding:0; display:flex; align-items:center; justify-content:center;">
+    <i class="fas fa-bolt"></i>
+  </button>
+  <div id="siteTutorMicWrap" style="position:relative; display:flex; align-items:center;">
+    <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()"
+            style="flex:0 0 44px; display:flex; align-items:center; justify-content:center;">
+      <i class="fas fa-microphone"></i>
+    </button>
+    <div id="siteTutorMicLevel" style="position:absolute; inset:-4px; border-radius:12px; pointer-events:none; box-shadow:0 0 0 0 rgba(217,69,92,0);"></div>
+  </div>
+  <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..."
+         onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
+  <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
+</div>
+<div id="siteTutorRecIndicator" style="display:none; align-items:center; gap:6px; font-size:11px; font-weight:800; color:var(--danger); padding:0 14px 6px;">
+  <span style="width:8px;height:8px;border-radius:50%;background:var(--danger); animation: stdot2 1s infinite;"></span> Listening…
+</div>
   </div>
 </section>
         <section id="community" class="page-section container">
@@ -1379,10 +1390,6 @@
             row.id = `row-${key}`;
 
             if (isAdmin) {
-                // SECURITY FIX: we no longer embed the admin's login session token
-                // in a shareable preview URL. Instead, clicking "Open (Admin)" asks
-                // the backend to mint a fresh, single-purpose, short-lived preview
-                // token (see openAdminPreview()) scoped to just this one lesson.
                 const hasLink = !!adminSessionsCache[key];
                 row.innerHTML = `
                     <div class="session-label"><i class="fas fa-lock-open" id="icon-${key}" style="color:var(--success);"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
@@ -1407,11 +1414,6 @@
             }
             return row;
         }
-
-        // SECURITY FIX: mints a fresh, scoped, short-lived (3 min) preview token
-        // server-side instead of ever putting the admin's real login session
-        // token into a URL. If this URL leaks, the worst case is a brief,
-        // single-lesson view — not full admin API access.
         async function openAdminPreview(track, level, sessionNum) {
             const key = `${track}-${level}-${sessionNum}`;
             const msgEl = document.getElementById(`msg-${key}`);
@@ -1964,6 +1966,14 @@ function siteTutorAddMsg(role, text) {
   const bubble = document.createElement('div');
   bubble.className = 'st-bubble';
   bubble.textContent = text;
+  if (role === 'bot') {
+    const replay = document.createElement('button');
+    replay.style.cssText = 'background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;margin-left:6px;';
+    replay.innerHTML = '<i class="fas fa-volume-high"></i>';
+    replay.onclick = () => speakSiteTutorText(text);
+    bubble.appendChild(replay);
+    if (siteTutorSpeakOn) speakSiteTutorText(text);
+  }
   const time = document.createElement('div');
   time.className = 'st-time';
   time.style.textAlign = role === 'user' ? 'right' : 'left';
@@ -1972,7 +1982,6 @@ function siteTutorAddMsg(role, text) {
   row.appendChild(avatar); row.appendChild(col);
   wrap.appendChild(row);
   wrap.scrollTop = wrap.scrollHeight;
-  if (role === 'bot' && siteTutorSpeakOn) speakSiteTutorText(text);
 }
 function siteTutorShowTyping() {
   const wrap = document.getElementById('siteTutorMsgs');
@@ -2008,25 +2017,86 @@ async function sendSiteTutorMsg() {
   }
 }
 
-        // --- Speak (TTS) ---
 let siteTutorSpeakOn = false;
+let siteTutorAutoSendOn = false;
+try { siteTutorAutoSendOn = localStorage.getItem('zenglish_sitetutor_autosend') === '1'; } catch(e){}
+
+function toggleSiteTutorAutoSend() {
+  siteTutorAutoSendOn = !siteTutorAutoSendOn;
+  try { localStorage.setItem('zenglish_sitetutor_autosend', siteTutorAutoSendOn ? '1' : '0'); } catch(e){}
+  document.getElementById('siteTutorAutoSend').classList.toggle('btn-primary', siteTutorAutoSendOn);
+}
+
 function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US'; }
+
+// ---- Single male voice (see #5) ----
+let cachedVoices = [];
+function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
+if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+const MALE_VOICE_NAMES = {
+  en: ['Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Daniel', 'Fred', 'Alex'],
+  ar: ['Microsoft Naayf', 'Microsoft Hamed', 'Tarik']
+};
+function pickMaleVoice(lang) {
+  if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
+  const isAr = lang.startsWith('ar');
+  const names = isAr ? MALE_VOICE_NAMES.ar : MALE_VOICE_NAMES.en;
+  for (const name of names) {
+    const m = cachedVoices.find(v => v.name.includes(name));
+    if (m) return m;
+  }
+  const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
+  return pool.find(v => !/female/i.test(v.name)) || pool[0] || null;
+}
 function speakSiteTutorText(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = detectSpeechLang(text);
-  utter.rate = 1;
+  const lang = detectSpeechLang(text);
+  utter.lang = lang;
+  const voice = pickMaleVoice(lang);
+  if (voice) utter.voice = voice;
+  utter.rate = 0.97; utter.pitch = 0.95;
   window.speechSynthesis.speak(utter);
 }
 function toggleSiteTutorSpeak() {
   siteTutorSpeakOn = !siteTutorSpeakOn;
-  const btn = document.getElementById('siteTutorSpeakToggle');
-  btn.innerHTML = `<i class="fas fa-volume-high"></i> Read replies aloud: ${siteTutorSpeakOn ? 'on' : 'off'}`;
+  document.getElementById('siteTutorSpeakToggle').innerHTML =
+    `<i class="fas fa-volume-high"></i> Read aloud: ${siteTutorSpeakOn ? 'on' : 'off'}`;
   if (!siteTutorSpeakOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
-// --- Voice input (STT) ---
+// ---- mic level meter ----
+let siteMicAudioCtx=null, siteMicAnalyser=null, siteMicStream=null, siteMicRafId=null;
+async function startSiteMicLevelMeter() {
+  try {
+    siteMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    siteMicAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = siteMicAudioCtx.createMediaStreamSource(siteMicStream);
+    siteMicAnalyser = siteMicAudioCtx.createAnalyser();
+    siteMicAnalyser.fftSize = 512;
+    source.connect(siteMicAnalyser);
+    const data = new Uint8Array(siteMicAnalyser.frequencyBinCount);
+    const levelEl = document.getElementById('siteTutorMicLevel');
+    (function loop(){
+      siteMicAnalyser.getByteTimeDomainData(data);
+      let sum=0; for (let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum+=v*v; }
+      const level = Math.min(1, Math.sqrt(sum/data.length)*4);
+      levelEl.style.boxShadow = `0 0 0 ${4+level*14}px rgba(217,69,92,${0.35*level})`;
+      siteMicRafId = requestAnimationFrame(loop);
+    })();
+    startAudioRecording(siteMicStream); // see #4
+  } catch(e){ console.warn('Mic meter unavailable', e); }
+}
+function stopSiteMicLevelMeter() {
+  if (siteMicRafId) cancelAnimationFrame(siteMicRafId);
+  siteMicRafId = null;
+  if (siteMicStream) { siteMicStream.getTracks().forEach(t=>t.stop()); siteMicStream=null; }
+  if (siteMicAudioCtx) { siteMicAudioCtx.close(); siteMicAudioCtx=null; }
+  const levelEl = document.getElementById('siteTutorMicLevel');
+  if (levelEl) levelEl.style.boxShadow = 'none';
+}
+
 const SiteSTTCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 let siteTutorRecognizer = null, siteTutorListening = false;
 if (SiteSTTCtor) {
@@ -2038,10 +2108,17 @@ if (SiteSTTCtor) {
     const input = document.getElementById('siteTutorInput');
     input.value = (input.value ? input.value + ' ' : '') + transcript;
   };
-  siteTutorRecognizer.onerror = () => { siteTutorAddMsg('bot', "Couldn't hear that clearly — please try again or type."); };
-  siteTutorRecognizer.onend = () => {
+  siteTutorRecognizer.onerror = () => {
+    siteTutorAddMsg('bot', "Couldn't hear that clearly — please try again or type.");
+  };
+  // ONE onend handler only — this was the bug in player.html
+  siteTutorRecognizer.onend = async () => {
     siteTutorListening = false;
     document.getElementById('siteTutorMic').classList.remove('btn-primary');
+    document.getElementById('siteTutorRecIndicator').style.display = 'none';
+    stopSiteMicLevelMeter();
+    await stopAudioRecording(); // finalize the raw clip (see #4)
+    if (siteTutorAutoSendOn) sendSiteTutorMsg();
   };
 }
 function toggleSiteTutorMic() {
@@ -2052,6 +2129,8 @@ function toggleSiteTutorMic() {
     siteTutorRecognizer.start();
     siteTutorListening = true;
     document.getElementById('siteTutorMic').classList.add('btn-primary');
+    document.getElementById('siteTutorRecIndicator').style.display = 'flex';
+    startSiteMicLevelMeter();
   } catch (e) { console.error(e); }
 }
         
