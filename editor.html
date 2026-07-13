@@ -142,6 +142,10 @@
 
     <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
     <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+    <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+<button class="btn btn-outline" id="migrateAllBtn" onclick="runMigrateAllSessions()" title="Scan every saved session, re-host any embedded images/audio/video to Drive, and re-save if changed">
+  <i class="fas fa-broom"></i> Migrate All Sessions
+</button>
 
     <span id="statusMsg" class="info"></span>
 
@@ -414,6 +418,91 @@ function parseSlideHTML(html) {
   }
 }
 
+// Scans EVERY session with saved content, re-hosts any embedded data: media,
+// and re-saves only the ones that actually had something to migrate. Uses
+// local variables throughout — never touches the slides/selectedSlideId
+// you're currently editing in the main panel.
+async function runMigrateAllSessions() {
+  if (!confirm('This scans every saved session, re-hosts any embedded (data:) images/audio/video to Drive, and re-saves sessions that changed. It can take a while for many sessions and will overwrite those specific sessions with the migrated version. Continue?')) return;
+
+  const btn = document.getElementById('migrateAllBtn');
+  btn.disabled = true;
+  setStatus('Scanning all sessions...', 'info');
+
+  try {
+    const listResult = await callBackendGet(new URLSearchParams({ action: 'listLessonContentSessions', token: sessionToken }));
+    if (listResult.expired) { setStatus('Your session expired — please sign in again from the dashboard.', 'error'); return; }
+    if (!listResult.success) { setStatus(listResult.message || 'Could not list sessions.', 'error'); return; }
+
+    const sessionsList = listResult.sessions || [];
+    let checkedCount = 0, migratedCount = 0, errorCount = 0;
+
+    for (const s of sessionsList) {
+      checkedCount++;
+      setStatus(`Checking ${checkedCount}/${sessionsList.length}: ${s.track} L${s.level} S${s.sessionNumber}...`, 'info');
+      try {
+        const result = await callBackendGet(new URLSearchParams({
+          action: 'getLessonContentForEdit', token: sessionToken,
+          track: s.track, level: s.level, sessionNumber: s.sessionNumber
+        }));
+        if (!result.success) { errorCount++; continue; }
+
+        const parsedSlides = (result.slides || []).map(parseSlideHTML);
+        const hasInlineMedia = parsedSlides.some(sl => sl.elements.some(el => el.url && el.url.startsWith('data:')));
+        if (!hasInlineMedia) continue; // nothing to do for this session
+
+        for (const sl of parsedSlides) await migrateInlineDataUrls(sl);
+
+        const compiledSlides = parsedSlides.map(compileSlide);
+        const slidesJson = JSON.stringify(compiledSlides);
+        const saveResult = await callBackend(new URLSearchParams({
+          action: 'setLessonContent', token: sessionToken,
+          track: s.track, level: s.level, sessionNumber: s.sessionNumber, slidesJson
+        }));
+        if (saveResult.success) migratedCount++; else errorCount++;
+      } catch (err) {
+        console.error('Migration failed for', s, err);
+        errorCount++;
+      }
+    }
+
+    setStatus(`Done. Checked ${checkedCount} session(s), migrated ${migratedCount}, ${errorCount} error(s).`,
+      errorCount > 0 ? 'error' : 'success');
+  } catch (err) {
+    console.error('runMigrateAllSessions failed:', err);
+    setStatus('Could not reach the server: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+  
+async function migrateInlineDataUrls(slide) {
+  if (slide._migratedMedia) return slide;
+  let didWork = false;
+  for (const el of slide.elements) {
+    if ((el.kind === 'image' || el.kind === 'video' || el.kind === 'audio') &&
+        el.url && el.url.startsWith('data:')) {
+      const match = /^data:([^;]+);base64,(.+)$/.exec(el.url);
+      if (!match) continue;
+      const [, mimeType, base64] = match;
+      try {
+        const body = new URLSearchParams({
+          action: 'uploadMedia', token: sessionToken,
+          filename: 'migrated_' + el.id + '.' + (mimeType.split('/')[1] || 'bin'),
+          mimeType, dataBase64: base64
+        });
+        const result = await callBackend(body);
+        if (result.success) { el.url = result.url; didWork = true; }
+        else console.error('Migration upload failed for', el.id, result.message);
+      } catch (e) {
+        console.error('Could not migrate inline media for element', el.id, e);
+      }
+    }
+  }
+  slide._migratedMedia = true; // stops this from re-running on future loads of this slide
+  return didWork ? slide : slide;
+}
+  
 function parseLegacySlideHTML(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const frame = doc.querySelector('.frame') || doc.body;
@@ -1079,7 +1168,15 @@ async function loadSession() {
       slides = (result.slides || []).map(parseSlideHTML);
       if (slides.length === 0) slides = [blankSlide('content')];
       selectedSlideId = slides[0].id;
-      setStatus(`Loaded ${slides.length} slide(s).`, 'success');
+
+      const hasInlineMedia = slides.some(s => s.elements.some(el => el.url && el.url.startsWith('data:')));
+      if (hasInlineMedia) {
+        setStatus('Re-hosting embedded media (this session used inline images)...', 'info');
+        for (const s of slides) await migrateInlineDataUrls(s);
+        setStatus(`Loaded ${slides.length} slide(s) — embedded media re-hosted. Save to keep this fix.`, 'success');
+      } else {
+        setStatus(`Loaded ${slides.length} slide(s).`, 'success');
+      }
     }
     renderSlideList(); renderElements(); updatePreview();
   } catch (err) {
