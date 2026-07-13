@@ -767,6 +767,16 @@
         <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
       </div>
     </div>
+      <div style="display:flex; justify-content:flex-end; padding:10px 16px 0;">
+  <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
+    <i class="fas fa-volume-high"></i> Read replies aloud: off
+  </button>
+</div>
+      <div style="display:flex; gap:8px; padding:12px; border-top:2px solid var(--border-color);">
+  <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()"><i class="fas fa-microphone"></i></button>
+  <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
+  <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
+</div>
   </div>
 </section>
         <section id="community" class="page-section container">
@@ -1941,6 +1951,7 @@ function siteTutorAddMsg(role, text) {
     div.style.alignSelf = 'flex-end'; div.style.background = 'var(--z-blue)'; div.style.color = '#fff';
   } else {
     div.style.alignSelf = 'flex-start'; div.style.background = 'var(--bg-color)'; div.style.border = '1px solid var(--border-color)';
+    if (siteTutorSpeakOn) speakSiteTutorText(text);
   }
   div.textContent = text;
   wrap.appendChild(div);
@@ -1967,6 +1978,53 @@ async function sendSiteTutorMsg() {
   } catch (err) {
     siteTutorAddMsg('bot', translations[currentLang].errNetwork);
   }
+}
+
+        // --- Speak (TTS) ---
+let siteTutorSpeakOn = false;
+function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US'; }
+function speakSiteTutorText(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = detectSpeechLang(text);
+  utter.rate = 1;
+  window.speechSynthesis.speak(utter);
+}
+function toggleSiteTutorSpeak() {
+  siteTutorSpeakOn = !siteTutorSpeakOn;
+  const btn = document.getElementById('siteTutorSpeakToggle');
+  btn.innerHTML = `<i class="fas fa-volume-high"></i> Read replies aloud: ${siteTutorSpeakOn ? 'on' : 'off'}`;
+  if (!siteTutorSpeakOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+// --- Voice input (STT) ---
+const SiteSTTCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let siteTutorRecognizer = null, siteTutorListening = false;
+if (SiteSTTCtor) {
+  siteTutorRecognizer = new SiteSTTCtor();
+  siteTutorRecognizer.continuous = false;
+  siteTutorRecognizer.interimResults = false;
+  siteTutorRecognizer.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const input = document.getElementById('siteTutorInput');
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+  };
+  siteTutorRecognizer.onerror = () => { siteTutorAddMsg('bot', "Couldn't hear that clearly — please try again or type."); };
+  siteTutorRecognizer.onend = () => {
+    siteTutorListening = false;
+    document.getElementById('siteTutorMic').classList.remove('btn-primary');
+  };
+}
+function toggleSiteTutorMic() {
+  if (!siteTutorRecognizer) { siteTutorAddMsg('bot', "Voice input isn't supported in this browser — try Chrome or Edge."); return; }
+  if (siteTutorListening) { siteTutorRecognizer.stop(); return; }
+  siteTutorRecognizer.lang = detectSpeechLang(document.getElementById('siteTutorInput').value || 'en');
+  try {
+    siteTutorRecognizer.start();
+    siteTutorListening = true;
+    document.getElementById('siteTutorMic').classList.add('btn-primary');
+  } catch (e) { console.error(e); }
 }
         
         // =====================================================================
