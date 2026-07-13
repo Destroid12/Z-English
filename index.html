@@ -34,41 +34,6 @@
             --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
             --shadow-float: 0 12px 30px rgba(101, 178, 232, 0.15);
         }
-        .category-card{ border:2px solid var(--border-color); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
-.category-card:hover{ border-color:var(--z-blue); }
-.category-card.active{ border-color:var(--z-blue); background:var(--z-blue-light); }
-.category-card .cat-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.category-card .cat-type{ font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); }
-.status-badge{ font-size:0.68rem; font-weight:800; padding:3px 9px; border-radius:12px; text-transform:uppercase; white-space:nowrap; }
-.status-badge.active{ background:var(--success-light); color:var(--success); }
-.status-badge.expired{ background:var(--danger-light); color:var(--danger); }
-.custom-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
-.custom-session-row:last-child{ border-bottom:none; }
-.custom-session-meta{ font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:2px; }
-.practice-section-card{ border:2px solid var(--border-color); border-radius:var(--radius-md); padding:18px 22px; margin-bottom:14px; background:var(--card-bg); }
-.practice-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
-.practice-session-row:last-child{ border-bottom:none; }
-
-        .post-actions button { background: none; border: none; }
-.post-actions button.liked { color: var(--danger); font-weight: 800; }
-.post-actions button.liked i { font-weight: 900; }
-.comments-toggle-count { font-weight: 700; }
-.comments-section { margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 14px; }
-.comment-item { display: flex; gap: 10px; margin-bottom: 14px; }
-.comment-avatar { width: 32px; height: 32px; background: var(--z-blue-light); color: var(--z-blue-dark); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; }
-.comment-body { flex: 1; }
-.comment-bubble { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; }
-.comment-author { font-weight: 800; font-size: 0.85rem; }
-.comment-text { font-size: 0.9rem; margin-top: 2px; color: var(--text-main); }
-.comment-meta { display: flex; gap: 14px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
-.comment-meta button { background: none; color: var(--text-muted); font-weight: 700; }
-.comment-meta button:hover { color: var(--z-blue); }
-.comment-composer { display: flex; gap: 8px; margin-top: 12px; }
-.comment-composer input { flex: 1; padding: 9px 12px; border: 2px solid var(--border-color); border-radius: 10px; font-family: inherit; font-size: 0.88rem; outline: none; }
-.comment-composer input:focus { border-color: var(--z-blue); }
-.comment-composer button { background: var(--z-blue); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; }
-.reply-composer { margin-top: 8px; }
-.reply-quote { font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin: 2px 0 4px; font-style: italic; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -92,10 +57,7 @@
     transition: all 0.2s ease;
     background: var(--bg-color);
 }
-.dropzone:hover, .dropzone.dragover {
-    border-color: var(--z-blue);
-    background: var(--z-blue-light);
-}
+.dropzone:hover, .dropzone.dragover { border-color: var(--z-blue); background: var(--z-blue-light); }
 .dropzone.dragover { transform: scale(1.01); }
 .dropzone.uploading { opacity: 0.6; pointer-events: none; }
 .dropzone-icon { font-size: 2.2rem; color: var(--z-blue); margin-bottom: 12px; }
@@ -374,6 +336,48 @@
         footer { text-align: center; padding: 30px; color: var(--text-muted); border-top: 2px solid var(--border-color); background-color: var(--card-bg); font-weight: 600; }
 
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; align-items: center; justify-content: center; font-size: 2rem; color: var(--z-blue); }
+
+        /* --- Advanced track lock --- */
+        .track-tab.locked { position: relative; opacity: 0.65; cursor: not-allowed; }
+        .track-tab .soon-badge { font-size: 0.6rem; font-weight: 800; background: var(--z-yellow); color: #fff; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; text-transform: uppercase; }
+        html[dir="rtl"] .track-tab .soon-badge { margin-left: 0; margin-right: 6px; }
+
+        /* --- Sections/categories admin + practice sessions --- */
+        .category-card{ border:2px solid var(--border-color); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+        .category-card:hover{ border-color:var(--z-blue); }
+        .category-card.active{ border-color:var(--z-blue); background:var(--z-blue-light); }
+        .category-card .cat-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+        .category-card .cat-type{ font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); }
+        .status-badge{ font-size:0.68rem; font-weight:800; padding:3px 9px; border-radius:12px; text-transform:uppercase; white-space:nowrap; }
+        .status-badge.active{ background:var(--success-light); color:var(--success); }
+        .status-badge.expired{ background:var(--danger-light); color:var(--danger); }
+        .custom-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
+        .custom-session-row:last-child{ border-bottom:none; }
+        .custom-session-meta{ font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:2px; }
+        .practice-section-card{ border:2px solid var(--border-color); border-radius:var(--radius-md); padding:18px 22px; margin-bottom:14px; background:var(--card-bg); }
+        .practice-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
+        .practice-session-row:last-child{ border-bottom:none; }
+
+        /* --- Community: likes, comments, flat replies --- */
+        .post-actions button { background: none; border: none; }
+        .post-actions button.liked { color: var(--danger); font-weight: 800; }
+        .post-actions button.liked i { font-weight: 900; }
+        .comments-section { margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 14px; }
+        .comment-item { display: flex; gap: 10px; margin-bottom: 14px; }
+        .comment-avatar { width: 32px; height: 32px; background: var(--z-blue-light); color: var(--z-blue-dark); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; }
+        .comment-body { flex: 1; }
+        .comment-bubble { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; }
+        .comment-author { font-weight: 800; font-size: 0.85rem; }
+        .reply-quote { font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin: 2px 0 4px; font-style: italic; }
+        .comment-text { font-size: 0.9rem; margin-top: 2px; color: var(--text-main); }
+        .comment-meta { display: flex; gap: 14px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
+        .comment-meta button { background: none; color: var(--text-muted); font-weight: 700; }
+        .comment-meta button:hover { color: var(--z-blue); }
+        .comment-composer { display: flex; gap: 8px; margin-top: 12px; }
+        .comment-composer input { flex: 1; padding: 9px 12px; border: 2px solid var(--border-color); border-radius: 10px; font-family: inherit; font-size: 0.88rem; outline: none; }
+        .comment-composer input:focus { border-color: var(--z-blue); }
+        .comment-composer button { background: var(--z-blue); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; }
+        .reply-composer { margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -555,10 +559,11 @@
 
             <div class="track-tabs">
                 <button type="button" class="track-tab active" id="track-tab-basic" onclick="switchTrack('basic')" data-i18n="basicTrack">Basic</button>
-                <button type="button" class="track-tab" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced</button>
+                <button type="button" class="track-tab locked" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced<span class="soon-badge" data-i18n="comingSoonBadge">Coming soon</span></button>
             </div>
 
             <div class="level-list" id="level-list"></div>
+
             <div id="practice-sections-wrap" style="margin-top: 40px;"></div>
         </section>
 
@@ -683,72 +688,73 @@
                     <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
                 </div>
             </div>
+
             <div class="admin-panel" id="admin-panel-sections">
-    <div class="card">
-        <h3 style="margin-bottom: 20px;">Categories</h3>
-        <div class="alert-box error" id="cat-alert"><i class="fas fa-circle-exclamation"></i> <span id="cat-alert-text"></span></div>
-        <form onsubmit="handleCreateCategory(event)" style="margin-bottom: 20px;">
-            <div class="form-grid">
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Category Label</label>
-                    <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Exam Prep, Grammar Clinic">
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;">Categories</h3>
+                    <div class="alert-box error" id="cat-alert"><i class="fas fa-circle-exclamation"></i> <span id="cat-alert-text"></span></div>
+                    <form onsubmit="handleCreateCategory(event)" style="margin-bottom: 20px;">
+                        <div class="form-grid">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Category Label</label>
+                                <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Exam Prep, Grammar Clinic">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Type</label>
+                                <select id="new-cat-type" class="input-control">
+                                    <option value="practice">Practice (link-only)</option>
+                                    <option value="curriculum">Curriculum</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
+                    </form>
+                    <div id="categories-list"></div>
                 </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Type</label>
-                    <select id="new-cat-type" class="input-control">
-                        <option value="practice">Practice (link-only)</option>
-                        <option value="curriculum">Curriculum</option>
-                    </select>
+
+                <div class="card" style="margin-top: 24px; display:none;" id="sessions-manager-card">
+                    <h3 id="sessions-manager-title" style="margin-bottom: 20px;">Sessions</h3>
+                    <div class="alert-box error" id="custom-sess-alert"><i class="fas fa-circle-exclamation"></i> <span id="custom-sess-alert-text"></span></div>
+                    <div class="alert-box success" id="custom-sess-success"><i class="fas fa-circle-check"></i> <span id="custom-sess-success-text"></span></div>
+
+                    <form onsubmit="handleCreateCustomSession(event)">
+                        <div class="form-grid">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Title</label>
+                                <input type="text" id="cs-title" class="input-control" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Link</label>
+                                <input type="url" id="cs-link" class="input-control" required placeholder="https://...">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Password (optional)</label>
+                                <input type="text" id="cs-password" class="input-control">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Mode</label>
+                                <select id="cs-mode" class="input-control" onchange="toggleTempFields()">
+                                    <option value="permanent">Permanent</option>
+                                    <option value="temporary">Temporary</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid" id="cs-temp-fields" style="display:none; margin-top: 16px;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Expires At (optional)</label>
+                                <input type="datetime-local" id="cs-expires" class="input-control">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Max Uses (optional)</label>
+                                <input type="number" id="cs-maxuses" class="input-control" min="1" placeholder="e.g. 30">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
+                    </form>
+
+                    <div id="custom-sessions-list" style="margin-top: 20px;"></div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
-        </form>
-        <div id="categories-list"></div>
-    </div>
-
-    <div class="card" style="margin-top: 24px;" id="sessions-manager-card" style="display:none;">
-        <h3 id="sessions-manager-title" style="margin-bottom: 20px;">Sessions</h3>
-        <div class="alert-box error" id="custom-sess-alert"><i class="fas fa-circle-exclamation"></i> <span id="custom-sess-alert-text"></span></div>
-        <div class="alert-box success" id="custom-sess-success"><i class="fas fa-circle-check"></i> <span id="custom-sess-success-text"></span></div>
-
-        <form onsubmit="handleCreateCustomSession(event)">
-            <div class="form-grid">
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Title</label>
-                    <input type="text" id="cs-title" class="input-control" required>
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Link</label>
-                    <input type="url" id="cs-link" class="input-control" required placeholder="https://...">
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Password (optional)</label>
-                    <input type="text" id="cs-password" class="input-control">
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Mode</label>
-                    <select id="cs-mode" class="input-control" onchange="toggleTempFields()">
-                        <option value="permanent">Permanent</option>
-                        <option value="temporary">Temporary</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-grid" id="cs-temp-fields" style="display:none; margin-top: 16px;">
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Expires At (optional)</label>
-                    <input type="datetime-local" id="cs-expires" class="input-control">
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label>Max Uses (optional)</label>
-                    <input type="number" id="cs-maxuses" class="input-control" min="1" placeholder="e.g. 30">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
-        </form>
-
-        <div id="custom-sessions-list" style="margin-top: 20px;"></div>
-    </div>
-</div>
         </section>
 
         <section id="community" class="page-section container">
@@ -814,6 +820,7 @@
                 signInBtn: "Sign In",
                 dashSub: "Pick a track, then a level, then a session.",
                 basicTrack: "Basic", advancedTrack: "Advanced",
+                comingSoonBadge: "Coming soon",
                 levelWord: "Level", sessionWord: "Session",
                 sessionPasswordPh: "Enter session password",
                 unlockBtn: "Unlock", openSessionBtn: "Open Session",
@@ -821,7 +828,7 @@
                 sessionUnlockedMsg: "Unlocked! Opening your session...",
                 sessionErrGeneric: "Couldn't check that password. Try again.",
                 adminDashSub: "Manage student accounts and session content.",
-                adminTabStudents: "Student Accounts", adminTabSessions: "Session Content",
+                adminTabStudents: "Student Accounts", adminTabSessions: "Session Content", adminTabSections: "Sections",
                 createStudentTitle: "Create Student Account",
                 studentIdField: "Student ID", studentIdPh: "e.g. STU-1042",
                 studentNameField: "Full Name",
@@ -892,6 +899,7 @@
                 signInBtn: "تسجيل الدخول",
                 dashSub: "اختر مسارًا، ثم مستوى، ثم جلسة.",
                 basicTrack: "أساسي", advancedTrack: "متقدم",
+                comingSoonBadge: "قريباً",
                 levelWord: "المستوى", sessionWord: "الجلسة",
                 sessionPasswordPh: "أدخل كلمة مرور الجلسة",
                 unlockBtn: "فتح", openSessionBtn: "فتح الجلسة",
@@ -899,7 +907,7 @@
                 sessionUnlockedMsg: "تم الفتح! جاري فتح جلستك...",
                 sessionErrGeneric: "تعذر التحقق من كلمة المرور. حاول مرة أخرى.",
                 adminDashSub: "إدارة حسابات الطلاب ومحتوى الجلسات.",
-                adminTabStudents: "حسابات الطلاب", adminTabSessions: "محتوى الجلسات",
+                adminTabStudents: "حسابات الطلاب", adminTabSessions: "محتوى الجلسات", adminTabSections: "الأقسام",
                 createStudentTitle: "إنشاء حساب طالب",
                 studentIdField: "رقم الطالب", studentIdPh: "مثال: STU-1042",
                 studentNameField: "الاسم الكامل",
@@ -1094,6 +1102,7 @@
                     setLoading(false);
                 }
                 renderLevelList();
+                loadPracticeSections();
             }
             if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); loadCategories(); }
         }
@@ -1280,6 +1289,7 @@
         // Student dashboard
         // =====================================================================
         function switchTrack(track) {
+            if (track === 'advanced') return; // locked — coming soon
             currentTrack = track;
             document.getElementById('track-tab-basic').classList.toggle('active', track === 'basic');
             document.getElementById('track-tab-advanced').classList.toggle('active', track === 'advanced');
@@ -1611,241 +1621,6 @@
             }
         }
 
-        // =====================================================================
-// Categories & custom (link-only) sessions
-// =====================================================================
-let selectedCategoryId = null;
-let categoriesCache = [];
-
-async function loadCategories() {
-    if (!sessionToken) return;
-    try {
-        const result = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        categoriesCache = result.categories || [];
-        renderCategoriesList();
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-function renderCategoriesList() {
-    const wrap = document.getElementById('categories-list');
-    if (!wrap) return;
-    if (categoriesCache.length === 0) { wrap.innerHTML = '<p style="margin-top:10px;">No categories yet.</p>'; return; }
-    wrap.innerHTML = categoriesCache.map(c => `
-        <div class="category-card ${c.id === selectedCategoryId ? 'active' : ''}" onclick="selectCategory('${c.id}', '${escapeHtml(c.label)}')">
-            <div class="cat-head">
-                <div>
-                    <strong>${escapeHtml(c.label)}</strong>
-                    <div class="cat-type">${c.type}</div>
-                </div>
-                <button class="btn-icon-del" onclick="event.stopPropagation(); handleDeleteCategory('${c.id}')" style="background:none; color:var(--danger); font-size:1rem;"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function handleCreateCategory(e) {
-    e.preventDefault();
-    document.getElementById('cat-alert').classList.remove('show');
-    const label = document.getElementById('new-cat-label').value.trim();
-    const type = document.getElementById('new-cat-type').value;
-    if (!label) return;
-    setLoading(true);
-    try {
-        const body = new URLSearchParams({ action: 'createCategory', token: sessionToken, label, type });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) {
-            document.getElementById('cat-alert-text').textContent = result.message || 'Could not create category.';
-            document.getElementById('cat-alert').classList.add('show');
-            return;
-        }
-        document.getElementById('new-cat-label').value = '';
-        await loadCategories();
-    } catch (err) {
-        document.getElementById('cat-alert-text').textContent = translations[currentLang].errNetwork;
-        document.getElementById('cat-alert').classList.add('show');
-    } finally { setLoading(false); }
-}
-
-async function handleDeleteCategory(id) {
-    if (!confirm('Delete this category? Its sessions will stop being listed.')) return;
-    setLoading(true);
-    try {
-        const body = new URLSearchParams({ action: 'deleteCategory', token: sessionToken, id });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (selectedCategoryId === id) { selectedCategoryId = null; document.getElementById('sessions-manager-card').style.display = 'none'; }
-        await loadCategories();
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-}
-
-function selectCategory(id, label) {
-    selectedCategoryId = id;
-    renderCategoriesList();
-    document.getElementById('sessions-manager-card').style.display = 'block';
-    document.getElementById('sessions-manager-title').textContent = `Sessions — ${label}`;
-    loadCustomSessions();
-}
-
-function toggleTempFields() {
-    const mode = document.getElementById('cs-mode').value;
-    document.getElementById('cs-temp-fields').style.display = mode === 'temporary' ? 'grid' : 'none';
-}
-
-async function handleCreateCustomSession(e) {
-    e.preventDefault();
-    document.getElementById('custom-sess-alert').classList.remove('show');
-    document.getElementById('custom-sess-success').classList.remove('show');
-    if (!selectedCategoryId) return;
-
-    const title = document.getElementById('cs-title').value.trim();
-    const link = document.getElementById('cs-link').value.trim();
-    const password = document.getElementById('cs-password').value;
-    const sessionMode = document.getElementById('cs-mode').value;
-    const expiresAtRaw = document.getElementById('cs-expires').value;
-    const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : '';
-    const maxUses = document.getElementById('cs-maxuses').value || '';
-
-    setLoading(true);
-    try {
-        const body = new URLSearchParams({ action: 'createCustomSession', token: sessionToken, categoryId: selectedCategoryId, title, link, password, sessionMode, expiresAt, maxUses });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) {
-            document.getElementById('custom-sess-alert-text').textContent = result.message || 'Could not create session.';
-            document.getElementById('custom-sess-alert').classList.add('show');
-            return;
-        }
-        document.getElementById('custom-sess-success-text').textContent = 'Session created.';
-        document.getElementById('custom-sess-success').classList.add('show');
-        document.getElementById('cs-title').value = '';
-        document.getElementById('cs-link').value = '';
-        document.getElementById('cs-password').value = '';
-        document.getElementById('cs-expires').value = '';
-        document.getElementById('cs-maxuses').value = '';
-        await loadCustomSessions();
-    } catch (err) {
-        document.getElementById('custom-sess-alert-text').textContent = translations[currentLang].errNetwork;
-        document.getElementById('custom-sess-alert').classList.add('show');
-    } finally { setLoading(false); }
-}
-
-async function loadCustomSessions() {
-    if (!selectedCategoryId) return;
-    const wrap = document.getElementById('custom-sessions-list');
-    try {
-        const result = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: selectedCategoryId }));
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        const sessions = result.sessions || [];
-        if (sessions.length === 0) { wrap.innerHTML = '<p>No sessions in this category yet.</p>'; return; }
-        wrap.innerHTML = sessions.map(s => `
-            <div class="custom-session-row">
-                <div>
-                    <strong>${escapeHtml(s.title)}</strong>
-                    <div class="custom-session-meta">
-                        ${s.sessionMode}${s.hasPassword ? ' · password protected' : ''}
-                        ${s.expiresAt ? ' · expires ' + new Date(s.expiresAt).toLocaleString() : ''}
-                        ${s.maxUses ? ` · ${s.useCount}/${s.maxUses} uses` : ''}
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="status-badge ${s.isActive ? 'active' : 'expired'}">${s.isActive ? 'Active' : 'Expired'}</span>
-                    <button class="btn btn-outline btn-sm" onclick="handleDeleteCustomSession('${s.id}')"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `).join('');
-    } catch (err) {
-        wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
-    }
-}
-
-async function handleDeleteCustomSession(id) {
-    if (!confirm('Delete this session?')) return;
-    setLoading(true);
-    try {
-        const body = new URLSearchParams({ action: 'deleteCustomSession', token: sessionToken, id });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        await loadCustomSessions();
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-}
-
-// =====================================================================
-// Student-facing practice sections
-// =====================================================================
-async function loadPracticeSections() {
-    const wrap = document.getElementById('practice-sections-wrap');
-    if (!wrap || !currentUser || currentUser.role !== 'student') return;
-    try {
-        const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
-        if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        const practiceCategories = (catResult.categories || []).filter(c => c.type === 'practice');
-        if (practiceCategories.length === 0) { wrap.innerHTML = ''; return; }
-
-        let html = '';
-        for (const cat of practiceCategories) {
-            const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: cat.id }));
-            const sessions = (sessResult.sessions || []).filter(s => s.isActive);
-            if (sessions.length === 0) continue;
-
-            html += `<div class="practice-section-card"><h3 style="margin-bottom: 14px;">${escapeHtml(cat.label)}</h3>`;
-            sessions.forEach(s => {
-                const key = `custom-${s.id}`;
-                html += `
-                    <div class="practice-session-row" id="row-${key}">
-                        <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${escapeHtml(s.title)}</div>
-                        <div class="session-controls" id="controls-${key}">
-                            ${s.hasPassword ? `<input type="password" class="input-control small" id="pw-${key}" placeholder="${translations[currentLang].sessionPasswordPh}">` : ''}
-                            <button type="button" class="btn btn-primary btn-sm" onclick="unlockCustomSessionUI('${s.id}')">
-                                <i class="fas fa-unlock"></i> ${translations[currentLang].unlockBtn}
-                            </button>
-                        </div>
-                        <div class="session-msg" id="msg-${key}"></div>
-                    </div>`;
-            });
-            html += `</div>`;
-        }
-        wrap.innerHTML = html || '';
-    } catch (err) {
-        console.error('Failed to load practice sections', err);
-    }
-}
-
-async function unlockCustomSessionUI(id) {
-    const key = `custom-${id}`;
-    const pwInput = document.getElementById(`pw-${key}`);
-    const password = pwInput ? pwInput.value : '';
-    const msgEl = document.getElementById(`msg-${key}`);
-    msgEl.textContent = ''; msgEl.className = 'session-msg';
-
-    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
-    setLoading(true);
-    try {
-        const body = new URLSearchParams({ action: 'unlockCustomSession', token: sessionToken, id, password });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) {
-            msgEl.textContent = result.message || translations[currentLang].wrongPasswordMsg;
-            msgEl.classList.add('error');
-            return;
-        }
-        msgEl.textContent = translations[currentLang].sessionUnlockedMsg;
-        msgEl.classList.add('success');
-        document.getElementById(`icon-${key}`).className = 'fas fa-lock-open';
-        document.getElementById(`controls-${key}`).innerHTML =
-            `<a href="${result.link}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-up-right-from-square"></i> ${translations[currentLang].openSessionBtn}</a>`;
-        window.open(result.link, '_blank');
-    } catch (err) {
-        msgEl.textContent = translations[currentLang].sessionErrGeneric;
-        msgEl.classList.add('error');
-    } finally { setLoading(false); }
-}
-
         function showElAlert(id, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(id).classList.add('show'); }
         function hideElAlert(id) { document.getElementById(id).classList.remove('show'); }
 
@@ -1902,6 +1677,241 @@ async function unlockCustomSessionUI(id) {
         }
 
         // =====================================================================
+        // Categories & custom (link-only) sessions
+        // =====================================================================
+        let selectedCategoryId = null;
+        let categoriesCache = [];
+
+        async function loadCategories() {
+            if (!sessionToken) return;
+            try {
+                const result = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                categoriesCache = result.categories || [];
+                renderCategoriesList();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderCategoriesList() {
+            const wrap = document.getElementById('categories-list');
+            if (!wrap) return;
+            if (categoriesCache.length === 0) { wrap.innerHTML = '<p style="margin-top:10px;">No categories yet.</p>'; return; }
+            wrap.innerHTML = categoriesCache.map(c => `
+                <div class="category-card ${c.id === selectedCategoryId ? 'active' : ''}" onclick="selectCategory('${c.id}', '${escapeHtml(c.label)}')">
+                    <div class="cat-head">
+                        <div>
+                            <strong>${escapeHtml(c.label)}</strong>
+                            <div class="cat-type">${c.type}</div>
+                        </div>
+                        <button class="btn-icon-del" onclick="event.stopPropagation(); handleDeleteCategory('${c.id}')" style="background:none; color:var(--danger); font-size:1rem;"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function handleCreateCategory(e) {
+            e.preventDefault();
+            document.getElementById('cat-alert').classList.remove('show');
+            const label = document.getElementById('new-cat-label').value.trim();
+            const type = document.getElementById('new-cat-type').value;
+            if (!label) return;
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'createCategory', token: sessionToken, label, type });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) {
+                    document.getElementById('cat-alert-text').textContent = result.message || 'Could not create category.';
+                    document.getElementById('cat-alert').classList.add('show');
+                    return;
+                }
+                document.getElementById('new-cat-label').value = '';
+                await loadCategories();
+            } catch (err) {
+                document.getElementById('cat-alert-text').textContent = translations[currentLang].errNetwork;
+                document.getElementById('cat-alert').classList.add('show');
+            } finally { setLoading(false); }
+        }
+
+        async function handleDeleteCategory(id) {
+            if (!confirm('Delete this category? Its sessions will stop being listed.')) return;
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'deleteCategory', token: sessionToken, id });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (selectedCategoryId === id) { selectedCategoryId = null; document.getElementById('sessions-manager-card').style.display = 'none'; }
+                await loadCategories();
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
+        }
+
+        function selectCategory(id, label) {
+            selectedCategoryId = id;
+            renderCategoriesList();
+            document.getElementById('sessions-manager-card').style.display = 'block';
+            document.getElementById('sessions-manager-title').textContent = `Sessions — ${label}`;
+            loadCustomSessions();
+        }
+
+        function toggleTempFields() {
+            const mode = document.getElementById('cs-mode').value;
+            document.getElementById('cs-temp-fields').style.display = mode === 'temporary' ? 'grid' : 'none';
+        }
+
+        async function handleCreateCustomSession(e) {
+            e.preventDefault();
+            document.getElementById('custom-sess-alert').classList.remove('show');
+            document.getElementById('custom-sess-success').classList.remove('show');
+            if (!selectedCategoryId) return;
+
+            const title = document.getElementById('cs-title').value.trim();
+            const link = document.getElementById('cs-link').value.trim();
+            const password = document.getElementById('cs-password').value;
+            const sessionMode = document.getElementById('cs-mode').value;
+            const expiresAtRaw = document.getElementById('cs-expires').value;
+            const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : '';
+            const maxUses = document.getElementById('cs-maxuses').value || '';
+
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'createCustomSession', token: sessionToken, categoryId: selectedCategoryId, title, link, password, sessionMode, expiresAt, maxUses });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) {
+                    document.getElementById('custom-sess-alert-text').textContent = result.message || 'Could not create session.';
+                    document.getElementById('custom-sess-alert').classList.add('show');
+                    return;
+                }
+                document.getElementById('custom-sess-success-text').textContent = 'Session created.';
+                document.getElementById('custom-sess-success').classList.add('show');
+                document.getElementById('cs-title').value = '';
+                document.getElementById('cs-link').value = '';
+                document.getElementById('cs-password').value = '';
+                document.getElementById('cs-expires').value = '';
+                document.getElementById('cs-maxuses').value = '';
+                await loadCustomSessions();
+            } catch (err) {
+                document.getElementById('custom-sess-alert-text').textContent = translations[currentLang].errNetwork;
+                document.getElementById('custom-sess-alert').classList.add('show');
+            } finally { setLoading(false); }
+        }
+
+        async function loadCustomSessions() {
+            if (!selectedCategoryId) return;
+            const wrap = document.getElementById('custom-sessions-list');
+            try {
+                const result = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: selectedCategoryId }));
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                const sessions = result.sessions || [];
+                if (sessions.length === 0) { wrap.innerHTML = '<p>No sessions in this category yet.</p>'; return; }
+                wrap.innerHTML = sessions.map(s => `
+                    <div class="custom-session-row">
+                        <div>
+                            <strong>${escapeHtml(s.title)}</strong>
+                            <div class="custom-session-meta">
+                                ${s.sessionMode}${s.hasPassword ? ' · password protected' : ''}
+                                ${s.expiresAt ? ' · expires ' + new Date(s.expiresAt).toLocaleString() : ''}
+                                ${s.maxUses ? ` · ${s.useCount}/${s.maxUses} uses` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span class="status-badge ${s.isActive ? 'active' : 'expired'}">${s.isActive ? 'Active' : 'Expired'}</span>
+                            <button class="btn btn-outline btn-sm" onclick="handleDeleteCustomSession('${s.id}')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+            }
+        }
+
+        async function handleDeleteCustomSession(id) {
+            if (!confirm('Delete this session?')) return;
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'deleteCustomSession', token: sessionToken, id });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                await loadCustomSessions();
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
+        }
+
+        // =====================================================================
+        // Student-facing practice sections
+        // =====================================================================
+        async function loadPracticeSections() {
+            const wrap = document.getElementById('practice-sections-wrap');
+            if (!wrap || !currentUser || currentUser.role !== 'student') return;
+            try {
+                const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
+                if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                const practiceCategories = (catResult.categories || []).filter(c => c.type === 'practice');
+                if (practiceCategories.length === 0) { wrap.innerHTML = ''; return; }
+
+                let html = '';
+                for (const cat of practiceCategories) {
+                    const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: cat.id }));
+                    const sessions = (sessResult.sessions || []).filter(s => s.isActive);
+                    if (sessions.length === 0) continue;
+
+                    html += `<div class="practice-section-card"><h3 style="margin-bottom: 14px;">${escapeHtml(cat.label)}</h3>`;
+                    sessions.forEach(s => {
+                        const key = `custom-${s.id}`;
+                        html += `
+                            <div class="practice-session-row" id="row-${key}">
+                                <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${escapeHtml(s.title)}</div>
+                                <div class="session-controls" id="controls-${key}">
+                                    ${s.hasPassword ? `<input type="password" class="input-control small" id="pw-${key}" placeholder="${translations[currentLang].sessionPasswordPh}">` : ''}
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="unlockCustomSessionUI('${s.id}')">
+                                        <i class="fas fa-unlock"></i> ${translations[currentLang].unlockBtn}
+                                    </button>
+                                </div>
+                                <div class="session-msg" id="msg-${key}"></div>
+                            </div>`;
+                    });
+                    html += `</div>`;
+                }
+                wrap.innerHTML = html || '';
+            } catch (err) {
+                console.error('Failed to load practice sections', err);
+            }
+        }
+
+        async function unlockCustomSessionUI(id) {
+            const key = `custom-${id}`;
+            const pwInput = document.getElementById(`pw-${key}`);
+            const password = pwInput ? pwInput.value : '';
+            const msgEl = document.getElementById(`msg-${key}`);
+            msgEl.textContent = ''; msgEl.className = 'session-msg';
+
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'unlockCustomSession', token: sessionToken, id, password });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) {
+                    msgEl.textContent = result.message || translations[currentLang].wrongPasswordMsg;
+                    msgEl.classList.add('error');
+                    return;
+                }
+                msgEl.textContent = translations[currentLang].sessionUnlockedMsg;
+                msgEl.classList.add('success');
+                document.getElementById(`icon-${key}`).className = 'fas fa-lock-open';
+                document.getElementById(`controls-${key}`).innerHTML =
+                    `<a href="${result.link}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-up-right-from-square"></i> ${translations[currentLang].openSessionBtn}</a>`;
+                window.open(result.link, '_blank');
+            } catch (err) {
+                msgEl.textContent = translations[currentLang].sessionErrGeneric;
+                msgEl.classList.add('error');
+            } finally { setLoading(false); }
+        }
+
+        // =====================================================================
         // Community
         // =====================================================================
         function updateCommunityStatusText() {
@@ -1922,269 +1932,268 @@ async function unlockCustomSessionUI(id) {
             return div.innerHTML;
         }
 
-let postsCache = [];
-let openComments = new Set();
-let commentsCache = {}; // postId -> flat array, newest last
-let openReplyBoxes = new Set(); // "postId:commentId" currently showing a reply input
-let tempIdCounter = 0;
+        let postsCache = [];
+        let openComments = new Set();
+        let commentsCache = {}; // postId -> flat array, newest last
+        let openReplyBoxes = new Set(); // "postId:commentId" currently showing a reply input
+        let tempIdCounter = 0;
 
-async function fetchAndRenderCommunity() {
-    if (!currentUser) return;
-    updateCommunityStatusText();
+        async function fetchAndRenderCommunity() {
+            if (!currentUser) return;
+            updateCommunityStatusText();
 
-    let posts = mockPosts;
-    if (backendConfigured()) {
-        try {
-            const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
-            posts = Array.isArray(data) ? data : (data.posts || mockPosts);
-        } catch (err) {
-            console.error('DB Fetch Error, falling back to local demo data', err);
+            let posts = mockPosts;
+            if (backendConfigured()) {
+                try {
+                    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                    posts = Array.isArray(data) ? data : (data.posts || mockPosts);
+                } catch (err) {
+                    console.error('DB Fetch Error, falling back to local demo data', err);
+                }
+            }
+
+            postsCache = posts;
+            renderCommunityFeed();
         }
-    }
 
-    postsCache = posts;
-    renderCommunityFeed();
-}
+        function renderCommunityFeed() {
+            const container = document.getElementById('feed-container');
+            container.innerHTML = '';
 
-function renderCommunityFeed() {
-    const container = document.getElementById('feed-container');
-    container.innerHTML = '';
+            let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
+            visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
 
-    let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
-    visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
+            if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
 
-    if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
+            visiblePosts.forEach(post => {
+                const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
+                const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
+                const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                const liked = !!post.likedByMe;
+                const commentsOpen = openComments.has(String(post.id));
 
-    visiblePosts.forEach(post => {
-        const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
-        const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
-        const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        const liked = !!post.likedByMe;
-        const commentsOpen = openComments.has(String(post.id));
-
-        const card = document.createElement('div');
-        card.className = 'card post-card';
-        card.innerHTML = `
-            <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
-            <div class="post-content" style="flex-grow: 1;">
-                ${isPinned}
-                <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
-                <p>${escapeHtml(post.content)}</p>
-                <div class="post-meta">${dateStr}</div>
-                <div class="post-actions">
-                    <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
-                        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
-                    </button>
-                    <button onclick="toggleCommentsPanel('${post.id}')">
-                        <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
-                    </button>
-                </div>
-                <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
-            </div>
-        `;
-        container.appendChild(card);
-        if (commentsOpen) renderCommentsForPost(post.id);
-    });
-}
-
-// --- Likes: update the UI instantly, sync with the server in the background ---
-async function toggleLikePost(postId) {
-    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
-    const post = postsCache.find(p => String(p.id) === String(postId));
-    if (!post) return;
-
-    const wasLiked = !!post.likedByMe;
-    post.likedByMe = !wasLiked;
-    post.likeCount = (post.likeCount || 0) + (wasLiked ? -1 : 1);
-    renderCommunityFeed();
-
-    try {
-        const body = new URLSearchParams({ action: 'toggleLike', token: sessionToken, postId });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) throw new Error('like failed');
-        post.likedByMe = result.liked;
-        post.likeCount = result.likeCount;
-        renderCommunityFeed();
-    } catch (err) {
-        console.error(err);
-        post.likedByMe = wasLiked;
-        post.likeCount = (post.likeCount || 0) + (wasLiked ? 1 : -1);
-        renderCommunityFeed();
-    }
-}
-
-async function toggleCommentsPanel(postId) {
-    const key = String(postId);
-    if (openComments.has(key)) {
-        openComments.delete(key);
-        renderCommunityFeed();
-        return;
-    }
-    openComments.add(key);
-    renderCommunityFeed(); // open immediately, even before comments arrive
-    if (!commentsCache[key]) {
-        renderCommentsForPost(postId, true); // show a lightweight "loading" line
-        await loadComments(postId);
-    }
-    renderCommentsForPost(postId);
-}
-
-async function loadComments(postId) {
-    if (!sessionToken) return;
-    try {
-        const result = await callBackendGet(new URLSearchParams({ action: 'getComments', token: sessionToken, postId }));
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        commentsCache[String(postId)] = result.comments || [];
-    } catch (err) {
-        console.error(err);
-        commentsCache[String(postId)] = [];
-    }
-}
-
-function truncateText(text, max) {
-    if (!text) return '';
-    return text.length > max ? text.slice(0, max).trim() + '…' : text;
-}
-
-// Flat list, newest last. A reply shows a small "replying to: ..." quote instead of nesting.
-function renderCommentsForPost(postId, loadingOnly) {
-    const wrap = document.getElementById(`comments-${postId}`);
-    if (!wrap) return;
-
-    if (loadingOnly) {
-        wrap.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Loading comments…</p>`;
-        return;
-    }
-
-    const comments = commentsCache[String(postId)] || [];
-    const byId = {};
-    comments.forEach(c => { byId[c.id] = c; });
-
-    function renderNode(c) {
-        const parent = c.parentCommentId ? byId[c.parentCommentId] : null;
-        const replyKey = `${postId}:${c.id}`;
-        const showReplyBox = openReplyBoxes.has(replyKey);
-        const canDelete = currentUser.role === 'admin' || c.authorId === currentUser.id;
-        const pending = c._pending ? ' style="opacity:0.6;"' : '';
-
-        return `
-            <div class="comment-item"${pending}>
-                <div class="comment-avatar">${(c.author || '?').charAt(0).toUpperCase()}</div>
-                <div class="comment-body">
-                    <div class="comment-bubble">
-                        <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : ''}</div>
-                        ${parent ? `<div class="reply-quote">↳ replying to ${escapeHtml(parent.author)}: "${escapeHtml(truncateText(parent.content, 60))}"</div>` : ''}
-                        <div class="comment-text">${escapeHtml(c.content)}</div>
-                    </div>
-                    <div class="comment-meta">
-                        <span>${new Date(c.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                        <button onclick="toggleReplyBox('${postId}','${c.id}')">Reply</button>
-                        ${canDelete ? `<button onclick="deleteCommentUI('${postId}','${c.id}')">Delete</button>` : ''}
-                    </div>
-                    ${showReplyBox ? `
-                        <div class="comment-composer reply-composer">
-                            <input type="text" id="reply-input-${c.id}" placeholder="Write a reply..." onkeydown="if(event.key==='Enter'){submitComment('${postId}','${c.id}')}">
-                            <button onclick="submitComment('${postId}','${c.id}')"><i class="fas fa-paper-plane"></i></button>
+                const card = document.createElement('div');
+                card.className = 'card post-card';
+                card.innerHTML = `
+                    <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
+                    <div class="post-content" style="flex-grow: 1;">
+                        ${isPinned}
+                        <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
+                        <p>${escapeHtml(post.content)}</p>
+                        <div class="post-meta">${dateStr}</div>
+                        <div class="post-actions">
+                            <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
+                                <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
+                            </button>
+                            <button onclick="toggleCommentsPanel('${post.id}')">
+                                <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
+                            </button>
                         </div>
-                    ` : ''}
+                        <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
+                    </div>
+                `;
+                container.appendChild(card);
+                if (commentsOpen) renderCommentsForPost(post.id);
+            });
+        }
+
+        // --- Likes: update the UI instantly, sync with the server in the background ---
+        async function toggleLikePost(postId) {
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+            const post = postsCache.find(p => String(p.id) === String(postId));
+            if (!post) return;
+
+            const wasLiked = !!post.likedByMe;
+            post.likedByMe = !wasLiked;
+            post.likeCount = (post.likeCount || 0) + (wasLiked ? -1 : 1);
+            renderCommunityFeed();
+
+            try {
+                const body = new URLSearchParams({ action: 'toggleLike', token: sessionToken, postId });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) throw new Error('like failed');
+                post.likedByMe = result.liked;
+                post.likeCount = result.likeCount;
+                renderCommunityFeed();
+            } catch (err) {
+                console.error(err);
+                post.likedByMe = wasLiked;
+                post.likeCount = (post.likeCount || 0) + (wasLiked ? 1 : -1);
+                renderCommunityFeed();
+            }
+        }
+
+        async function toggleCommentsPanel(postId) {
+            const key = String(postId);
+            if (openComments.has(key)) {
+                openComments.delete(key);
+                renderCommunityFeed();
+                return;
+            }
+            openComments.add(key);
+            renderCommunityFeed(); // open immediately, even before comments arrive
+            if (!commentsCache[key]) {
+                renderCommentsForPost(postId, true); // show a lightweight "loading" line
+                await loadComments(postId);
+            }
+            renderCommentsForPost(postId);
+        }
+
+        async function loadComments(postId) {
+            if (!sessionToken) return;
+            try {
+                const result = await callBackendGet(new URLSearchParams({ action: 'getComments', token: sessionToken, postId }));
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                commentsCache[String(postId)] = result.comments || [];
+            } catch (err) {
+                console.error(err);
+                commentsCache[String(postId)] = [];
+            }
+        }
+
+        function truncateText(text, max) {
+            if (!text) return '';
+            return text.length > max ? text.slice(0, max).trim() + '…' : text;
+        }
+
+        // Flat list, newest last. A reply shows a small "replying to: ..." quote instead of nesting.
+        function renderCommentsForPost(postId, loadingOnly) {
+            const wrap = document.getElementById(`comments-${postId}`);
+            if (!wrap) return;
+
+            if (loadingOnly) {
+                wrap.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Loading comments…</p>`;
+                return;
+            }
+
+            const comments = commentsCache[String(postId)] || [];
+            const byId = {};
+            comments.forEach(c => { byId[c.id] = c; });
+
+            function renderNode(c) {
+                const parent = c.parentCommentId ? byId[c.parentCommentId] : null;
+                const replyKey = `${postId}:${c.id}`;
+                const showReplyBox = openReplyBoxes.has(replyKey);
+                const canDelete = currentUser.role === 'admin' || c.authorId === currentUser.id;
+                const pendingStyle = c._pending ? ' style="opacity:0.6;"' : '';
+
+                return `
+                    <div class="comment-item"${pendingStyle}>
+                        <div class="comment-avatar">${(c.author || '?').charAt(0).toUpperCase()}</div>
+                        <div class="comment-body">
+                            <div class="comment-bubble">
+                                <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : ''}</div>
+                                ${parent ? `<div class="reply-quote">↳ replying to ${escapeHtml(parent.author)}: "${escapeHtml(truncateText(parent.content, 60))}"</div>` : ''}
+                                <div class="comment-text">${escapeHtml(c.content)}</div>
+                            </div>
+                            <div class="comment-meta">
+                                <span>${new Date(c.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                <button onclick="toggleReplyBox('${postId}','${c.id}')">Reply</button>
+                                ${canDelete ? `<button onclick="deleteCommentUI('${postId}','${c.id}')">Delete</button>` : ''}
+                            </div>
+                            ${showReplyBox ? `
+                                <div class="comment-composer reply-composer">
+                                    <input type="text" id="reply-input-${c.id}" placeholder="Write a reply..." onkeydown="if(event.key==='Enter'){submitComment('${postId}','${c.id}')}">
+                                    <button onclick="submitComment('${postId}','${c.id}')"><i class="fas fa-paper-plane"></i></button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            wrap.innerHTML = `
+                ${comments.map(renderNode).join('') || `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No comments yet.</p>`}
+                <div class="comment-composer">
+                    <input type="text" id="new-comment-${postId}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter'){submitComment('${postId}', null)}">
+                    <button onclick="submitComment('${postId}', null)"><i class="fas fa-paper-plane"></i></button>
                 </div>
-            </div>
-        `;
-    }
+            `;
+        }
 
-    wrap.innerHTML = `
-        ${comments.map(renderNode).join('') || `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No comments yet.</p>`}
-        <div class="comment-composer">
-            <input type="text" id="new-comment-${postId}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter'){submitComment('${postId}', null)}">
-            <button onclick="submitComment('${postId}', null)"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    `;
-}
+        function toggleReplyBox(postId, commentId) {
+            const key = `${postId}:${commentId}`;
+            if (openReplyBoxes.has(key)) openReplyBoxes.delete(key);
+            else openReplyBoxes.add(key);
+            renderCommentsForPost(postId);
+        }
 
-function toggleReplyBox(postId, commentId) {
-    const key = `${postId}:${commentId}`;
-    if (openReplyBoxes.has(key)) openReplyBoxes.delete(key);
-    else openReplyBoxes.add(key);
-    renderCommentsForPost(postId);
-}
+        // --- Comments/replies: show instantly (optimistic), reconcile with the real row after ---
+        async function submitComment(postId, parentCommentId) {
+            const inputId = parentCommentId ? `reply-input-${parentCommentId}` : `new-comment-${postId}`;
+            const input = document.getElementById(inputId);
+            const content = input ? input.value.trim() : '';
+            if (!content) return;
+            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
 
-// --- Comments/replies: show it instantly (optimistic), reconcile with the real row after ---
-async function submitComment(postId, parentCommentId) {
-    const inputId = parentCommentId ? `reply-input-${parentCommentId}` : `new-comment-${postId}`;
-    const input = document.getElementById(inputId);
-    const content = input ? input.value.trim() : '';
-    if (!content) return;
-    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+            if (input) input.value = '';
+            if (parentCommentId) openReplyBoxes.delete(`${postId}:${parentCommentId}`);
 
-    if (input) input.value = '';
-    if (parentCommentId) openReplyBoxes.delete(`${postId}:${parentCommentId}`);
+            const tempId = 'temp-' + (++tempIdCounter);
+            const optimistic = {
+                id: tempId, postId, parentCommentId: parentCommentId || '',
+                authorId: currentUser.id, author: currentUser.name, role: currentUser.role, gender: currentUser.gender,
+                content, date: new Date().toISOString(), _pending: true
+            };
+            if (!commentsCache[String(postId)]) commentsCache[String(postId)] = [];
+            commentsCache[String(postId)].push(optimistic);
 
-    const tempId = 'temp-' + (++tempIdCounter);
-    const optimistic = {
-        id: tempId, postId, parentCommentId: parentCommentId || '',
-        authorId: currentUser.id, author: currentUser.name, role: currentUser.role, gender: currentUser.gender,
-        content, date: new Date().toISOString(), _pending: true
-    };
-    if (!commentsCache[String(postId)]) commentsCache[String(postId)] = [];
-    commentsCache[String(postId)].push(optimistic);
+            const post = postsCache.find(p => String(p.id) === String(postId));
+            if (post) post.commentCount = (post.commentCount || 0) + 1;
+            const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
+            if (countEl) countEl.textContent = post ? post.commentCount : (parseInt(countEl.textContent) + 1);
 
-    const post = postsCache.find(p => String(p.id) === String(postId));
-    if (post) post.commentCount = (post.commentCount || 0) + 1;
-    const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
-    if (countEl) countEl.textContent = post ? post.commentCount : (parseInt(countEl.textContent) + 1);
+            renderCommentsForPost(postId);
 
-    renderCommentsForPost(postId);
+            try {
+                const body = new URLSearchParams({ action: 'createComment', token: sessionToken, postId, parentCommentId: parentCommentId || '', content });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) throw new Error('comment failed');
 
-    try {
-        const body = new URLSearchParams({ action: 'createComment', token: sessionToken, postId, parentCommentId: parentCommentId || '', content });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) throw new Error('comment failed');
+                const list = commentsCache[String(postId)] || [];
+                const idx = list.findIndex(c => c.id === tempId);
+                if (idx !== -1) list[idx] = result.comment;
+                renderCommentsForPost(postId);
+            } catch (err) {
+                console.error(err);
+                commentsCache[String(postId)] = (commentsCache[String(postId)] || []).filter(c => c.id !== tempId);
+                if (post) post.commentCount = Math.max(0, (post.commentCount || 1) - 1);
+                renderCommentsForPost(postId);
+                const countEl2 = document.querySelector(`.comments-toggle-count-${postId}`);
+                if (countEl2 && post) countEl2.textContent = post.commentCount;
+                alert('Could not post your comment/reply. Please try again.');
+            }
+        }
 
-        const list = commentsCache[String(postId)] || [];
-        const idx = list.findIndex(c => c.id === tempId);
-        if (idx !== -1) list[idx] = result.comment;
-        renderCommentsForPost(postId);
-    } catch (err) {
-        console.error(err);
-        commentsCache[String(postId)] = (commentsCache[String(postId)] || []).filter(c => c.id !== tempId);
-        if (post) post.commentCount = Math.max(0, (post.commentCount || 1) - 1);
-        renderCommentsForPost(postId);
-        const countEl2 = document.querySelector(`.comments-toggle-count-${postId}`);
-        if (countEl2 && post) countEl2.textContent = post.commentCount;
-        alert('Could not post your comment/reply. Please try again.');
-    }
-}
+        async function deleteCommentUI(postId, commentId) {
+            if (!confirm('Delete this comment?')) return;
 
-async function deleteCommentUI(postId, commentId) {
-    if (!confirm('Delete this comment?')) return;
+            const list = commentsCache[String(postId)] || [];
+            commentsCache[String(postId)] = list.filter(c => c.id !== commentId && c.parentCommentId !== commentId);
+            const post = postsCache.find(p => String(p.id) === String(postId));
+            if (post) post.commentCount = commentsCache[String(postId)].length;
+            renderCommentsForPost(postId);
+            const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
+            if (countEl && post) countEl.textContent = post.commentCount;
 
-    const list = commentsCache[String(postId)] || [];
-    const removed = list.filter(c => c.id === commentId || c.parentCommentId === commentId);
-    commentsCache[String(postId)] = list.filter(c => c.id !== commentId && c.parentCommentId !== commentId);
-    const post = postsCache.find(p => String(p.id) === String(postId));
-    if (post) post.commentCount = commentsCache[String(postId)].length;
-    renderCommentsForPost(postId);
-    const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
-    if (countEl && post) countEl.textContent = post.commentCount;
-
-    try {
-        const body = new URLSearchParams({ action: 'deleteComment', token: sessionToken, id: commentId });
-        const result = await callBackend(body);
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) throw new Error(result.message || 'delete failed');
-    } catch (err) {
-        console.error(err);
-        commentsCache[String(postId)] = list; // restore on failure
-        if (post) post.commentCount = list.length;
-        renderCommentsForPost(postId);
-        alert('Could not delete that comment. Please try again.');
-    }
-}
+            try {
+                const body = new URLSearchParams({ action: 'deleteComment', token: sessionToken, id: commentId });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) throw new Error(result.message || 'delete failed');
+            } catch (err) {
+                console.error(err);
+                commentsCache[String(postId)] = list; // restore on failure
+                if (post) post.commentCount = list.length;
+                renderCommentsForPost(postId);
+                alert('Could not delete that comment. Please try again.');
+            }
+        }
 
         async function submitPost() {
             const contentInput = document.getElementById('new-post-content');
@@ -2193,7 +2202,7 @@ async function deleteCommentUI(postId, commentId) {
             if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
 
             const btn = document.getElementById('submit-post-btn');
-            btn.disabled = true; setLoading(true);
+            btn.disabled = true;
             try {
                 if (backendConfigured()) {
                     const body = new URLSearchParams({ action: 'createPost', token: sessionToken, content });
@@ -2209,7 +2218,7 @@ async function deleteCommentUI(postId, commentId) {
                 console.error(err);
                 showPostAlert(translations[currentLang].errPostFailed);
             } finally {
-                btn.disabled = false; setLoading(false);
+                btn.disabled = false;
             }
         }
 
