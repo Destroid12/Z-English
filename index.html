@@ -63,12 +63,12 @@
 .comment-meta { display: flex; gap: 14px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
 .comment-meta button { background: none; color: var(--text-muted); font-weight: 700; }
 .comment-meta button:hover { color: var(--z-blue); }
-.comment-replies { margin-left: 42px; margin-top: 10px; border-left: 2px solid var(--border-color); padding-left: 14px; }
 .comment-composer { display: flex; gap: 8px; margin-top: 12px; }
 .comment-composer input { flex: 1; padding: 9px 12px; border: 2px solid var(--border-color); border-radius: 10px; font-family: inherit; font-size: 0.88rem; outline: none; }
 .comment-composer input:focus { border-color: var(--z-blue); }
 .comment-composer button { background: var(--z-blue); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; }
 .reply-composer { margin-top: 8px; }
+.reply-quote { font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin: 2px 0 4px; font-style: italic; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1922,10 +1922,11 @@ async function unlockCustomSessionUI(id) {
             return div.innerHTML;
         }
 
-        let postsCache = [];
+let postsCache = [];
 let openComments = new Set();
-let commentsCache = {}; // postId -> array
+let commentsCache = {}; // postId -> flat array, newest last
 let openReplyBoxes = new Set(); // "postId:commentId" currently showing a reply input
+let tempIdCounter = 0;
 
 async function fetchAndRenderCommunity() {
     if (!currentUser) return;
@@ -1934,7 +1935,6 @@ async function fetchAndRenderCommunity() {
     let posts = mockPosts;
     if (backendConfigured()) {
         try {
-            setLoading(true);
             const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
             const res = await fetch(url);
             const data = await res.json();
@@ -1942,7 +1942,7 @@ async function fetchAndRenderCommunity() {
             posts = Array.isArray(data) ? data : (data.posts || mockPosts);
         } catch (err) {
             console.error('DB Fetch Error, falling back to local demo data', err);
-        } finally { setLoading(false); }
+        }
     }
 
     postsCache = posts;
@@ -1976,10 +1976,10 @@ function renderCommunityFeed() {
                 <div class="post-meta">${dateStr}</div>
                 <div class="post-actions">
                     <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
-                        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> ${post.likeCount || 0}
+                        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
                     </button>
                     <button onclick="toggleCommentsPanel('${post.id}')">
-                        <i class="far fa-comment"></i> <span class="comments-toggle-count">${post.commentCount || 0}</span>
+                        <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
                     </button>
                 </div>
                 <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
@@ -1990,17 +1990,31 @@ function renderCommunityFeed() {
     });
 }
 
+// --- Likes: update the UI instantly, sync with the server in the background ---
 async function toggleLikePost(postId) {
     if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+    const post = postsCache.find(p => String(p.id) === String(postId));
+    if (!post) return;
+
+    const wasLiked = !!post.likedByMe;
+    post.likedByMe = !wasLiked;
+    post.likeCount = (post.likeCount || 0) + (wasLiked ? -1 : 1);
+    renderCommunityFeed();
+
     try {
         const body = new URLSearchParams({ action: 'toggleLike', token: sessionToken, postId });
         const result = await callBackend(body);
         if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) return;
-        const post = postsCache.find(p => String(p.id) === String(postId));
-        if (post) { post.likedByMe = result.liked; post.likeCount = result.likeCount; }
+        if (!result.success) throw new Error('like failed');
+        post.likedByMe = result.liked;
+        post.likeCount = result.likeCount;
         renderCommunityFeed();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error(err);
+        post.likedByMe = wasLiked;
+        post.likeCount = (post.likeCount || 0) + (wasLiked ? 1 : -1);
+        renderCommunityFeed();
+    }
 }
 
 async function toggleCommentsPanel(postId) {
@@ -2011,8 +2025,12 @@ async function toggleCommentsPanel(postId) {
         return;
     }
     openComments.add(key);
-    await loadComments(postId);
-    renderCommunityFeed();
+    renderCommunityFeed(); // open immediately, even before comments arrive
+    if (!commentsCache[key]) {
+        renderCommentsForPost(postId, true); // show a lightweight "loading" line
+        await loadComments(postId);
+    }
+    renderCommentsForPost(postId);
 }
 
 async function loadComments(postId) {
@@ -2027,33 +2045,39 @@ async function loadComments(postId) {
     }
 }
 
-function buildCommentTree(comments) {
-    const byParent = {};
-    comments.forEach(c => {
-        const key = c.parentCommentId || '';
-        if (!byParent[key]) byParent[key] = [];
-        byParent[key].push(c);
-    });
-    return byParent;
+function truncateText(text, max) {
+    if (!text) return '';
+    return text.length > max ? text.slice(0, max).trim() + '…' : text;
 }
 
-function renderCommentsForPost(postId) {
+// Flat list, newest last. A reply shows a small "replying to: ..." quote instead of nesting.
+function renderCommentsForPost(postId, loadingOnly) {
     const wrap = document.getElementById(`comments-${postId}`);
     if (!wrap) return;
+
+    if (loadingOnly) {
+        wrap.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Loading comments…</p>`;
+        return;
+    }
+
     const comments = commentsCache[String(postId)] || [];
-    const tree = buildCommentTree(comments);
+    const byId = {};
+    comments.forEach(c => { byId[c.id] = c; });
 
     function renderNode(c) {
+        const parent = c.parentCommentId ? byId[c.parentCommentId] : null;
         const replyKey = `${postId}:${c.id}`;
         const showReplyBox = openReplyBoxes.has(replyKey);
         const canDelete = currentUser.role === 'admin' || c.authorId === currentUser.id;
-        const children = tree[c.id] || [];
+        const pending = c._pending ? ' style="opacity:0.6;"' : '';
+
         return `
-            <div class="comment-item">
+            <div class="comment-item"${pending}>
                 <div class="comment-avatar">${(c.author || '?').charAt(0).toUpperCase()}</div>
                 <div class="comment-body">
                     <div class="comment-bubble">
                         <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : ''}</div>
+                        ${parent ? `<div class="reply-quote">↳ replying to ${escapeHtml(parent.author)}: "${escapeHtml(truncateText(parent.content, 60))}"</div>` : ''}
                         <div class="comment-text">${escapeHtml(c.content)}</div>
                     </div>
                     <div class="comment-meta">
@@ -2067,15 +2091,13 @@ function renderCommentsForPost(postId) {
                             <button onclick="submitComment('${postId}','${c.id}')"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     ` : ''}
-                    ${children.length ? `<div class="comment-replies">${children.map(renderNode).join('')}</div>` : ''}
                 </div>
             </div>
         `;
     }
 
-    const topLevel = tree[''] || [];
     wrap.innerHTML = `
-        ${topLevel.map(renderNode).join('') || `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No comments yet.</p>`}
+        ${comments.map(renderNode).join('') || `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No comments yet.</p>`}
         <div class="comment-composer">
             <input type="text" id="new-comment-${postId}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter'){submitComment('${postId}', null)}">
             <button onclick="submitComment('${postId}', null)"><i class="fas fa-paper-plane"></i></button>
@@ -2090,6 +2112,7 @@ function toggleReplyBox(postId, commentId) {
     renderCommentsForPost(postId);
 }
 
+// --- Comments/replies: show it instantly (optimistic), reconcile with the real row after ---
 async function submitComment(postId, parentCommentId) {
     const inputId = parentCommentId ? `reply-input-${parentCommentId}` : `new-comment-${postId}`;
     const input = document.getElementById(inputId);
@@ -2097,39 +2120,70 @@ async function submitComment(postId, parentCommentId) {
     if (!content) return;
     if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
 
+    if (input) input.value = '';
+    if (parentCommentId) openReplyBoxes.delete(`${postId}:${parentCommentId}`);
+
+    const tempId = 'temp-' + (++tempIdCounter);
+    const optimistic = {
+        id: tempId, postId, parentCommentId: parentCommentId || '',
+        authorId: currentUser.id, author: currentUser.name, role: currentUser.role, gender: currentUser.gender,
+        content, date: new Date().toISOString(), _pending: true
+    };
+    if (!commentsCache[String(postId)]) commentsCache[String(postId)] = [];
+    commentsCache[String(postId)].push(optimistic);
+
+    const post = postsCache.find(p => String(p.id) === String(postId));
+    if (post) post.commentCount = (post.commentCount || 0) + 1;
+    const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
+    if (countEl) countEl.textContent = post ? post.commentCount : (parseInt(countEl.textContent) + 1);
+
+    renderCommentsForPost(postId);
+
     try {
         const body = new URLSearchParams({ action: 'createComment', token: sessionToken, postId, parentCommentId: parentCommentId || '', content });
         const result = await callBackend(body);
         if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) return;
+        if (!result.success) throw new Error('comment failed');
 
-        if (!commentsCache[String(postId)]) commentsCache[String(postId)] = [];
-        commentsCache[String(postId)].push(result.comment);
-
-        const post = postsCache.find(p => String(p.id) === String(postId));
-        if (post) post.commentCount = (post.commentCount || 0) + 1;
-
-        if (parentCommentId) openReplyBoxes.delete(`${postId}:${parentCommentId}`);
+        const list = commentsCache[String(postId)] || [];
+        const idx = list.findIndex(c => c.id === tempId);
+        if (idx !== -1) list[idx] = result.comment;
         renderCommentsForPost(postId);
-
-        const countEl = document.querySelector(`#comments-${postId}`).closest('.post-card').querySelector('.comments-toggle-count');
-        if (countEl) countEl.textContent = post ? post.commentCount : (parseInt(countEl.textContent) + 1);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error(err);
+        commentsCache[String(postId)] = (commentsCache[String(postId)] || []).filter(c => c.id !== tempId);
+        if (post) post.commentCount = Math.max(0, (post.commentCount || 1) - 1);
+        renderCommentsForPost(postId);
+        const countEl2 = document.querySelector(`.comments-toggle-count-${postId}`);
+        if (countEl2 && post) countEl2.textContent = post.commentCount;
+        alert('Could not post your comment/reply. Please try again.');
+    }
 }
 
 async function deleteCommentUI(postId, commentId) {
     if (!confirm('Delete this comment?')) return;
+
+    const list = commentsCache[String(postId)] || [];
+    const removed = list.filter(c => c.id === commentId || c.parentCommentId === commentId);
+    commentsCache[String(postId)] = list.filter(c => c.id !== commentId && c.parentCommentId !== commentId);
+    const post = postsCache.find(p => String(p.id) === String(postId));
+    if (post) post.commentCount = commentsCache[String(postId)].length;
+    renderCommentsForPost(postId);
+    const countEl = document.querySelector(`.comments-toggle-count-${postId}`);
+    if (countEl && post) countEl.textContent = post.commentCount;
+
     try {
         const body = new URLSearchParams({ action: 'deleteComment', token: sessionToken, id: commentId });
         const result = await callBackend(body);
         if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-        if (!result.success) { alert(result.message || 'Could not delete comment.'); return; }
-
-        commentsCache[String(postId)] = (commentsCache[String(postId)] || []).filter(c => c.id !== commentId && c.parentCommentId !== commentId);
-        const post = postsCache.find(p => String(p.id) === String(postId));
-        if (post) post.commentCount = (commentsCache[String(postId)] || []).length;
+        if (!result.success) throw new Error(result.message || 'delete failed');
+    } catch (err) {
+        console.error(err);
+        commentsCache[String(postId)] = list; // restore on failure
+        if (post) post.commentCount = list.length;
         renderCommentsForPost(postId);
-    } catch (err) { console.error(err); }
+        alert('Could not delete that comment. Please try again.');
+    }
 }
 
         async function submitPost() {
