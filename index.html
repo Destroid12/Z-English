@@ -49,6 +49,27 @@
 .practice-session-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap; }
 .practice-session-row:last-child{ border-bottom:none; }
 
+        .post-actions button { background: none; border: none; }
+.post-actions button.liked { color: var(--danger); font-weight: 800; }
+.post-actions button.liked i { font-weight: 900; }
+.comments-toggle-count { font-weight: 700; }
+.comments-section { margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 14px; }
+.comment-item { display: flex; gap: 10px; margin-bottom: 14px; }
+.comment-avatar { width: 32px; height: 32px; background: var(--z-blue-light); color: var(--z-blue-dark); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; }
+.comment-body { flex: 1; }
+.comment-bubble { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; }
+.comment-author { font-weight: 800; font-size: 0.85rem; }
+.comment-text { font-size: 0.9rem; margin-top: 2px; color: var(--text-main); }
+.comment-meta { display: flex; gap: 14px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
+.comment-meta button { background: none; color: var(--text-muted); font-weight: 700; }
+.comment-meta button:hover { color: var(--z-blue); }
+.comment-replies { margin-left: 42px; margin-top: 10px; border-left: 2px solid var(--border-color); padding-left: 14px; }
+.comment-composer { display: flex; gap: 8px; margin-top: 12px; }
+.comment-composer input { flex: 1; padding: 9px 12px; border: 2px solid var(--border-color); border-radius: 10px; font-family: inherit; font-size: 0.88rem; outline: none; }
+.comment-composer input:focus { border-color: var(--z-blue); }
+.comment-composer button { background: var(--z-blue); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; }
+.reply-composer { margin-top: 8px; }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -1901,48 +1922,215 @@ async function unlockCustomSessionUI(id) {
             return div.innerHTML;
         }
 
-        async function fetchAndRenderCommunity() {
-            if (!currentUser) return;
-            const container = document.getElementById('feed-container');
-            updateCommunityStatusText();
+        let postsCache = [];
+let openComments = new Set();
+let commentsCache = {}; // postId -> array
+let openReplyBoxes = new Set(); // "postId:commentId" currently showing a reply input
 
-            let posts = mockPosts;
-            if (backendConfigured()) {
-                try {
-                    setLoading(true);
-                    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                    posts = Array.isArray(data) ? data : (data.posts || mockPosts);
-                } catch (err) {
-                    console.error('DB Fetch Error, falling back to local demo data', err);
-                } finally { setLoading(false); }
-            }
+async function fetchAndRenderCommunity() {
+    if (!currentUser) return;
+    updateCommunityStatusText();
 
-            container.innerHTML = '';
-            let visiblePosts = currentUser.role === 'admin' ? posts : posts.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
-            visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
+    let posts = mockPosts;
+    if (backendConfigured()) {
+        try {
+            setLoading(true);
+            const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
+            posts = Array.isArray(data) ? data : (data.posts || mockPosts);
+        } catch (err) {
+            console.error('DB Fetch Error, falling back to local demo data', err);
+        } finally { setLoading(false); }
+    }
 
-            if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
+    postsCache = posts;
+    renderCommunityFeed();
+}
 
-            visiblePosts.forEach(post => {
-                const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
-                const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
-                const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-                container.innerHTML += `
-                    <div class="card post-card">
-                        <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
-                        <div class="post-content" style="flex-grow: 1;">
-                            ${isPinned}
-                            <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
-                            <p>${escapeHtml(post.content)}</p>
-                            <div class="post-meta">${dateStr}</div>
-                            <div class="post-actions"><button class="btn-outline" style="border:none; padding:0; color:var(--text-muted);"><i class="far fa-heart"></i> ${currentLang === 'en' ? 'Like' : 'إعجاب'}</button></div>
+function renderCommunityFeed() {
+    const container = document.getElementById('feed-container');
+    container.innerHTML = '';
+
+    let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
+    visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
+
+    if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
+
+    visiblePosts.forEach(post => {
+        const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
+        const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
+        const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const liked = !!post.likedByMe;
+        const commentsOpen = openComments.has(String(post.id));
+
+        const card = document.createElement('div');
+        card.className = 'card post-card';
+        card.innerHTML = `
+            <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
+            <div class="post-content" style="flex-grow: 1;">
+                ${isPinned}
+                <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
+                <p>${escapeHtml(post.content)}</p>
+                <div class="post-meta">${dateStr}</div>
+                <div class="post-actions">
+                    <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
+                        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> ${post.likeCount || 0}
+                    </button>
+                    <button onclick="toggleCommentsPanel('${post.id}')">
+                        <i class="far fa-comment"></i> <span class="comments-toggle-count">${post.commentCount || 0}</span>
+                    </button>
+                </div>
+                <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
+            </div>
+        `;
+        container.appendChild(card);
+        if (commentsOpen) renderCommentsForPost(post.id);
+    });
+}
+
+async function toggleLikePost(postId) {
+    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+    try {
+        const body = new URLSearchParams({ action: 'toggleLike', token: sessionToken, postId });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) return;
+        const post = postsCache.find(p => String(p.id) === String(postId));
+        if (post) { post.likedByMe = result.liked; post.likeCount = result.likeCount; }
+        renderCommunityFeed();
+    } catch (err) { console.error(err); }
+}
+
+async function toggleCommentsPanel(postId) {
+    const key = String(postId);
+    if (openComments.has(key)) {
+        openComments.delete(key);
+        renderCommunityFeed();
+        return;
+    }
+    openComments.add(key);
+    await loadComments(postId);
+    renderCommunityFeed();
+}
+
+async function loadComments(postId) {
+    if (!sessionToken) return;
+    try {
+        const result = await callBackendGet(new URLSearchParams({ action: 'getComments', token: sessionToken, postId }));
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        commentsCache[String(postId)] = result.comments || [];
+    } catch (err) {
+        console.error(err);
+        commentsCache[String(postId)] = [];
+    }
+}
+
+function buildCommentTree(comments) {
+    const byParent = {};
+    comments.forEach(c => {
+        const key = c.parentCommentId || '';
+        if (!byParent[key]) byParent[key] = [];
+        byParent[key].push(c);
+    });
+    return byParent;
+}
+
+function renderCommentsForPost(postId) {
+    const wrap = document.getElementById(`comments-${postId}`);
+    if (!wrap) return;
+    const comments = commentsCache[String(postId)] || [];
+    const tree = buildCommentTree(comments);
+
+    function renderNode(c) {
+        const replyKey = `${postId}:${c.id}`;
+        const showReplyBox = openReplyBoxes.has(replyKey);
+        const canDelete = currentUser.role === 'admin' || c.authorId === currentUser.id;
+        const children = tree[c.id] || [];
+        return `
+            <div class="comment-item">
+                <div class="comment-avatar">${(c.author || '?').charAt(0).toUpperCase()}</div>
+                <div class="comment-body">
+                    <div class="comment-bubble">
+                        <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : ''}</div>
+                        <div class="comment-text">${escapeHtml(c.content)}</div>
+                    </div>
+                    <div class="comment-meta">
+                        <span>${new Date(c.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <button onclick="toggleReplyBox('${postId}','${c.id}')">Reply</button>
+                        ${canDelete ? `<button onclick="deleteCommentUI('${postId}','${c.id}')">Delete</button>` : ''}
+                    </div>
+                    ${showReplyBox ? `
+                        <div class="comment-composer reply-composer">
+                            <input type="text" id="reply-input-${c.id}" placeholder="Write a reply..." onkeydown="if(event.key==='Enter'){submitComment('${postId}','${c.id}')}">
+                            <button onclick="submitComment('${postId}','${c.id}')"><i class="fas fa-paper-plane"></i></button>
                         </div>
-                    </div>`;
-            });
-        }
+                    ` : ''}
+                    ${children.length ? `<div class="comment-replies">${children.map(renderNode).join('')}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    const topLevel = tree[''] || [];
+    wrap.innerHTML = `
+        ${topLevel.map(renderNode).join('') || `<p style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No comments yet.</p>`}
+        <div class="comment-composer">
+            <input type="text" id="new-comment-${postId}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter'){submitComment('${postId}', null)}">
+            <button onclick="submitComment('${postId}', null)"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    `;
+}
+
+function toggleReplyBox(postId, commentId) {
+    const key = `${postId}:${commentId}`;
+    if (openReplyBoxes.has(key)) openReplyBoxes.delete(key);
+    else openReplyBoxes.add(key);
+    renderCommentsForPost(postId);
+}
+
+async function submitComment(postId, parentCommentId) {
+    const inputId = parentCommentId ? `reply-input-${parentCommentId}` : `new-comment-${postId}`;
+    const input = document.getElementById(inputId);
+    const content = input ? input.value.trim() : '';
+    if (!content) return;
+    if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
+
+    try {
+        const body = new URLSearchParams({ action: 'createComment', token: sessionToken, postId, parentCommentId: parentCommentId || '', content });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) return;
+
+        if (!commentsCache[String(postId)]) commentsCache[String(postId)] = [];
+        commentsCache[String(postId)].push(result.comment);
+
+        const post = postsCache.find(p => String(p.id) === String(postId));
+        if (post) post.commentCount = (post.commentCount || 0) + 1;
+
+        if (parentCommentId) openReplyBoxes.delete(`${postId}:${parentCommentId}`);
+        renderCommentsForPost(postId);
+
+        const countEl = document.querySelector(`#comments-${postId}`).closest('.post-card').querySelector('.comments-toggle-count');
+        if (countEl) countEl.textContent = post ? post.commentCount : (parseInt(countEl.textContent) + 1);
+    } catch (err) { console.error(err); }
+}
+
+async function deleteCommentUI(postId, commentId) {
+    if (!confirm('Delete this comment?')) return;
+    try {
+        const body = new URLSearchParams({ action: 'deleteComment', token: sessionToken, id: commentId });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not delete comment.'); return; }
+
+        commentsCache[String(postId)] = (commentsCache[String(postId)] || []).filter(c => c.id !== commentId && c.parentCommentId !== commentId);
+        const post = postsCache.find(p => String(p.id) === String(postId));
+        if (post) post.commentCount = (commentsCache[String(postId)] || []).length;
+        renderCommentsForPost(postId);
+    } catch (err) { console.error(err); }
+}
 
         async function submitPost() {
             const contentInput = document.getElementById('new-post-content');
