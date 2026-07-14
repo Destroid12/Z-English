@@ -174,7 +174,8 @@
 #tutorSpeakToggle.on{ background:#fff; color:var(--blue-dark); }
 .tutor-msg .replay-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:11px; margin-left:6px; vertical-align:middle; }
 .tutor-msg .replay-btn:hover{ color:var(--blue-mid); }
-#tutorMic{ background:#fff; color:var(--blue-mid); border:2px solid var(--line); border-radius:10px; width:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; }
+#tutorMic{ background:transparent; color:var(--ink-soft); border:2px solid var(--line); border-radius:12px; width:42px; flex:0 0 42px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; transition:all 0.2s; }
+#tutorMic:hover:not(:disabled){ border-color:var(--blue-mid); color:var(--blue-mid); }
 #tutorMic.listening{ background:var(--error); color:#fff; border-color:var(--error); animation: micPulse 1s infinite; }
 #tutorMic:disabled{ opacity:0.4; cursor:not-allowed; }
 @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,69,92,0.4); } 50%{ box-shadow:0 0 0 8px rgba(217,69,92,0); } }
@@ -252,7 +253,7 @@
   <span class="htxt"><i class="fas fa-graduation-cap"></i> Ask the Tutor</span>
   <div style="display:flex; align-items:center;">
    <button id="tutorSpeakToggle" aria-label="Toggle spoken replies" title="Read replies aloud">
-  <i class="fas fa-volume-high"></i><span class="lbl">Voice replies: off</span>
+  <i class="fas fa-volume-high"></i><span class="lbl">Read aloud: off</span>
 </button>
     <button id="tutorCloseBtn" aria-label="Close">✕</button>
   </div>
@@ -580,7 +581,7 @@ function speakText(text) {
 function updateSpeakToggleUI() {
   const btn = document.getElementById('tutorSpeakToggle');
   btn.classList.toggle('on', speakModeOn);
-  btn.querySelector('.lbl').textContent = 'Voice replies: ' + (speakModeOn ? 'on' : 'off');
+  btn.querySelector('.lbl').textContent = 'Read aloud: ' + (speakModeOn ? 'on' : 'off');
 }
   
 document.getElementById('tutorSpeakToggle').addEventListener('click', () => {
