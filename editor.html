@@ -304,12 +304,22 @@ function cssColorToHex(str) {
 function normalizeSlide(slide) {
   slide.elements = (slide.elements || []).map(el => {
     if (el.kind === 'question') {
-      if (!Array.isArray(el.altAnswers)) {
-        el.altAnswers = el.alt ? [el.alt] : [];
+      if (!el.blanks) {
+        el.blanks = [{
+          qtype: el.qtype || 'text',
+          answer: el.answer || '',
+          altAnswers: Array.isArray(el.altAnswers) ? el.altAnswers : (el.alt ? [el.alt] : []),
+          options: Array.isArray(el.options) ? el.options : []
+        }];
+        delete el.qtype; delete el.answer; delete el.altAnswers; delete el.options; delete el.alt;
+      } else {
+        el.blanks = el.blanks.map(b => {
+          b.qtype = b.qtype || 'text';
+          b.altAnswers = Array.isArray(b.altAnswers) ? b.altAnswers : [];
+          b.options = Array.isArray(b.options) ? b.options : [];
+          return b;
+        });
       }
-      delete el.alt;
-      if (!el.qtype) el.qtype = 'text';
-      if (!Array.isArray(el.options)) el.options = [];
     }
     if (el.pos && (typeof el.pos.top !== 'string' || typeof el.pos.left !== 'string')) {
       el.pos = null;
@@ -346,7 +356,14 @@ function compileSlide(slide) {
       if (el.bold) pStyle += 'font-weight:800;';
       if (el.align) pStyle += `text-align:${escAttr(el.align)};`;
       if (el.font) pStyle += `font-family:${escAttr(el.font)};`;
-      chunk = `<p style="${pStyle}">${esc(el.text)}</p>\n`;
+      if (el.bgColor) pStyle += `background-color:${escAttr(el.bgColor)};`;
+      if (el.borderWidth) pStyle += `border:${escAttr(el.borderWidth)}px solid ${escAttr(el.borderColor || 'var(--line)')};`;
+      if (el.borderRadius) pStyle += `border-radius:${escAttr(el.borderRadius)}px;`;
+      if (el.padding) pStyle += `padding:${escAttr(el.padding)}px;`;
+      
+      const gap = el.lineGap ? `${escAttr(el.lineGap)}px` : '0px';
+      const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
+      chunk = `<div style="${pStyle} display:flex; flex-direction:column; gap:${gap};">${lines}</div>\n`;
     } else if (el.kind === 'image') {
       if (el.url) {
         chunk += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
@@ -386,21 +403,47 @@ function compileSlide(slide) {
       }
     } else if (el.kind === 'question') {
       hasQuestion = true;
-      const altList = (el.altAnswers || []).filter(Boolean);
-      const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
       const qStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
-      if (el.qtype === 'select') {
-        const opts = (el.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
-        chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> ${esc(el.prompt)} <select class="interactive-select" data-answer="${escAttr(el.answer)}"${altAttr}><option value="">--</option>${opts}</select></div>\n`;
-      } else {
-        chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> ${esc(el.prompt)} <input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(el.answer)}"${altAttr}></div>\n`;
+      chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> `;
+      
+      const parts = (el.prompt || '').split('[blank]');
+      for (let i = 0; i < parts.length; i++) {
+        chunk += esc(parts[i]);
+        if (i < parts.length - 1) {
+          const b = (el.blanks && el.blanks[i]) || { qtype: 'text', answer: '', altAnswers: [], options: [] };
+          const altList = (b.altAnswers || []).filter(Boolean);
+          const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+          if (b.qtype === 'select') {
+            const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
+            chunk += `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+          } else {
+            chunk += `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+          }
+        }
       }
+      
+      if (parts.length === 1 && el.blanks && el.blanks.length > 0) {
+        chunk += " ";
+        const b = el.blanks[0];
+        const altList = (b.altAnswers || []).filter(Boolean);
+        const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+        if (b.qtype === 'select') {
+          const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
+          chunk += `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+        } else {
+          chunk += `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+        }
+      }
+      chunk += `</div>\n`;
     } else if (el.kind === 'list') {
       let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
       const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
       chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
+    } else if (el.kind === 'link') {
+      const linkStyle = `display:inline-block; padding:10px 20px; background-color:${escAttr(el.bgColor || '#007BFF')}; color:${escAttr(el.color || '#FFFFFF')}; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);`;
+      chunk = `<div style="text-align:center; margin:16px 0;"><a href="${escAttr(el.url)}" target="_blank" style="${linkStyle}">${esc(el.text || 'Click Here')}</a></div>\n`;
     }
 
     if (!chunk) return;
@@ -553,10 +596,13 @@ function parseLegacySlideHTML(html) {
     const node = kids[i];
     const tag = node.tagName;
 
-    if (tag === 'P' && !isCaptionP(node)) {
+    if ((tag === 'P' || tag === 'DIV') && !isCaptionP(node) && !node.classList.contains('question-block')) {
+      let htmlContent = node.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
+      let tmp = document.createElement('div');
+      tmp.innerHTML = htmlContent;
       slide.elements.push({
         id: uid(), kind: 'paragraph', pos: null,
-        text: node.textContent.trim(),
+        text: tmp.textContent.trim(),
         color: cssColorToHex(node.style.color) || '',
         size: node.style.fontSize ? String(parseInt(node.style.fontSize, 10)) : '',
         bold: node.style.fontWeight === '800' || node.style.fontWeight === 'bold',
@@ -574,34 +620,39 @@ function parseLegacySlideHTML(html) {
         caption: caption
       });
     } else if (tag === 'DIV' && node.classList.contains('question-block')) {
-      const input = node.querySelector('input.interactive-input');
-      const select = node.querySelector('select.interactive-select');
-      // Build the prompt only from direct text nodes (ignores the "?" letter badge and the input/select).
-      let prompt = Array.from(node.childNodes)
-        .filter(n => n.nodeType === Node.TEXT_NODE)
-        .map(n => n.textContent)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      const el = { id: uid(), kind: 'question', pos: null, prompt, font: node.style.fontFamily || '' };
-      if (select) {
-        el.qtype = 'select';
-        el.answer = select.getAttribute('data-answer') || '';
-        el.altAnswers = (select.getAttribute('data-alt') || '').split('|').map(s => s.trim()).filter(Boolean);
-        el.options = Array.from(select.querySelectorAll('option'))
-          .map(o => o.value).filter(v => v !== '');
-      } else if (input) {
-        el.qtype = 'text';
-        el.answer = input.getAttribute('data-answer') || '';
-        el.altAnswers = (input.getAttribute('data-alt') || '').split('|').map(s => s.trim()).filter(Boolean);
-        el.options = [];
-      } else {
-        // Question block without a recognizable input — keep it editable as raw so nothing is lost.
+      let promptPieces = [];
+      let blanks = [];
+      for (let n of Array.from(node.childNodes)) {
+        if (n.nodeType === Node.TEXT_NODE) {
+          promptPieces.push(n.textContent);
+        } else if (n.nodeName === 'INPUT' && n.classList.contains('interactive-input')) {
+          promptPieces.push('[blank]');
+          blanks.push({
+            qtype: 'text',
+            answer: n.getAttribute('data-answer') || '',
+            altAnswers: (n.getAttribute('data-alt') || '').split('|').map(s=>s.trim()).filter(Boolean),
+            options: []
+          });
+        } else if (n.nodeName === 'SELECT' && n.classList.contains('interactive-select')) {
+          promptPieces.push('[blank]');
+          blanks.push({
+            qtype: 'select',
+            answer: n.getAttribute('data-answer') || '',
+            altAnswers: (n.getAttribute('data-alt') || '').split('|').map(s=>s.trim()).filter(Boolean),
+            options: Array.from(n.querySelectorAll('option')).map(o => o.value).filter(v => v !== '')
+          });
+        }
+      }
+      
+      let prompt = promptPieces.join('').replace(/\s+/g, ' ').trim();
+      if (blanks.length === 0) {
         slide.elements.push({ id: uid(), kind: 'raw', pos: null, html: node.outerHTML });
         continue;
       }
-      slide.elements.push(el);
+      
+      // If it ends with [blank], that's the legacy single-blank style.
+      // But we can just keep the [blank] at the end, it will work correctly in compileSlide.
+      slide.elements.push({ id: uid(), kind: 'question', pos: null, prompt, blanks, font: node.style.fontFamily || '' });
     } else if (tag === 'OL' && node.classList.contains('agenda')) {
       const items = Array.from(node.querySelectorAll('li')).map(li => {
         const timeEl = li.querySelector('.time');
@@ -767,6 +818,8 @@ function renderElements() {
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
+          <button onclick="addElement('raw')"><i class="fas fa-code"></i> Raw HTML</button>
+          <button onclick="addElement('link')"><i class="fas fa-link"></i> Hyperlink</button>
         </div>
       </div>
     </div>
@@ -824,8 +877,10 @@ function addElement(kind) {
   if (kind === 'image') el = { ...el, url: '', caption: '' };
   if (kind === 'video') el = { ...el, url: '', caption: '' };
   if (kind === 'audio') el = { ...el, url: '', caption: '' };
-  if (kind === 'question') el = { ...el, qtype: 'text', prompt: '', answer: '', altAnswers: [], options: [] };
+  if (kind === 'question') el = { ...el, blanks: [{ qtype: 'text', answer: '', altAnswers: [], options: [] }], prompt: '' };
   if (kind === 'list') el = { ...el, items: [{ text: '', time: '' }] };
+  if (kind === 'raw') el = { ...el, html: '' };
+  if (kind === 'link') el = { ...el, url: '', text: '', bgColor: '#007BFF', color: '#FFFFFF' };
   slide.elements.push(el);
   renderElemCards(slide); updatePreview();
 }
@@ -859,15 +914,25 @@ function elemCardHTML(el, i, total) {
 
   if (el.kind === 'paragraph') {
     fields = `
-      <div class="field"><label>Text</label><textarea oninput="updateElField('${el.id}','text',this.value)">${esc(el.text)}</textarea></div>
+      <div class="field"><label>Text (Use Shift+Enter for new lines)</label><textarea style="min-height: 80px;" oninput="updateElField('${el.id}','text',this.value)">${esc(el.text)}</textarea></div>
       <div class="field-row">
         <div class="field"><label>Text Color</label><input type="color" value="${escAttr(el.color || '#2D3748')}" oninput="updateElField('${el.id}','color',this.value)"></div>
         <div class="field"><label>Font Size (px)</label><input type="text" value="${escAttr(el.size || '')}" placeholder="16" oninput="updateElField('${el.id}','size',this.value)"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>
+        <div class="field"><label>Line Gap (px)</label><input type="number" value="${escAttr(el.lineGap || '')}" placeholder="0" oninput="updateElField('${el.id}','lineGap',this.value)"></div>
       </div>
       <div class="field-row">
+        <div class="field"><label>Bg Color</label><input type="color" value="${escAttr(el.bgColor || '#ffffff')}" oninput="updateElField('${el.id}','bgColor',this.value)"></div>
+        <div class="field"><label>Border Color</label><input type="color" value="${escAttr(el.borderColor || '#cbd5e1')}" oninput="updateElField('${el.id}','borderColor',this.value)"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Border Width (px)</label><input type="number" value="${escAttr(el.borderWidth || '')}" placeholder="0" oninput="updateElField('${el.id}','borderWidth',this.value)"></div>
+        <div class="field"><label>Border Radius (px)</label><input type="number" value="${escAttr(el.borderRadius || '')}" placeholder="0" oninput="updateElField('${el.id}','borderRadius',this.value)"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Padding (px)</label><input type="number" value="${escAttr(el.padding || '')}" placeholder="0" oninput="updateElField('${el.id}','padding',this.value)"></div>
         <div class="field">
           <label>Align</label>
           <select onchange="updateElField('${el.id}','align',this.value)">
@@ -877,6 +942,8 @@ function elemCardHTML(el, i, total) {
             <option value="right" ${el.align === 'right' ? 'selected' : ''}>Right</option>
           </select>
         </div>
+      </div>
+      <div class="field-row">
         <div class="field" style="display:flex; align-items:flex-end;">
           <label class="checkbox-field" style="margin-bottom:9px;">
             <input type="checkbox" ${el.bold ? 'checked' : ''} onchange="updateElField('${el.id}','bold',this.checked)">
@@ -919,30 +986,51 @@ function elemCardHTML(el, i, total) {
       <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
     `;
   } else if (el.kind === 'question') {
-    const isSelect = el.qtype === 'select';
+    let promptParts = (el.prompt || '').split('[blank]');
+    let numBlanks = promptParts.length > 1 ? promptParts.length - 1 : 1;
+    
     fields = `
-      <div class="field"><label>Question Type</label>
-        <select onchange="updateElQtype('${el.id}',this.value)">
-          <option value="text" ${!isSelect ? 'selected' : ''}>Type the answer</option>
-          <option value="select" ${isSelect ? 'selected' : ''}>Choose from options</option>
-        </select>
-      </div>
-      <div class="field"><label>Prompt</label><input type="text" value="${escAttr(el.prompt)}" oninput="updateElField('${el.id}','prompt',this.value)"></div>
+      <div class="field"><label>Prompt (Use <b>[blank]</b> to insert answer boxes)</label><input type="text" value="${escAttr(el.prompt)}" oninput="updateElField('${el.id}','prompt',this.value)"></div>
       <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>
-      ${isSelect ? `
-        <div class="field"><label>Options (one per line)</label><textarea oninput="updateElOptions('${el.id}',this.value)">${esc((el.options || []).join('\\n'))}</textarea></div>
-        <div class="field"><label>Correct Option (must match one option exactly)</label><input type="text" value="${escAttr(el.answer)}" oninput="updateElField('${el.id}','answer',this.value)"></div>
-      ` : `
-        <div class="field"><label>Correct Answer</label><input type="text" value="${escAttr(el.answer)}" oninput="updateElField('${el.id}','answer',this.value)"></div>
-      `}
-      <div class="field"><label>Other accepted answers (one per line — for synonyms, spelling variants, etc.)</label><textarea oninput="updateElAltAnswers('${el.id}',this.value)" placeholder="e.g. colour&#10;color">${esc((el.altAnswers || []).join('\\n'))}</textarea></div>
     `;
+
+    for (let i = 0; i < numBlanks; i++) {
+      let b = (el.blanks && el.blanks[i]) || { qtype: 'text', answer: '', altAnswers: [], options: [] };
+      const isSelect = b.qtype === 'select';
+      fields += `
+        <div style="margin-top:16px; padding:12px; border:1px solid var(--line); border-radius:8px; background:#f4f7f9;">
+          <h4 style="margin:0 0 10px; font-size:13px; color:var(--blue-ink);">Answer Box ${i+1}</h4>
+          <div class="field"><label>Question Type</label>
+            <select onchange="updateElBlank('${el.id}', ${i}, 'qtype', this.value)">
+              <option value="text" ${!isSelect ? 'selected' : ''}>Type the answer</option>
+              <option value="select" ${isSelect ? 'selected' : ''}>Choose from options</option>
+            </select>
+          </div>
+          ${isSelect ? `
+            <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\\n'))}</textarea></div>
+            <div class="field"><label>Correct Option</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          ` : `
+            <div class="field"><label>Correct Answer</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          `}
+          <div class="field"><label>Other accepted answers (synonyms)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\\n'))}</textarea></div>
+        </div>
+      `;
+    }
   } else if (el.kind === 'list') {
     const itemsText = (el.items || []).map(it => it.time ? `${it.text} | ${it.time}` : it.text).join('\n');
     fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>
       <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>`;
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
+  } else if (el.kind === 'link') {
+    fields = `
+      <div class="field"><label>URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
+      <div class="field"><label>Button Text</label><input type="text" value="${escAttr(el.text)}" oninput="updateElField('${el.id}','text',this.value)" placeholder="Click Here"></div>
+      <div class="field-row">
+        <div class="field"><label>Button Color</label><input type="color" value="${escAttr(el.bgColor || '#007BFF')}" oninput="updateElField('${el.id}','bgColor',this.value)"></div>
+        <div class="field"><label>Text Color</label><input type="color" value="${escAttr(el.color || '#FFFFFF')}" oninput="updateElField('${el.id}','color',this.value)"></div>
+      </div>
+    `;
   }
 
   const posEnabled = !!el.pos;
@@ -982,26 +1070,35 @@ function updateElField(elId, field, value) {
   const slide = getSelectedSlide(); if (!slide) return;
   const el = slide.elements.find(e => e.id === elId); if (!el) return;
   el[field] = value;
+  
+  if (field === 'prompt' && el.kind === 'question') {
+    let promptParts = (value || '').split('[blank]');
+    let numBlanks = promptParts.length > 1 ? promptParts.length - 1 : 1;
+    if (!el.blanks) el.blanks = [];
+    while (el.blanks.length < numBlanks) {
+      el.blanks.push({ qtype: 'text', answer: '', altAnswers: [], options: [] });
+    }
+    renderElemCards(slide);
+  }
   updatePreview();
 }
-function updateElQtype(elId, value) {
+
+function updateElBlank(elId, idx, field, value) {
   const slide = getSelectedSlide(); if (!slide) return;
   const el = slide.elements.find(e => e.id === elId); if (!el) return;
-  el.qtype = value;
-  if (value === 'select' && !Array.isArray(el.options)) el.options = [];
-  renderElemCards(slide); // re-render so the Options field appears/disappears immediately
-  updatePreview();
-}
-function updateElOptions(elId, text) {
-  const slide = getSelectedSlide(); if (!slide) return;
-  const el = slide.elements.find(e => e.id === elId); if (!el) return;
-  el.options = text.split('\n').map(s => s.trim()).filter(Boolean);
-  updatePreview();
-}
-function updateElAltAnswers(elId, text) {
-  const slide = getSelectedSlide(); if (!slide) return;
-  const el = slide.elements.find(e => e.id === elId); if (!el) return;
-  el.altAnswers = text.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!el.blanks) return;
+  let b = el.blanks[idx];
+  if (!b) return;
+
+  if (field === 'options' || field === 'altAnswers') {
+    b[field] = value.split('\n').map(s=>s.trim()).filter(Boolean);
+  } else {
+    b[field] = value;
+  }
+  
+  if (field === 'qtype') {
+    renderElemCards(slide);
+  }
   updatePreview();
 }
 function updateElItems(elId, text) {

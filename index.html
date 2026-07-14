@@ -712,14 +712,7 @@
                         <div class="form-grid">
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Category Label</label>
-                                <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Exam Prep, Grammar Clinic">
-                            </div>
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Type</label>
-                                <select id="new-cat-type" class="input-control">
-                                    <option value="practice">Practice (link-only)</option>
-                                    <option value="curriculum">Curriculum</option>
-                                </select>
+                                <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Homework, Listening">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
@@ -735,7 +728,7 @@
                     <form onsubmit="handleCreateCustomSession(event)">
                         <div class="form-grid">
                             <div class="input-group" style="margin-bottom:0;">
-                                <label>Title</label>
+                                <label>Session Title</label>
                                 <input type="text" id="cs-title" class="input-control" required>
                             </div>
                             <div class="input-group" style="margin-bottom:0;">
@@ -745,23 +738,6 @@
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Password (optional)</label>
                                 <input type="text" id="cs-password" class="input-control">
-                            </div>
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Mode</label>
-                                <select id="cs-mode" class="input-control" onchange="toggleTempFields()">
-                                    <option value="permanent">Permanent</option>
-                                    <option value="temporary">Temporary</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-grid" id="cs-temp-fields" style="display:none; margin-top: 16px;">
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Expires At (optional)</label>
-                                <input type="datetime-local" id="cs-expires" class="input-control">
-                            </div>
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Max Uses (optional)</label>
-                                <input type="number" id="cs-maxuses" class="input-control" min="1" placeholder="e.g. 30">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
@@ -1151,7 +1127,7 @@
                     setLoading(false);
                 }
                 renderLevelList();
-                loadPracticeSections();
+                loadCategoriesForDashboard();
             }
             if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); loadCategories(); }
         }
@@ -1796,11 +1772,6 @@
             loadCustomSessions();
         }
 
-        function toggleTempFields() {
-            const mode = document.getElementById('cs-mode').value;
-            document.getElementById('cs-temp-fields').style.display = mode === 'temporary' ? 'grid' : 'none';
-        }
-
         async function handleCreateCustomSession(e) {
             e.preventDefault();
             document.getElementById('custom-sess-alert').classList.remove('show');
@@ -1810,10 +1781,9 @@
             const title = document.getElementById('cs-title').value.trim();
             const link = document.getElementById('cs-link').value.trim();
             const password = document.getElementById('cs-password').value;
-            const sessionMode = document.getElementById('cs-mode').value;
-            const expiresAtRaw = document.getElementById('cs-expires').value;
-            const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : '';
-            const maxUses = document.getElementById('cs-maxuses').value || '';
+            const sessionMode = 'permanent';
+            const expiresAt = '';
+            const maxUses = '';
 
             setLoading(true);
             try {
@@ -1830,8 +1800,6 @@
                 document.getElementById('cs-title').value = '';
                 document.getElementById('cs-link').value = '';
                 document.getElementById('cs-password').value = '';
-                document.getElementById('cs-expires').value = '';
-                document.getElementById('cs-maxuses').value = '';
                 await loadCustomSessions();
             } catch (err) {
                 document.getElementById('custom-sess-alert-text').textContent = translations[currentLang].errNetwork;
@@ -1852,13 +1820,10 @@
                         <div>
                             <strong>${escapeHtml(s.title)}</strong>
                             <div class="custom-session-meta">
-                                ${s.sessionMode}${s.hasPassword ? ' · password protected' : ''}
-                                ${s.expiresAt ? ' · expires ' + new Date(s.expiresAt).toLocaleString() : ''}
-                                ${s.maxUses ? ` · ${s.useCount}/${s.maxUses} uses` : ''}
+                                ${s.hasPassword ? 'Password protected' : 'Public'}
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <span class="status-badge ${s.isActive ? 'active' : 'expired'}">${s.isActive ? 'Active' : 'Expired'}</span>
                             <button class="btn btn-outline btn-sm" onclick="handleDeleteCustomSession('${s.id}')"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -1883,17 +1848,17 @@
         // =====================================================================
         // Student-facing practice sections
         // =====================================================================
-        async function loadPracticeSections() {
+        async function loadCategoriesForDashboard() {
             const wrap = document.getElementById('practice-sections-wrap');
             if (!wrap || !currentUser || currentUser.role !== 'student') return;
             try {
                 const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
                 if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                const practiceCategories = (catResult.categories || []).filter(c => c.type === 'practice');
-                if (practiceCategories.length === 0) { wrap.innerHTML = ''; return; }
+                const categories = catResult.categories || [];
+                if (categories.length === 0) { wrap.innerHTML = ''; return; }
 
                 let html = '';
-                for (const cat of practiceCategories) {
+                for (const cat of categories) {
                     const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: cat.id }));
                     const sessions = (sessResult.sessions || []).filter(s => s.isActive);
                     if (sessions.length === 0) continue;
