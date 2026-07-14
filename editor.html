@@ -229,7 +229,7 @@ function setStatus(msg, kind) {
   el.className = kind || 'info';
 }
 
-async function callBackend(params) {
+async function callBackend(params, retries = 3, backoff = 1000) {
   let payload;
   if (params instanceof URLSearchParams) {
     const obj = {};
@@ -247,15 +247,31 @@ async function callBackend(params) {
       body: payload 
     });
   } catch (networkErr) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackend(params, retries - 1, backoff * 2);
+    }
     throw new Error('Network/CORS error reaching Apps Script: ' + networkErr.message);
   }
+  
   const rawText = await res.text();
+  
   if (!res.ok) {
+    if (res.status === 429 && retries > 0) {
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackend(params, retries - 1, backoff * 2);
+    }
     throw new Error('HTTP ' + res.status + ' from Apps Script: ' + rawText.slice(0, 300));
   }
+  
   try {
     return JSON.parse(rawText);
   } catch (parseErr) {
+    if (retries > 0 && rawText.toLowerCase().includes('google')) {
+      // Apps Script might have returned an HTML error/captcha page due to rate limiting
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackend(params, retries - 1, backoff * 2);
+    }
     throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
   }
 }
@@ -1185,6 +1201,9 @@ async function processUploads(elId, input, maxMB) {
       statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
       renderElemCards(slide);
       updatePreview();
+      
+      // Delay slightly between multiple uploads to avoid tripping Google's anti-abuse rate limiter
+      if (i < files.length - 1) await new Promise(r => setTimeout(r, 1500));
     } catch (err) {
       statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
     }
