@@ -211,13 +211,15 @@
   .tutor-typing span:nth-child(3){ animation-delay:.4s; }
   @keyframes tdot{ 0%,60%,100%{ opacity:.3; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
   @media (max-width:480px){ #tutorPanel{ left:10px; right:10px; width:auto; top:72px; } #tutorToggle span.tt-label{ display:none; } }
-  .z-audio { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); border-radius: 99px; padding: 8px 16px 8px 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
-  .z-audio-btn { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: transform 0.2s, box-shadow 0.2s; flex: 0 0 auto; }
+  .z-audio { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 2px solid var(--line); border-radius: 20px; padding: 12px 18px 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .z-audio-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .z-audio-status { font-size: 11px; font-weight: 800; color: var(--blue-mid); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
+  .z-audio-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: transform 0.2s, box-shadow 0.2s; flex: 0 0 auto; }
   .z-audio-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(155, 81, 224, 0.3); }
   .z-audio-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-  .z-audio-track { flex: 1; height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; position: relative; cursor: pointer; overflow: hidden; }
+  .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; }
   .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); transition: width 0.1s linear; pointer-events: none; }
-  .z-audio-time { font-size: 12px; color: var(--ink-soft); font-weight: 700; font-family: 'Nunito', sans-serif; min-width: 44px; text-align: right; }
+  .z-audio-time { font-size: 13px; color: var(--ink-soft); font-weight: 800; font-family: 'Nunito', sans-serif; min-width: 70px; text-align: right; }
   .z-audio.loading .z-audio-btn i { animation: spin 1s linear infinite; }
 </style>
 </head>
@@ -779,6 +781,7 @@ function initCustomAudio(container) {
   const fill = container.querySelector('.z-audio-fill');
   const track = container.querySelector('.z-audio-track');
   const timeDisplay = container.querySelector('.z-audio-time');
+  const statusDisplay = container.querySelector('.z-audio-status');
   const driveId = container.getAttribute('data-drive-id');
   let audio = null;
   let isPlaying = false;
@@ -796,19 +799,27 @@ function initCustomAudio(container) {
     const total = audio.duration || 0;
     const pct = total > 0 ? (current / total) * 100 : 0;
     fill.style.width = pct + '%';
-    timeDisplay.textContent = formatTime(current);
+    timeDisplay.textContent = formatTime(current) + " / " + formatTime(total);
   }
 
   btn.addEventListener('click', async () => {
     if (audio) {
-      if (isPlaying) { audio.pause(); btn.innerHTML = '<i class="fas fa-play"></i>'; }
-      else { audio.play(); btn.innerHTML = '<i class="fas fa-pause"></i>'; }
+      if (isPlaying) { 
+        audio.pause(); 
+        btn.innerHTML = '<i class="fas fa-play"></i>';
+        statusDisplay.textContent = "Paused";
+      } else { 
+        audio.play(); 
+        btn.innerHTML = '<i class="fas fa-pause"></i>';
+        statusDisplay.textContent = "Playing";
+      }
       isPlaying = !isPlaying;
       return;
     }
     
     container.classList.add('loading');
     btn.innerHTML = '<i class="fas fa-spinner"></i>';
+    statusDisplay.textContent = "Loading...";
     
     try {
       const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
@@ -822,18 +833,21 @@ function initCustomAudio(container) {
         isPlaying = false;
         btn.innerHTML = '<i class="fas fa-play"></i>';
         fill.style.width = '0%';
-        timeDisplay.textContent = "0:00";
+        timeDisplay.textContent = "0:00 / " + formatTime(audio.duration);
+        statusDisplay.textContent = "Ready";
       });
       
       container.classList.remove('loading');
       audio.play();
       isPlaying = true;
       btn.innerHTML = '<i class="fas fa-pause"></i>';
+      statusDisplay.textContent = "Playing";
     } catch (e) {
       console.error(e);
       alert('Failed to load audio: ' + e.message);
       container.classList.remove('loading');
       btn.innerHTML = '<i class="fas fa-play"></i>';
+      statusDisplay.textContent = "Error";
     }
   });
 

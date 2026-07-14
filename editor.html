@@ -371,7 +371,14 @@ function compileSlide(slide) {
         if (el.url.includes('drive.google.com') && el.url.includes('id=')) {
           const match = el.url.match(/[?&]id=([^&]+)/);
           if (match && match[1]) {
-            audioHtml = `<div class="z-audio" data-drive-id="${match[1]}"><button class="z-audio-btn"><i class="fas fa-play"></i></button><div class="z-audio-track"><div class="z-audio-fill"></div></div><div class="z-audio-time">0:00</div></div>`;
+            audioHtml = `<div class="z-audio" data-drive-id="${match[1]}">
+              <button class="z-audio-btn"><i class="fas fa-play"></i></button>
+              <div class="z-audio-info">
+                <div class="z-audio-status">Ready</div>
+                <div class="z-audio-track"><div class="z-audio-fill"></div></div>
+              </div>
+              <div class="z-audio-time">0:00 / 0:00</div>
+            </div>`;
           }
         }
         if (!audioHtml) audioHtml = `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>`;
