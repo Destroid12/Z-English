@@ -165,13 +165,14 @@
   #tutorToggle.open{ background: linear-gradient(135deg, #FF9A9E, #FECFEF); color: var(--blue-ink); animation: none; box-shadow: 0 6px 16px rgba(255, 154, 158, 0.4); }
 #tutorSpeakToggle{
   display:flex; align-items:center; gap:6px;
-  background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35);
-  color:#fff; height:30px; padding:0 12px; border-radius:999px; cursor:pointer;
-  font-family:'Baloo 2'; font-weight:800; font-size:11.5px; flex:0 0 auto; margin-right:8px;
+  background:#fff; border:2px solid var(--line);
+  color:var(--ink-soft); height:34px; padding:0 14px; border-radius:8px; cursor:pointer;
+  font-family:'Nunito', sans-serif; font-weight:800; font-size:13px; flex:0 0 auto; margin-right:8px;
   transition: background .15s, color .15s;
 }
 #tutorSpeakToggle .lbl{ white-space:nowrap; }
-#tutorSpeakToggle.on{ background:#fff; color:var(--blue-dark); }
+#tutorSpeakToggle:hover { color: var(--blue-mid); border-color: var(--blue-mid); }
+#tutorSpeakToggle.on{ background:var(--blue-mid); color:#fff; border-color:var(--blue-mid); }
 .tutor-msg .replay-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:11px; margin-left:6px; vertical-align:middle; }
 .tutor-msg .replay-btn:hover{ color:var(--blue-mid); }
 #tutorMic{ background:transparent; color:var(--ink-soft); border:2px solid var(--line); border-radius:12px; width:42px; flex:0 0 42px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; transition:all 0.2s; }
