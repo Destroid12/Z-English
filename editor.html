@@ -279,20 +279,32 @@ async function callBackend(params, retries = 3, backoff = 1000) {
     throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
   }
 }
-async function callBackendGet(params) {
+async function callBackendGet(params, retries = 3, backoff = 1000) {
   let res;
   try {
     res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
   } catch (networkErr) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackendGet(params, retries - 1, backoff * 2);
+    }
     throw new Error('Network/CORS error reaching Apps Script: ' + networkErr.message);
   }
   const rawText = await res.text();
   if (!res.ok) {
+    if (res.status === 429 && retries > 0) {
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackendGet(params, retries - 1, backoff * 2);
+    }
     throw new Error('HTTP ' + res.status + ' from Apps Script: ' + rawText.slice(0, 300));
   }
   try {
     return JSON.parse(rawText);
   } catch (parseErr) {
+    if (retries > 0 && rawText.toLowerCase().includes('google')) {
+      await new Promise(r => setTimeout(r, backoff));
+      return callBackendGet(params, retries - 1, backoff * 2);
+    }
     throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
   }
 }
@@ -613,6 +625,8 @@ async function runMigrateAllSessions() {
         console.error('Migration failed for', s, err);
         errorCount++;
       }
+      // Add a small delay between sessions to avoid hitting Apps Script rate limits
+      await new Promise(r => setTimeout(r, 800));
     }
 
     setStatus(`Done. Checked ${checkedCount} session(s), migrated ${migratedCount}, ${errorCount} error(s).`,
