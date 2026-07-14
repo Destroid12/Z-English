@@ -725,7 +725,13 @@ async function tutorSend() {
       body.set('audioMime', recordedAudioMime);
       recordedAudioB64 = null; recordedAudioMime = null;
     }
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    const obj = {};
+    for (const [k, v] of body.entries()) obj[k] = v;
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain' }, 
+      body: JSON.stringify(obj) 
+    });
     const data = await res.json();
     tutorHideTyping();
 

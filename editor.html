@@ -230,11 +230,23 @@ function setStatus(msg, kind) {
 }
 
 async function callBackend(params) {
+  let payload;
+  if (params instanceof URLSearchParams) {
+    const obj = {};
+    for (const [k, v] of params.entries()) obj[k] = v;
+    payload = JSON.stringify(obj);
+  } else {
+    payload = JSON.stringify(params);
+  }
+
   let res;
   try {
-    res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
+    res = await fetch(GOOGLE_APP_SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain' }, 
+      body: payload 
+    });
   } catch (networkErr) {
-    // fetch() itself rejected: DNS/CORS/offline/blocked — not an HTTP error.
     throw new Error('Network/CORS error reaching Apps Script: ' + networkErr.message);
   }
   const rawText = await res.text();
@@ -244,7 +256,6 @@ async function callBackend(params) {
   try {
     return JSON.parse(rawText);
   } catch (parseErr) {
-    // Apps Script returned non-JSON (often an HTML auth/error page) — surface it instead of hiding it.
     throw new Error('Apps Script did not return JSON (likely a size/auth/deployment issue). Response started with: ' + rawText.slice(0, 300));
   }
 }
