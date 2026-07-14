@@ -699,11 +699,6 @@ async function tutorSend() {
 
   tutorAddMessage('user', question);
   tutorShowTyping();
-  if (recordedAudioB64) {
-  body.set('audioBase64', recordedAudioB64);
-  body.set('audioMime', recordedAudioMime);
-  recordedAudioB64 = null; recordedAudioMime = null;
-}
 
   try {
     const body = new URLSearchParams({
@@ -717,6 +712,11 @@ async function tutorSend() {
       slideIndex: String((window.currentSlideIndex || 0) + 1),
       history: JSON.stringify(tutorHistory.slice(-TUTOR_MAX_HISTORY_TURNS))
     });
+    if (recordedAudioB64) {
+      body.set('audioBase64', recordedAudioB64);
+      body.set('audioMime', recordedAudioMime);
+      recordedAudioB64 = null; recordedAudioMime = null;
+    }
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
     const data = await res.json();
     tutorHideTyping();

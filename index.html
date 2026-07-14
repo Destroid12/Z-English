@@ -1999,16 +1999,16 @@ async function sendSiteTutorMsg() {
   input.value = '';
   siteTutorAddMsg('user', question);
   siteTutorShowTyping();
-    if (recordedAudioB64) {
-  body.set('audioBase64', recordedAudioB64);
-  body.set('audioMime', recordedAudioMime);
-  recordedAudioB64 = null; recordedAudioMime = null;
-}
   try {
     const body = new URLSearchParams({
       action: 'askSiteTutor', token: sessionToken, question,
       history: JSON.stringify(siteTutorHistory.slice(-8))
     });
+    if (recordedAudioB64) {
+      body.set('audioBase64', recordedAudioB64);
+      body.set('audioMime', recordedAudioMime);
+      recordedAudioB64 = null; recordedAudioMime = null;
+    }
     const result = await callBackend(body);
     siteTutorHideTyping();
     if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
