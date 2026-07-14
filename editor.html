@@ -372,9 +372,8 @@ function compileSlide(slide) {
           const match = el.url.match(/[?&]id=([^&]+)/);
           if (match && match[1]) {
             audioHtml = `<div class="z-audio" data-drive-id="${match[1]}">
-              <button class="z-audio-btn"><i class="fas fa-play"></i></button>
+              <button class="z-audio-btn"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg></button>
               <div class="z-audio-info">
-                <div class="z-audio-status">Ready</div>
                 <div class="z-audio-track"><div class="z-audio-fill"></div></div>
               </div>
               <div class="z-audio-time">0:00 / 0:00</div>

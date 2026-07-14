@@ -213,14 +213,13 @@
   @media (max-width:480px){ #tutorPanel{ left:10px; right:10px; width:auto; top:72px; } #tutorToggle span.tt-label{ display:none; } }
   .z-audio { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 2px solid var(--line); border-radius: 20px; padding: 12px 18px 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
   .z-audio-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .z-audio-status { font-size: 11px; font-weight: 800; color: var(--blue-mid); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
   .z-audio-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: transform 0.2s, box-shadow 0.2s; flex: 0 0 auto; }
   .z-audio-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(155, 81, 224, 0.3); }
   .z-audio-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-  .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; }
+  .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; margin-top: 2px; }
   .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); transition: width 0.1s linear; pointer-events: none; }
   .z-audio-time { font-size: 13px; color: var(--ink-soft); font-weight: 800; font-family: 'Nunito', sans-serif; min-width: 70px; text-align: right; }
-  .z-audio.loading .z-audio-btn i { animation: spin 1s linear infinite; }
+  .z-audio.loading .z-audio-btn svg { animation: spin 1s linear infinite; }
 </style>
 </head>
 <body>
@@ -781,12 +780,15 @@ function initCustomAudio(container) {
   const fill = container.querySelector('.z-audio-fill');
   const track = container.querySelector('.z-audio-track');
   const timeDisplay = container.querySelector('.z-audio-time');
-  const statusDisplay = container.querySelector('.z-audio-status');
   const driveId = container.getAttribute('data-drive-id');
   let audio = null;
   let isPlaying = false;
   let isReady = false;
   let wantsToPlay = false;
+
+  const iconPlay = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>`;
+  const iconPause = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+  const iconSpinner = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.2"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>`;
 
   function formatTime(sec) {
     if (isNaN(sec)) return "0:00";
@@ -805,7 +807,8 @@ function initCustomAudio(container) {
   }
 
   async function preload() {
-    statusDisplay.textContent = "Loading Audio...";
+    btn.innerHTML = iconSpinner;
+    container.classList.add('loading');
     try {
       const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
       const data = await res.json();
@@ -816,28 +819,29 @@ function initCustomAudio(container) {
       audio.addEventListener('loadedmetadata', () => {
         updateUI();
         isReady = true;
-        statusDisplay.textContent = "Ready";
         
         if (wantsToPlay) {
           container.classList.remove('loading');
           audio.play();
           isPlaying = true;
-          btn.innerHTML = '<i class="fas fa-pause"></i>';
-          statusDisplay.textContent = "Playing";
+          btn.innerHTML = iconPause;
+        } else {
+          container.classList.remove('loading');
+          btn.innerHTML = iconPlay;
         }
       });
       
       audio.addEventListener('ended', () => {
         isPlaying = false;
-        btn.innerHTML = '<i class="fas fa-play"></i>';
+        btn.innerHTML = iconPlay;
         fill.style.width = '0%';
         timeDisplay.textContent = "0:00 / " + formatTime(audio.duration);
-        statusDisplay.textContent = "Ready";
       });
       
     } catch (e) {
       console.error(e);
-      statusDisplay.textContent = "Error Loading";
+      container.classList.remove('loading');
+      btn.innerHTML = iconPlay;
     }
   }
 
@@ -847,24 +851,20 @@ function initCustomAudio(container) {
     if (isReady) {
       if (isPlaying) { 
         audio.pause(); 
-        btn.innerHTML = '<i class="fas fa-play"></i>';
-        statusDisplay.textContent = "Paused";
+        btn.innerHTML = iconPlay;
       } else { 
         audio.play(); 
-        btn.innerHTML = '<i class="fas fa-pause"></i>';
-        statusDisplay.textContent = "Playing";
+        btn.innerHTML = iconPause;
       }
       isPlaying = !isPlaying;
     } else {
       wantsToPlay = !wantsToPlay;
       if (wantsToPlay) {
         container.classList.add('loading');
-        btn.innerHTML = '<i class="fas fa-spinner"></i>';
-        statusDisplay.textContent = "Buffering...";
+        btn.innerHTML = iconSpinner;
       } else {
         container.classList.remove('loading');
-        btn.innerHTML = '<i class="fas fa-play"></i>';
-        statusDisplay.textContent = "Loading Audio...";
+        btn.innerHTML = iconPlay;
       }
     }
   });
