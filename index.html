@@ -572,14 +572,14 @@
                 <div class="avatar"><i class="fas fa-user"></i></div>
             </div>
 
-            <div class="track-tabs">
+            <div class="track-tabs" id="student-track-tabs">
                 <button type="button" class="track-tab active" id="track-tab-basic" onclick="switchTrack('basic')" data-i18n="basicTrack">Basic</button>
                 <button type="button" class="track-tab locked" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced<span class="soon-badge" data-i18n="comingSoonBadge">Coming soon</span></button>
             </div>
 
             <div class="level-list" id="level-list"></div>
 
-            <div id="practice-sections-wrap" style="margin-top: 40px;"></div>
+            <div id="custom-category-wrap" style="display: none; margin-top: 20px;"></div>
         </section>
 
         <section id="admin-dashboard" class="page-section container">
@@ -1743,11 +1743,10 @@
             e.preventDefault();
             document.getElementById('cat-alert').classList.remove('show');
             const label = document.getElementById('new-cat-label').value.trim();
-            const type = document.getElementById('new-cat-type').value;
             if (!label) return;
             setLoading(true);
             try {
-                const body = new URLSearchParams({ action: 'createCategory', token: sessionToken, label, type });
+                const body = new URLSearchParams({ action: 'createCategory', token: sessionToken, label });
                 const result = await callBackend(body);
                 if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
                 if (!result.success) {
@@ -1860,22 +1859,75 @@
         // =====================================================================
         // Student-facing practice sections
         // =====================================================================
+        let studentCategoriesCache = [];
+        let customSessionsCache = {};
+
         async function loadCategoriesForDashboard() {
-            const wrap = document.getElementById('practice-sections-wrap');
-            if (!wrap || !currentUser || currentUser.role !== 'student') return;
+            if (!currentUser || currentUser.role !== 'student') return;
+            const wrap = document.getElementById('custom-category-wrap');
+            const trackTabs = document.getElementById('student-track-tabs');
+            if (!wrap || !trackTabs) return;
+
             try {
                 const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
                 if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                const categories = catResult.categories || [];
-                if (categories.length === 0) { wrap.innerHTML = ''; return; }
+                studentCategoriesCache = catResult.categories || [];
+                
+                // Add buttons for each category
+                studentCategoriesCache.forEach(cat => {
+                    const existingBtn = document.getElementById(`track-tab-${cat.id}`);
+                    if (!existingBtn) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'track-tab';
+                        btn.id = `track-tab-${cat.id}`;
+                        btn.textContent = cat.label;
+                        btn.onclick = () => switchTrack(cat.id);
+                        trackTabs.appendChild(btn);
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load categories', err);
+            }
+        }
 
-                let html = '';
-                for (const cat of categories) {
-                    const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: cat.id }));
-                    const sessions = (sessResult.sessions || []).filter(s => s.isActive);
-                    if (sessions.length === 0) continue;
+        async function switchTrack(track) {
+            if (track === 'advanced') return; // locked
+            currentTrack = track;
+            
+            // Update active state on all tabs
+            document.querySelectorAll('#student-track-tabs .track-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.id === `track-tab-${track}`);
+            });
 
-                    html += `<div class="practice-section-card"><h3 style="margin-bottom: 14px;">${escapeHtml(cat.label)}</h3>`;
+            const levelList = document.getElementById('level-list');
+            const customWrap = document.getElementById('custom-category-wrap');
+
+            if (track === 'basic') {
+                customWrap.style.display = 'none';
+                levelList.style.display = 'grid';
+                renderLevelList();
+            } else {
+                // It's a custom category
+                levelList.style.display = 'none';
+                customWrap.style.display = 'block';
+                customWrap.innerHTML = '<div class="loading-spinner"></div>';
+                
+                try {
+                    let sessions = customSessionsCache[track];
+                    if (!sessions) {
+                        const sessResult = await callBackendGet(new URLSearchParams({ action: 'listCustomSessions', token: sessionToken, categoryId: track }));
+                        if (sessResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                        sessions = (sessResult.sessions || []).filter(s => s.isActive);
+                        customSessionsCache[track] = sessions;
+                    }
+
+                    if (sessions.length === 0) {
+                        customWrap.innerHTML = '<p>No sessions in this category yet.</p>';
+                        return;
+                    }
+
+                    let html = `<div class="practice-section-card">`;
                     sessions.forEach(s => {
                         const key = `custom-${s.id}`;
                         html += `
@@ -1891,10 +1943,11 @@
                             </div>`;
                     });
                     html += `</div>`;
+                    customWrap.innerHTML = html;
+                } catch (err) {
+                    customWrap.innerHTML = '<p class="error">Failed to load sessions.</p>';
+                    console.error('Failed to load custom sessions', err);
                 }
-                wrap.innerHTML = html || '';
-            } catch (err) {
-                console.error('Failed to load practice sections', err);
             }
         }
 
