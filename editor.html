@@ -63,6 +63,7 @@
   .slide-card .row1{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
   .slide-card .badge{ font-size:0.65rem; font-weight:800; text-transform:uppercase; padding:2px 7px; border-radius:10px; background:var(--z-blue-light); color:var(--z-blue-dark); }
   .slide-card .badge.activity{ background:#FFF3D6; color:var(--z-yellow-dark); }
+  .slide-card .badge.custom-type{ background:#E0F7F0; color:#0D7C5F; }
   .slide-card .title{ font-weight:700; font-size:0.85rem; margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .slide-card .actions{ display:flex; gap:4px; margin-top:8px; }
   .add-slide-menu{ display:flex; gap:6px; margin-top:12px; }
@@ -156,9 +157,13 @@
     <div class="col col-slides">
       <div class="panel-title">Slides</div>
       <div id="slideList"></div>
-      <div class="add-slide-menu">
+      <div class="add-slide-menu" id="addSlideMenu">
         <button class="btn btn-outline" onclick="addSlide('content')"><i class="fas fa-plus"></i> Content</button>
         <button class="btn btn-outline" onclick="addSlide('activity')"><i class="fas fa-plus"></i> Activity</button>
+      </div>
+      <div style="margin-top:6px; display:flex; gap:4px; align-items:center;">
+        <input type="text" id="customTypeInput" class="input-ctrl" placeholder="New category name..." style="flex:1; font-size:0.75rem; padding:5px 8px; border:1px solid #dce3ea; border-radius:6px;">
+        <button class="btn btn-outline" onclick="addCustomType()" style="font-size:0.72rem; padding:5px 10px; white-space:nowrap;"><i class="fas fa-plus"></i> Add</button>
       </div>
     </div>
 
@@ -308,7 +313,59 @@ function b64DecodeUnicode(str) {
   return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
 }
 
+// ---------- custom slide types ----------
+function getCustomTypes() {
+  try { return JSON.parse(localStorage.getItem('z_editor_custom_types') || '[]'); } catch { return []; }
+}
+function saveCustomTypes(types) {
+  localStorage.setItem('z_editor_custom_types', JSON.stringify(types));
+}
+function addCustomType() {
+  const input = document.getElementById('customTypeInput');
+  const name = (input.value || '').trim();
+  if (!name) return;
+  const slug = name.toLowerCase().replace(/\s+/g, '-');
+  const types = getCustomTypes();
+  if (types.find(t => t.slug === slug) || slug === 'content' || slug === 'activity') {
+    alert('This category already exists.');
+    return;
+  }
+  types.push({ slug, label: name });
+  saveCustomTypes(types);
+  input.value = '';
+  refreshCustomTypeButtons();
+}
+function deleteCustomType(slug) {
+  if (!confirm('Remove this custom category? Existing slides using it will keep their type.')) return;
+  saveCustomTypes(getCustomTypes().filter(t => t.slug !== slug));
+  refreshCustomTypeButtons();
+  renderElemCards();
+}
+function refreshCustomTypeButtons() {
+  const menu = document.getElementById('addSlideMenu');
+  menu.querySelectorAll('.custom-type-btn').forEach(b => b.remove());
+  getCustomTypes().forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline custom-type-btn';
+    btn.innerHTML = `<i class="fas fa-plus"></i> ${esc(t.label)}`;
+    btn.onclick = () => addSlide(t.slug);
+    btn.oncontextmenu = (e) => { e.preventDefault(); deleteCustomType(t.slug); };
+    btn.title = 'Right-click to delete this category';
+    menu.appendChild(btn);
+  });
+}
+function getTypeLabel(type) {
+  if (type === 'content') return 'Content';
+  if (type === 'activity') return 'Activity';
+  const ct = getCustomTypes().find(t => t.slug === type);
+  return ct ? ct.label : type;
+}
+function isCustomType(type) {
+  return type !== 'content' && type !== 'activity';
+}
+
 function blankSlide(type) {
+  const label = getTypeLabel(type);
   return { id: uid(), type: type, title: type === 'activity' ? 'New Activity' : 'New Slide', elements: [] };
 }
 
@@ -358,7 +415,7 @@ function normalizeSlide(slide) {
 // ---------- compile: structured slide -> HTML string the player/backend expect ----------
 function compileSlide(slide) {
   const dataComment = '<!--EDITOR_DATA:' + b64EncodeUnicode(JSON.stringify(slide)) + '-->';
-  const tagText = slide.type === 'activity' ? 'ACTIVITY' : 'CONTENT';
+  const tagText = getTypeLabel(slide.type).toUpperCase();
   const h1Class = slide.type === 'activity' ? 't-activity' : 't-content';
 
   let titleStyle = '';
@@ -710,7 +767,7 @@ function renderSlideList() {
     card.onclick = () => selectSlide(s.id);
     card.innerHTML = `
       <div class="row1">
-        <span class="badge ${s.type === 'activity' ? 'activity' : ''}">${s.type}</span>
+        <span class="badge ${s.type === 'activity' ? 'activity' : (isCustomType(s.type) ? 'custom-type' : '')}">${esc(getTypeLabel(s.type))}</span>
         <span style="font-size:0.72rem; color:var(--ink-soft); font-weight:700;">#${i + 1}</span>
       </div>
       <div class="title">${esc(s.title || '(untitled)')}</div>
@@ -802,6 +859,7 @@ function renderElements() {
         <select onchange="updateSlideField('type', this.value)">
           <option value="content" ${slide.type === 'content' ? 'selected' : ''}>Content</option>
           <option value="activity" ${slide.type === 'activity' ? 'selected' : ''}>Activity</option>
+          ${getCustomTypes().map(t => `<option value="${escAttr(t.slug)}" ${slide.type === t.slug ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
         </select>
       </div>
       <div class="field" style="flex:2;">
@@ -1354,6 +1412,7 @@ function updatePreview() {
 // ---------- load / save ----------
 document.getElementById('loadBtn').onclick = loadSession;
 document.getElementById('saveBtn').onclick = saveSession;
+refreshCustomTypeButtons();
 
 async function loadSession() {
   const track = document.getElementById('sel-track').value;
