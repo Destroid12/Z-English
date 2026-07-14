@@ -211,6 +211,14 @@
   .tutor-typing span:nth-child(3){ animation-delay:.4s; }
   @keyframes tdot{ 0%,60%,100%{ opacity:.3; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
   @media (max-width:480px){ #tutorPanel{ left:10px; right:10px; width:auto; top:72px; } #tutorToggle span.tt-label{ display:none; } }
+  .z-audio { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); border-radius: 99px; padding: 8px 16px 8px 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .z-audio-btn { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: transform 0.2s, box-shadow 0.2s; flex: 0 0 auto; }
+  .z-audio-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(155, 81, 224, 0.3); }
+  .z-audio-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .z-audio-track { flex: 1; height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; position: relative; cursor: pointer; overflow: hidden; }
+  .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); transition: width 0.1s linear; pointer-events: none; }
+  .z-audio-time { font-size: 12px; color: var(--ink-soft); font-weight: 700; font-family: 'Nunito', sans-serif; min-width: 44px; text-align: right; }
+  .z-audio.loading .z-audio-btn i { animation: spin 1s linear infinite; }
 </style>
 </head>
 <body>
@@ -357,6 +365,8 @@ function initDeck(slides){
     sec.innerHTML = html;
     stage.appendChild(sec);
   });
+  
+  document.querySelectorAll('.z-audio').forEach(initCustomAudio);
 
   window.checkAnswers = function(btn) {
     const slide = btn.closest('.slide');
@@ -763,6 +773,81 @@ document.addEventListener('keydown', (e) => {
 });
 
 loadLesson();
+// --- Custom Audio Player Logic ---
+function initCustomAudio(container) {
+  const btn = container.querySelector('.z-audio-btn');
+  const fill = container.querySelector('.z-audio-fill');
+  const track = container.querySelector('.z-audio-track');
+  const timeDisplay = container.querySelector('.z-audio-time');
+  const driveId = container.getAttribute('data-drive-id');
+  let audio = null;
+  let isPlaying = false;
+
+  function formatTime(sec) {
+    if (isNaN(sec)) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? '0'+s : s);
+  }
+
+  function updateUI() {
+    if (!audio) return;
+    const current = audio.currentTime;
+    const total = audio.duration || 0;
+    const pct = total > 0 ? (current / total) * 100 : 0;
+    fill.style.width = pct + '%';
+    timeDisplay.textContent = formatTime(current);
+  }
+
+  btn.addEventListener('click', async () => {
+    if (audio) {
+      if (isPlaying) { audio.pause(); btn.innerHTML = '<i class="fas fa-play"></i>'; }
+      else { audio.play(); btn.innerHTML = '<i class="fas fa-pause"></i>'; }
+      isPlaying = !isPlaying;
+      return;
+    }
+    
+    container.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner"></i>';
+    
+    try {
+      const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      
+      audio = new Audio(`data:${data.mimeType};base64,${data.base64}`);
+      audio.addEventListener('timeupdate', updateUI);
+      audio.addEventListener('loadedmetadata', updateUI);
+      audio.addEventListener('ended', () => {
+        isPlaying = false;
+        btn.innerHTML = '<i class="fas fa-play"></i>';
+        fill.style.width = '0%';
+        timeDisplay.textContent = "0:00";
+      });
+      
+      container.classList.remove('loading');
+      audio.play();
+      isPlaying = true;
+      btn.innerHTML = '<i class="fas fa-pause"></i>';
+    } catch (e) {
+      console.error(e);
+      alert('Failed to load audio: ' + e.message);
+      container.classList.remove('loading');
+      btn.innerHTML = '<i class="fas fa-play"></i>';
+    }
+  });
+
+  track.addEventListener('click', (e) => {
+    if (!audio) return;
+    const rect = track.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    if (audio.duration) {
+      audio.currentTime = pct * audio.duration;
+      updateUI();
+    }
+  });
+}
 </script>
 
 </body>
