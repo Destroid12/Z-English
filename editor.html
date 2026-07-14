@@ -354,12 +354,28 @@ function compileSlide(slide) {
       }
     } else if (el.kind === 'video') {
       if (el.url) {
-        chunk += `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>\n`;
+        let videoHtml = '';
+        if (el.url.includes('drive.google.com') && el.url.includes('id=')) {
+          const match = el.url.match(/[?&]id=([^&]+)/);
+          if (match && match[1]) {
+            videoHtml = `<iframe src="https://drive.google.com/file/d/${match[1]}/preview" width="100%" height="400" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;" allow="autoplay" allowfullscreen></iframe>`;
+          }
+        }
+        if (!videoHtml) videoHtml = `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>`;
+        chunk += videoHtml + '\n';
         if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'audio') {
       if (el.url) {
-        chunk += `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>\n`;
+        let audioHtml = '';
+        if (el.url.includes('drive.google.com') && el.url.includes('id=')) {
+          const match = el.url.match(/[?&]id=([^&]+)/);
+          if (match && match[1]) {
+            audioHtml = `<iframe src="https://drive.google.com/file/d/${match[1]}/preview" width="100%" height="140" frameborder="0" style="border-radius:12px;margin-bottom:${el.caption ? '6px' : '16px'};" allow="autoplay"></iframe>`;
+          }
+        }
+        if (!audioHtml) audioHtml = `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>`;
+        chunk += audioHtml + '\n';
         if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'question') {
