@@ -260,9 +260,7 @@
     <div id="tutorMsgs"></div>
     <div id="tutorHint">Knows this whole session and can quiz you — but stays on English &amp; this lesson only.</div>
    <div id="tutorInputRow">
-  <button id="tutorAutoSend" title="When on, your speech is sent to the tutor automatically as soon as you stop talking">
-    <i class="fas fa-bolt"></i>
-  </button>
+
   <div id="tutorMicWrap">
     <button id="tutorMic" aria-label="Voice input" title="Speak your question"><i class="fas fa-microphone"></i></button>
     <div id="tutorMicLevel"></div>
@@ -474,21 +472,7 @@ function getCurrentSlideText() {
   return (activeSlide.innerText || '').trim().slice(0, 1500);
 }
 
-  let autoSendOn = false;
-try { autoSendOn = localStorage.getItem('zenglish_tutor_autosend') === '1'; } catch (e) {}
-function updateAutoSendUI() {
-  const btn = document.getElementById('tutorAutoSend');
-  btn.classList.toggle('on', autoSendOn);
-  btn.title = autoSendOn
-    ? 'Auto-send is ON — your speech goes straight to the tutor'
-    : 'Auto-send is OFF — tap to send your speech automatically';
-}
-document.getElementById('tutorAutoSend').addEventListener('click', () => {
-  autoSendOn = !autoSendOn;
-  try { localStorage.setItem('zenglish_tutor_autosend', autoSendOn ? '1' : '0'); } catch (e) {}
-  updateAutoSendUI();
-});
-updateAutoSendUI();
+const autoSendOn = true;
 
 // --- live mic volume ring ---
 let micAudioCtx = null, micAnalyser = null, micStream = null, micRafId = null;

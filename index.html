@@ -784,11 +784,7 @@
     </div>
     <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; min-height:200px; max-height:60vh;"></div>
     <div style="display:flex; gap:8px; padding:14px; border-top:2px solid var(--border-color); background:var(--card-bg); align-items:center;">
-  <button id="siteTutorAutoSend" class="btn btn-outline" onclick="toggleSiteTutorAutoSend()"
-          title="When on, your speech is sent automatically as soon as you stop talking"
-          style="flex:0 0 38px; padding:0; display:flex; align-items:center; justify-content:center;">
-    <i class="fas fa-bolt"></i>
-  </button>
+
   <div id="siteTutorMicWrap" style="position:relative; display:flex; align-items:center;">
     <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()"
             style="flex:0 0 44px; display:flex; align-items:center; justify-content:center;">
@@ -2024,14 +2020,7 @@ async function sendSiteTutorMsg() {
 }
 
 let siteTutorSpeakOn = false;
-let siteTutorAutoSendOn = false;
-try { siteTutorAutoSendOn = localStorage.getItem('zenglish_sitetutor_autosend') === '1'; } catch(e){}
-
-function toggleSiteTutorAutoSend() {
-  siteTutorAutoSendOn = !siteTutorAutoSendOn;
-  try { localStorage.setItem('zenglish_sitetutor_autosend', siteTutorAutoSendOn ? '1' : '0'); } catch(e){}
-  document.getElementById('siteTutorAutoSend').classList.toggle('btn-primary', siteTutorAutoSendOn);
-}
+const siteTutorAutoSendOn = true;
 
 function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US'; }
 
