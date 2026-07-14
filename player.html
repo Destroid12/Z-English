@@ -556,13 +556,13 @@ function pickVoice(lang) {
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
   const preferred = isAr
-    ? ['Google العربية', 'Microsoft Hoda', 'Microsoft Salma']
-    : ['Google UK English Female', 'Google US English', 'Samantha', 'Microsoft Aria', 'Microsoft Jenny'];
+    ? ['Tarik', 'Microsoft Naayf', 'Microsoft Hamed']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Alex'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-  return pool.find(v => /female/i.test(v.name)) || pool[0] || null;
+  return pool.find(v => /male/i.test(v.name)) || pool[0] || null;
 }
 function speakText(text) {
   if (!('speechSynthesis' in window)) return;
