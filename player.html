@@ -785,6 +785,8 @@ function initCustomAudio(container) {
   const driveId = container.getAttribute('data-drive-id');
   let audio = null;
   let isPlaying = false;
+  let isReady = false;
+  let wantsToPlay = false;
 
   function formatTime(sec) {
     if (isNaN(sec)) return "0:00";
@@ -802,8 +804,47 @@ function initCustomAudio(container) {
     timeDisplay.textContent = formatTime(current) + " / " + formatTime(total);
   }
 
-  btn.addEventListener('click', async () => {
-    if (audio) {
+  async function preload() {
+    statusDisplay.textContent = "Loading Audio...";
+    try {
+      const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      
+      audio = new Audio(`data:${data.mimeType};base64,${data.base64}`);
+      audio.addEventListener('timeupdate', updateUI);
+      audio.addEventListener('loadedmetadata', () => {
+        updateUI();
+        isReady = true;
+        statusDisplay.textContent = "Ready";
+        
+        if (wantsToPlay) {
+          container.classList.remove('loading');
+          audio.play();
+          isPlaying = true;
+          btn.innerHTML = '<i class="fas fa-pause"></i>';
+          statusDisplay.textContent = "Playing";
+        }
+      });
+      
+      audio.addEventListener('ended', () => {
+        isPlaying = false;
+        btn.innerHTML = '<i class="fas fa-play"></i>';
+        fill.style.width = '0%';
+        timeDisplay.textContent = "0:00 / " + formatTime(audio.duration);
+        statusDisplay.textContent = "Ready";
+      });
+      
+    } catch (e) {
+      console.error(e);
+      statusDisplay.textContent = "Error Loading";
+    }
+  }
+
+  preload();
+
+  btn.addEventListener('click', () => {
+    if (isReady) {
       if (isPlaying) { 
         audio.pause(); 
         btn.innerHTML = '<i class="fas fa-play"></i>';
@@ -814,45 +855,22 @@ function initCustomAudio(container) {
         statusDisplay.textContent = "Playing";
       }
       isPlaying = !isPlaying;
-      return;
-    }
-    
-    container.classList.add('loading');
-    btn.innerHTML = '<i class="fas fa-spinner"></i>';
-    statusDisplay.textContent = "Loading...";
-    
-    try {
-      const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-      
-      audio = new Audio(`data:${data.mimeType};base64,${data.base64}`);
-      audio.addEventListener('timeupdate', updateUI);
-      audio.addEventListener('loadedmetadata', updateUI);
-      audio.addEventListener('ended', () => {
-        isPlaying = false;
+    } else {
+      wantsToPlay = !wantsToPlay;
+      if (wantsToPlay) {
+        container.classList.add('loading');
+        btn.innerHTML = '<i class="fas fa-spinner"></i>';
+        statusDisplay.textContent = "Buffering...";
+      } else {
+        container.classList.remove('loading');
         btn.innerHTML = '<i class="fas fa-play"></i>';
-        fill.style.width = '0%';
-        timeDisplay.textContent = "0:00 / " + formatTime(audio.duration);
-        statusDisplay.textContent = "Ready";
-      });
-      
-      container.classList.remove('loading');
-      audio.play();
-      isPlaying = true;
-      btn.innerHTML = '<i class="fas fa-pause"></i>';
-      statusDisplay.textContent = "Playing";
-    } catch (e) {
-      console.error(e);
-      alert('Failed to load audio: ' + e.message);
-      container.classList.remove('loading');
-      btn.innerHTML = '<i class="fas fa-play"></i>';
-      statusDisplay.textContent = "Error";
+        statusDisplay.textContent = "Loading Audio...";
+      }
     }
   });
 
   track.addEventListener('click', (e) => {
-    if (!audio) return;
+    if (!isReady) return;
     const rect = track.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const pct = Math.max(0, Math.min(1, x / rect.width));
