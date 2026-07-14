@@ -442,8 +442,8 @@ function compileSlide(slide) {
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
     } else if (el.kind === 'link') {
-      const linkStyle = `display:inline-block; padding:10px 20px; background-color:${escAttr(el.bgColor || '#007BFF')}; color:${escAttr(el.color || '#FFFFFF')}; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);`;
-      chunk = `<div style="text-align:center; margin:16px 0;"><a href="${escAttr(el.url)}" target="_blank" style="${linkStyle}">${esc(el.text || 'Click Here')}</a></div>\n`;
+      const linkStyle = `display:flex; align-items:center; justify-content:space-between; padding:16px 22px; background-color:${escAttr(el.bgColor || '#007BFF')}; color:${escAttr(el.color || '#FFFFFF')}; text-decoration:none; border-radius:12px; font-weight:bold; font-size:18px; box-shadow:0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; border:2px solid rgba(0,0,0,0.05);`;
+      chunk = `<div style="margin:16px 0;"><a href="${escAttr(el.url)}" target="_blank" style="${linkStyle}"><span>${esc(el.text || 'Click Here')}</span><i class="fas fa-external-link-alt"></i></a></div>\n`;
     }
 
     if (!chunk) return;
@@ -959,8 +959,8 @@ function elemCardHTML(el, i, total) {
       </div>
       <div class="field">
         <div class="upload-row">
-          <input type="file" id="file-${el.id}" accept="image/*" onchange="uploadImage('${el.id}', this)">
-          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload Image</button>
+          <input type="file" multiple id="file-${el.id}" accept="image/*" onchange="uploadImage('${el.id}', this)">
+          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload Image(s)</button>
           <span id="uploadStatus-${el.id}" class="hint"></span>
         </div>
         <div class="hint">Images upload to Drive automatically. For video/audio, paste a hosted URL (YouTube, Vimeo, etc.) instead — direct upload isn't reliable for those.</div>
@@ -976,8 +976,8 @@ function elemCardHTML(el, i, total) {
       </div>
       <div class="field">
         <div class="upload-row">
-          <input type="file" id="file-${el.id}" accept="${accept}" onchange="uploadMediaFile('${el.id}', this, '${el.kind}')">
-          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload ${el.kind === 'video' ? 'Video' : 'Audio'}</button>
+          <input type="file" multiple id="file-${el.id}" accept="${accept}" onchange="uploadMediaFile('${el.id}', this, '${el.kind}')">
+          <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload ${el.kind === 'video' ? 'Video' : 'Audio'}(s)</button>
           <span id="uploadStatus-${el.id}" class="hint"></span>
         </div>
         <div class="hint">Uploads go to Drive automatically. Prefer uploading over pasting Dropbox/Drive share links — those often expire or block hotlinking.</div>
@@ -1069,6 +1069,8 @@ function elemCardHTML(el, i, total) {
 function updateElField(elId, field, value) {
   const slide = getSelectedSlide(); if (!slide) return;
   const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  
+  let oldBlanksCount = (el.blanks || []).length;
   el[field] = value;
   
   if (field === 'prompt' && el.kind === 'question') {
@@ -1078,7 +1080,10 @@ function updateElField(elId, field, value) {
     while (el.blanks.length < numBlanks) {
       el.blanks.push({ qtype: 'text', answer: '', altAnswers: [], options: [] });
     }
-    renderElemCards(slide);
+    // Only re-render if the number of answer boxes changed to prevent losing input focus!
+    if (el.blanks.length !== oldBlanksCount || numBlanks !== oldBlanksCount) {
+      renderElemCards(slide);
+    }
   }
   updatePreview();
 }
@@ -1117,35 +1122,71 @@ function refreshThumb(elId) {
   if (img) { img.src = el.url; img.style.display = el.url ? 'block' : 'none'; }
 }
 
-  function uploadMediaFile(elId, input, kind) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  const statusEl = document.getElementById('uploadStatus-' + elId);
-  const maxMB = kind === 'image' ? 8 : 64;
-  if (file.size > maxMB * 1024 * 1024) {
-    statusEl.textContent = `Too large (max ${maxMB}MB).`; statusEl.style.color = 'var(--danger)';
-    return;
-  }
-  statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
+async function processUploads(elId, input, maxMB) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const slide = getSelectedSlide(); if (!slide) return;
+  
+  let currentElId = elId;
+  const originalElIndex = slide.elements.findIndex(e => e.id === elId);
+  if (originalElIndex === -1) return;
+  const originalEl = slide.elements[originalElIndex];
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const base64 = reader.result.split(',')[1];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    let targetElId = elId;
+    
+    if (i > 0) {
+      targetElId = uid();
+      let newEl = JSON.parse(JSON.stringify(originalEl));
+      newEl.id = targetElId;
+      newEl.url = ''; 
+      newEl.caption = '';
+      slide.elements.splice(originalElIndex + i, 0, newEl);
+      renderElemCards(slide); // Re-render to show the new element
+    }
+    
+    const statusEl = document.getElementById('uploadStatus-' + targetElId);
+    if (!statusEl) continue;
+    
+    if (file.size > maxMB * 1024 * 1024) {
+      statusEl.textContent = `Too large (max ${maxMB}MB).`; statusEl.style.color = 'var(--danger)';
+      continue;
+    }
+    
+    statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
+
     try {
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+      
       const body = new URLSearchParams({ action: 'uploadMedia', token: sessionToken, filename: file.name, mimeType: file.type, dataBase64: base64 });
       const result = await callBackend(body);
-      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; return; }
-      const slide = getSelectedSlide();
-      const el = slide.elements.find(e => e.id === elId);
-      el.url = result.url;
+      
+      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; continue; }
+      
+      const targetEl = slide.elements.find(e => e.id === targetElId);
+      if (targetEl) targetEl.url = result.url;
+      
       statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
       renderElemCards(slide);
       updatePreview();
     } catch (err) {
       statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
     }
-  };
-  reader.readAsDataURL(file);
+  }
+}
+
+function uploadImage(elId, input) {
+  processUploads(elId, input, 8);
+}
+
+function uploadMediaFile(elId, input, kind) {
+  const maxMB = kind === 'image' ? 8 : 64;
+  processUploads(elId, input, maxMB);
 }
 
 // ---------- free-position tool ----------
@@ -1232,35 +1273,7 @@ function attachPosDragHandlers() {
 }
 
 // ---------- image upload ----------
-function uploadImage(elId, input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  const statusEl = document.getElementById('uploadStatus-' + elId);
-  if (file.size > 8 * 1024 * 1024) {
-    statusEl.textContent = 'Too large (max 8MB).'; statusEl.style.color = 'var(--danger)';
-    return;
-  }
-  statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const base64 = reader.result.split(',')[1];
-    try {
-      const body = new URLSearchParams({ action: 'uploadMedia', token: sessionToken, filename: file.name, mimeType: file.type, dataBase64: base64 });
-      const result = await callBackend(body);
-      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; return; }
-      const slide = getSelectedSlide();
-      const el = slide.elements.find(e => e.id === elId);
-      el.url = result.url;
-      statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
-      renderElemCards(slide);
-      updatePreview();
-    } catch (err) {
-      statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
-    }
-  };
-  reader.readAsDataURL(file);
-}
 
 // ---------- live preview ----------
 const PREVIEW_CSS = `
