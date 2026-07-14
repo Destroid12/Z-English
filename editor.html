@@ -597,7 +597,8 @@ async function runMigrateAllSessions() {
 
         const parsedSlides = (result.slides || []).map(parseSlideHTML);
         const hasInlineMedia = parsedSlides.some(sl => sl.elements.some(el => el.url && el.url.startsWith('data:')));
-        if (!hasInlineMedia) continue; // nothing to do for this session
+        const hasLegacyHTML = (result.slides || []).some(html => !/^<!--EDITOR_DATA:/.test(html));
+        if (!hasInlineMedia && !hasLegacyHTML) continue; // nothing to do for this session
 
         for (const sl of parsedSlides) await migrateInlineDataUrls(sl);
 
@@ -680,18 +681,23 @@ function parseLegacySlideHTML(html) {
     const tag = node.tagName;
 
     if ((tag === 'P' || tag === 'DIV') && !isCaptionP(node) && !node.classList.contains('question-block')) {
-      let htmlContent = node.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
-      let tmp = document.createElement('div');
-      tmp.innerHTML = htmlContent;
-      slide.elements.push({
-        id: uid(), kind: 'paragraph', pos: null,
-        text: tmp.textContent.trim(),
-        color: cssColorToHex(node.style.color) || '',
-        size: node.style.fontSize ? String(parseInt(node.style.fontSize, 10)) : '',
-        bold: node.style.fontWeight === '800' || node.style.fontWeight === 'bold',
-        align: node.style.textAlign || '',
-        font: node.style.fontFamily || ''
-      });
+      const hasComplexInner = node.querySelector('a, div, ul, ol, table, iframe, img, video, audio');
+      if (hasComplexInner) {
+        slide.elements.push({ id: uid(), kind: 'raw', pos: null, html: node.outerHTML });
+      } else {
+        let htmlContent = node.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
+        let tmp = document.createElement('div');
+        tmp.innerHTML = htmlContent;
+        slide.elements.push({
+          id: uid(), kind: 'paragraph', pos: null,
+          text: tmp.textContent.trim(),
+          color: cssColorToHex(node.style.color) || '',
+          size: node.style.fontSize ? String(parseInt(node.style.fontSize, 10)) : '',
+          bold: node.style.fontWeight === '800' || node.style.fontWeight === 'bold',
+          align: node.style.textAlign || '',
+          font: node.style.fontFamily || ''
+        });
+      }
     } else if (tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO') {
       const next = kids[i + 1];
       let caption = '';
