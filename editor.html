@@ -612,6 +612,9 @@ function compileSlide(slide) {
       chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
+      if (chunk.includes('interactive-input') || chunk.includes('interactive-select') || chunk.includes('interactive-radio') || chunk.includes('interactive-checkbox') || chunk.includes('interactive-match') || chunk.includes('interactive-schedule') || chunk.includes('interactive-wordbank')) {
+        hasQuestion = true;
+      }
     } else if (el.kind === 'link') {
       let domain = '';
       try { domain = new URL(el.url).hostname.replace('www.', ''); } catch (e) {}
