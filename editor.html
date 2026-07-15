@@ -619,9 +619,11 @@ function compileSlide(slide) {
       let domain = '';
       try { domain = new URL(el.url).hostname.replace('www.', ''); } catch (e) {}
       const subtext = el.subtext || domain;
+      const isVideo = domain.includes('youtube.com') || domain.includes('youtu.be');
+      const icon = isVideo ? '📹' : '🔗';
       chunk = `<div style="margin:16px 0;">
         <a class="link-row" href="${escAttr(el.url)}" target="_blank" rel="noopener">
-          <span style="font-size:24px;">🔗</span>
+          <span style="font-size:24px;">${icon}</span>
           <div>${esc(el.text || 'Click Here')}${subtext ? `<br><small>${esc(subtext)}</small>` : ''}</div>
         </a>
       </div>\n`;
