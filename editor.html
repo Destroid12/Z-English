@@ -1678,6 +1678,29 @@ function stopAutoFix() {
   setStatus('Stopping auto-fix...', 'info');
 }
 
+function stripLargeDataUrls(slide) {
+  const clone = JSON.parse(JSON.stringify(slide));
+  const dataMap = {};
+  clone.elements.forEach(el => {
+    if (el.url && el.url.length > 500 && el.url.startsWith('data:')) {
+      const ph = `__DATA_URL_${el.id}__`;
+      dataMap[ph] = el.url;
+      el.url = ph;
+    }
+  });
+  return { strippedSlide: clone, dataMap };
+}
+
+function restoreLargeDataUrls(slide, dataMap) {
+  if (!slide || !slide.elements) return slide;
+  slide.elements.forEach(el => {
+    if (el.url && dataMap[el.url]) {
+      el.url = dataMap[el.url];
+    }
+  });
+  return slide;
+}
+
 async function autoFixCurrentSlide() {
   const slide = getSelectedSlide();
   if (!slide) return;
@@ -1688,7 +1711,8 @@ async function autoFixCurrentSlide() {
   saveUndoState();
   setStatus('Z-AI is analyzing and fixing slide...', 'info');
   try {
-    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide), instructions: customInstructions || '' }));
+    const { strippedSlide, dataMap } = stripLargeDataUrls(slide);
+    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(strippedSlide), instructions: customInstructions || '' }));
     if (!result.success) {
       setStatus(result.message || 'AI Auto-Fix failed.', 'error');
       return;
@@ -1703,7 +1727,7 @@ async function autoFixCurrentSlide() {
       } else {
         if (result.fixedSlide.title) slide.title = result.fixedSlide.title;
         if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
-          slide.elements = result.fixedSlide.elements;
+          slide.elements = restoreLargeDataUrls(result.fixedSlide, dataMap).elements;
           slide.elements.forEach(el => { if (!el.id) el.id = uid(); });
         }
         renderSlideList(); // re-render list in case title changed
@@ -1746,7 +1770,8 @@ async function autoFixCurrentSession() {
     selectSlide(slides[i].id);
     
     try {
-      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i]), instructions: customInstructions || '' }));
+      const { strippedSlide, dataMap } = stripLargeDataUrls(slides[i]);
+      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(strippedSlide), instructions: customInstructions || '' }));
       if (result.success && result.fixedSlide) {
         if (result.fixedSlide.delete) {
           slides.splice(i, 1);
@@ -1754,7 +1779,7 @@ async function autoFixCurrentSession() {
         } else {
           if (result.fixedSlide.title) slides[i].title = result.fixedSlide.title;
           if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
-            slides[i].elements = result.fixedSlide.elements;
+            slides[i].elements = restoreLargeDataUrls(result.fixedSlide, dataMap).elements;
             slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
           }
           successCount++;
