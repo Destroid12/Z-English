@@ -60,12 +60,28 @@
   .interactive-input.correct, .interactive-select.correct { border-style: solid; border-color: var(--success); background: #E8F5E9; color: #2E7D32; box-shadow: 0 0 0 4px rgba(76, 175, 109, 0.15); }
   .interactive-input.incorrect, .interactive-select.incorrect { border-style: solid; border-color: var(--error); background: #FFEBEE; color: #C62828; box-shadow: 0 0 0 4px rgba(217, 69, 92, 0.15); animation: shake 0.4s; }
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-  .interactive-radio-group { display: inline-flex; flex-wrap: wrap; gap: 8px; vertical-align: middle; }
-  .interactive-radio { background: #fff; border: 2px solid var(--blue-mid); border-radius: 20px; padding: 6px 16px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; color: var(--blue-dark); cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-  .interactive-radio:hover { background: #E8F4FC; transform: translateY(-1px); }
-  .interactive-radio.selected { background: var(--blue-mid); color: #fff; border-color: var(--blue-dark); box-shadow: 0 4px 10px rgba(109, 179, 226, 0.3); }
-  .interactive-radio-group.correct .interactive-radio.selected { background: #4CAF50; border-color: #388E3C; color: #fff; }
-  .interactive-radio-group.incorrect .interactive-radio.selected { background: #F44336; border-color: #D32F2F; color: #fff; animation: shake 0.4s; }
+  .interactive-radio-group, .interactive-checkbox-group { display: inline-flex; flex-wrap: wrap; gap: 8px; vertical-align: middle; }
+  .interactive-radio, .interactive-checkbox { background: #fff; border: 2px solid var(--blue-mid); border-radius: 20px; padding: 6px 16px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; color: var(--blue-dark); cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+  .interactive-checkbox { border-radius: 8px; }
+  .interactive-radio:hover, .interactive-checkbox:hover { background: #E8F4FC; transform: translateY(-1px); }
+  .interactive-radio.selected, .interactive-checkbox.selected { background: var(--blue-mid); color: #fff; border-color: var(--blue-dark); box-shadow: 0 4px 10px rgba(109, 179, 226, 0.3); }
+  .interactive-radio-group.correct .interactive-radio.selected, .interactive-checkbox-group.correct .interactive-checkbox.selected { background: #4CAF50; border-color: #388E3C; color: #fff; }
+  .interactive-radio-group.incorrect .interactive-radio.selected, .interactive-checkbox-group.incorrect .interactive-checkbox.selected { background: #F44336; border-color: #D32F2F; color: #fff; animation: shake 0.4s; }
+  .interactive-match { display: flex; gap: 20px; margin-top: 10px; width: 100%; justify-content: space-around; }
+  .match-col { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .match-item { background: #fff; border: 2px solid #A0B9C9; border-radius: 8px; padding: 10px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 16px; color: var(--ink); cursor: pointer; transition: all 0.2s; }
+  .match-item:hover { background: #f0f5f9; }
+  .match-item.selected { border-color: var(--blue-dark); background: var(--blue-mid); color: #fff; transform: scale(1.02); }
+  .match-item.matched { background: #E8F5E9; border-color: #4CAF50; color: #2E7D32; opacity: 0.8; pointer-events: none; }
+  .match-item.matched-incorrect { background: #FFEBEE; border-color: #F44336; color: #C62828; animation: shake 0.4s; }
+  .interactive-schedule { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; width: 100%; }
+  .schedule-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 2px solid #E1E8ED; border-radius: 8px; padding: 6px 10px; transition: transform 0.2s; }
+  .sched-controls { display: flex; flex-direction: column; }
+  .sched-btn { background: #f0f4f8; border: none; color: #6D8294; font-size: 10px; padding: 2px 6px; cursor: pointer; border-radius: 4px; }
+  .sched-btn:hover { background: #d9e2ec; color: #102A43; }
+  .sched-text { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 16px; color: var(--ink); flex: 1; }
+  .interactive-schedule.correct .schedule-item { border-color: #4CAF50; background: #E8F5E9; color: #2E7D32; }
+  .interactive-schedule.incorrect .schedule-item { border-color: #F44336; background: #FFEBEE; color: #C62828; animation: shake 0.4s; }
   .interactive-wordbank { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; width: 100%; }
   .wordbank-dropzone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 46px; border: 2px dashed #A0B9C9; border-radius: 12px; padding: 8px; background: rgba(255,255,255,0.5); align-items: center; transition: all 0.2s; }
   .wordbank-dropzone:empty::before { content: "Construct sentence here..."; color: #A0B9C9; font-style: italic; font-weight: 600; margin-left: 8px; }
@@ -412,6 +428,62 @@ function initDeck(slides){
     }
   };
 
+  window.toggleCheckbox = function(btn) {
+    btn.classList.toggle('selected');
+    const group = btn.closest('.interactive-checkbox-group');
+    if (group) group.classList.remove('correct', 'incorrect');
+  };
+
+  let activeMatchCol = null;
+  let activeMatchBtn = null;
+  window.selectMatch = function(btn, col) {
+    const container = btn.closest('.interactive-match');
+    if (!container) return;
+    container.classList.remove('correct', 'incorrect');
+    container.querySelectorAll('.matched-incorrect').forEach(e => e.classList.remove('matched-incorrect'));
+    
+    if (activeMatchCol === col) {
+      if (activeMatchBtn) activeMatchBtn.classList.remove('selected');
+      activeMatchBtn = btn;
+      btn.classList.add('selected');
+      return;
+    }
+    
+    if (activeMatchBtn) {
+      const isLeftFirst = activeMatchCol === 'left';
+      const leftBtn = isLeftFirst ? activeMatchBtn : btn;
+      const rightBtn = isLeftFirst ? btn : activeMatchBtn;
+      const leftIdx = leftBtn.dataset.index;
+      const rightIdx = rightBtn.dataset.index;
+      
+      leftBtn.classList.remove('selected');
+      rightBtn.classList.remove('selected');
+      
+      container.querySelectorAll(`.match-item[data-matched="${leftIdx}"]`).forEach(e => { e.classList.remove('matched'); delete e.dataset.matched; });
+      container.querySelectorAll(`.match-item[data-matched="${rightIdx}"]`).forEach(e => { e.classList.remove('matched'); delete e.dataset.matched; });
+      
+      leftBtn.classList.add('matched');
+      rightBtn.classList.add('matched');
+      leftBtn.dataset.matched = rightIdx;
+      rightBtn.dataset.matched = rightIdx;
+      
+      activeMatchCol = null;
+      activeMatchBtn = null;
+    } else {
+      activeMatchCol = col;
+      activeMatchBtn = btn;
+      btn.classList.add('selected');
+    }
+  };
+
+  window.moveSched = function(btn, dir) {
+    const item = btn.closest('.schedule-item');
+    const container = item.parentElement;
+    container.classList.remove('correct', 'incorrect');
+    if (dir === -1 && item.previousElementSibling) container.insertBefore(item, item.previousElementSibling);
+    if (dir === 1 && item.nextElementSibling) container.insertBefore(item.nextElementSibling, item);
+  };
+
   window.checkAnswers = function(btn) {
     const slide = btn.closest('.slide');
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
@@ -463,6 +535,58 @@ function initDeck(slides){
         if (cleanSelected === cleanAnswer) bank.classList.add('correct');
         else bank.classList.add('incorrect');
       }
+    });
+
+    const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
+    checkboxes.forEach(group => {
+      const answerKeys = group.dataset.answer.toLowerCase().split(',').map(s=>s.trim());
+      const selectedBtns = Array.from(group.querySelectorAll('.interactive-checkbox.selected'));
+      group.classList.remove('correct', 'incorrect');
+      if (selectedBtns.length > 0) {
+        const selectedVals = selectedBtns.map(b => b.dataset.value.toLowerCase().trim());
+        const isCorrect = selectedVals.length === answerKeys.length && selectedVals.every(v => answerKeys.includes(v));
+        if (isCorrect) group.classList.add('correct');
+        else group.classList.add('incorrect');
+      }
+    });
+
+    const matches = slide.querySelectorAll('.interactive-match');
+    matches.forEach(container => {
+      let allCorrect = true;
+      let anyMatched = false;
+      const lefts = container.querySelectorAll('.match-left');
+      container.querySelectorAll('.matched-incorrect').forEach(e => e.classList.remove('matched-incorrect'));
+      lefts.forEach(left => {
+        if (left.dataset.matched) {
+          anyMatched = true;
+          if (left.dataset.matched !== left.dataset.index) {
+            allCorrect = false;
+            left.classList.add('matched-incorrect');
+            const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
+            if (right) right.classList.add('matched-incorrect');
+          }
+        } else {
+          allCorrect = false;
+        }
+      });
+      if (anyMatched && allCorrect) {
+        lefts.forEach(left => { left.classList.remove('matched-incorrect'); left.classList.add('matched'); });
+      }
+    });
+
+    const schedules = slide.querySelectorAll('.interactive-schedule');
+    schedules.forEach(container => {
+      const correctOrder = JSON.parse(container.dataset.answer || '[]');
+      const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value);
+      container.classList.remove('correct', 'incorrect');
+      
+      let isCorrect = correctOrder.length > 0;
+      for(let i=0; i<correctOrder.length; i++) {
+        if (correctOrder[i] !== currentOrder[i]) isCorrect = false;
+      }
+      
+      if (isCorrect) container.classList.add('correct');
+      else container.classList.add('incorrect');
     });
   };
 

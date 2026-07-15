@@ -520,6 +520,18 @@ function compileSlide(slide) {
           } else if (b.qtype === 'radio') {
             const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+          } else if (b.qtype === 'checkbox') {
+            const opts = (b.options || []).map(o => `<button class="interactive-checkbox" data-value="${escAttr(o)}" onclick="toggleCheckbox(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+          } else if (b.qtype === 'match') {
+            const lefts = []; const rights = [];
+            (b.options || []).forEach(o => { const p = o.split('|'); if(p.length>1) { lefts.push(p[0].trim()); rights.push(p[1].trim()); } });
+            const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-text="${escAttr(l)}" onclick="selectMatch(this, 'left')">${esc(l)}</button>`).join('');
+            const rightHtml = rights.map((r, i) => `<button class="match-item match-right" data-index="${i}" data-text="${escAttr(r)}" onclick="selectMatch(this, 'right')">${esc(r)}</button>`).join('');
+            inputHtml = `<div class="interactive-match" data-pairs="${escAttr(JSON.stringify(rights))}"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+          } else if (b.qtype === 'schedule') {
+            const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+            inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
           } else if (b.qtype === 'wordbank') {
             const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
@@ -548,6 +560,18 @@ function compileSlide(slide) {
         } else if (b.qtype === 'radio') {
           const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+        } else if (b.qtype === 'checkbox') {
+          const opts = (b.options || []).map(o => `<button class="interactive-checkbox" data-value="${escAttr(o)}" onclick="toggleCheckbox(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+        } else if (b.qtype === 'match') {
+          const lefts = []; const rights = [];
+          (b.options || []).forEach(o => { const p = o.split('|'); if(p.length>1) { lefts.push(p[0].trim()); rights.push(p[1].trim()); } });
+          const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-text="${escAttr(l)}" onclick="selectMatch(this, 'left')">${esc(l)}</button>`).join('');
+          const rightHtml = rights.map((r, i) => `<button class="match-item match-right" data-index="${i}" data-text="${escAttr(r)}" onclick="selectMatch(this, 'right')">${esc(r)}</button>`).join('');
+          inputHtml = `<div class="interactive-match" data-pairs="${escAttr(JSON.stringify(rights))}"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+        } else if (b.qtype === 'schedule') {
+          const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+          inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
         } else if (b.qtype === 'wordbank') {
           const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
@@ -1156,12 +1180,22 @@ function elemCardHTML(el, i, total) {
               <option value="text" ${b.qtype === 'text' || !b.qtype ? 'selected' : ''}>Type the answer</option>
               <option value="select" ${b.qtype === 'select' ? 'selected' : ''}>Dropdown menu</option>
               <option value="radio" ${b.qtype === 'radio' ? 'selected' : ''}>Multiple Choice Buttons</option>
+              <option value="checkbox" ${b.qtype === 'checkbox' ? 'selected' : ''}>Multi-Select Buttons</option>
+              <option value="match" ${b.qtype === 'match' ? 'selected' : ''}>Matching Pairs</option>
+              <option value="schedule" ${b.qtype === 'schedule' ? 'selected' : ''}>List Reordering (Schedule)</option>
               <option value="wordbank" ${b.qtype === 'wordbank' ? 'selected' : ''}>Sentence Word Bank</option>
             </select>
           </div>
           ${b.qtype === 'select' || b.qtype === 'radio' ? `
             <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Option</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          ` : b.qtype === 'checkbox' ? `
+            <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
+            <div class="field"><label>Correct Options (comma-separated)</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          ` : b.qtype === 'match' ? `
+            <div class="field"><label>Matching Pairs (format: Left Word | Right Word, one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
+          ` : b.qtype === 'schedule' ? `
+            <div class="field"><label>List Items in Correct Order (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
           ` : b.qtype === 'wordbank' ? `
             <div class="field"><label>Scrambled Words (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Full Sentence</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
@@ -1585,10 +1619,12 @@ async function autoFixCurrentSlide() {
   const slide = getSelectedSlide();
   if (!slide) return;
   if (!confirm('Send this slide to Z-AI to automatically fix emojis, broken texts, and add missing questions? This will replace the current slide contents.')) return;
+  const customInstructions = prompt('Optional: Give Z-AI custom instructions (e.g. "make it simpler", "add 3 multiple choice questions"). Leave blank for default fixes:');
+  if (customInstructions === null) return;
   
   setStatus('Z-AI is analyzing and fixing slide...', 'info');
   try {
-    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide.elements) }));
+    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide.elements), instructions: customInstructions || '' }));
     if (!result.success) {
       setStatus(result.message || 'AI Auto-Fix failed.', 'error');
       return;
@@ -1611,6 +1647,8 @@ async function autoFixCurrentSlide() {
 async function autoFixCurrentSession() {
   if (!slides || slides.length === 0) return;
   if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed? This may take some time depending on the number of slides.')) return;
+  const customInstructions = prompt('Optional: Give Z-AI custom instructions for ALL slides (e.g. "make it simpler", "add a quiz"). Leave blank for default fixes:');
+  if (customInstructions === null) return;
   
   const btn = document.getElementById('autoFixSessionBtn');
   btn.disabled = true;
@@ -1623,7 +1661,7 @@ async function autoFixCurrentSession() {
     selectSlide(slides[i].id);
     
     try {
-      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i].elements) }));
+      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i].elements), instructions: customInstructions || '' }));
       if (result.success && result.fixedElements && Array.isArray(result.fixedElements)) {
         slides[i].elements = result.fixedElements;
         slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
