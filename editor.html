@@ -1662,7 +1662,7 @@ async function autoFixCurrentSlide() {
   const slide = getSelectedSlide();
   if (!slide) return;
   if (!confirm('Send this slide to Z-AI to automatically fix emojis, broken texts, and add missing questions? This will replace the current slide contents.')) return;
-  const customInstructions = prompt('Optional: Give Z-AI custom instructions (e.g. "make it simpler", "add 3 multiple choice questions", "delete this if it\'s a rules slide"). Leave blank for default fixes:');
+  const customInstructions = await openAiModal();
   if (customInstructions === null) return;
   
   saveUndoState();
@@ -1701,7 +1701,7 @@ async function autoFixCurrentSlide() {
 async function autoFixCurrentSession() {
   if (!slides || slides.length === 0) return;
   if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed? This may take some time depending on the number of slides.')) return;
-  const customInstructions = prompt('Optional: Give Z-AI custom instructions for ALL slides (e.g. "make it simpler", "remove rules slides"). Leave blank for default fixes:');
+  const customInstructions = await openAiModal();
   if (customInstructions === null) return;
   
   saveUndoState();
@@ -1756,6 +1756,37 @@ async function autoFixCurrentSession() {
   stopBtn.style.display = 'none';
   if (!cancelAutoFix) {
     setStatus(`Session Auto-Fix complete! Fixed: ${successCount}, Deleted: ${deleteCount}, Failed: ${failCount}`, failCount > 0 ? 'error' : 'success');
+  }
+}
+</script>
+
+<div class="modal-overlay" id="aiModal">
+  <div class="modal-content">
+    <h3 class="modal-title">✨ Z-AI Auto-Fix</h3>
+    <p class="modal-desc">Give Z-AI optional custom instructions (e.g. "make it simpler", "delete this if it's a rules slide"). Leave blank for default fixes.</p>
+    <textarea class="modal-textarea" id="aiModalInput" placeholder="Type your instructions here..."></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeAiModal(null)">Cancel</button>
+      <button class="modal-btn modal-btn-submit" onclick="closeAiModal(document.getElementById('aiModalInput').value)">Start Auto-Fix</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let aiModalResolve = null;
+function openAiModal() {
+  document.getElementById('aiModalInput').value = '';
+  document.getElementById('aiModal').classList.add('active');
+  document.getElementById('aiModalInput').focus();
+  return new Promise(resolve => {
+    aiModalResolve = resolve;
+  });
+}
+function closeAiModal(value) {
+  document.getElementById('aiModal').classList.remove('active');
+  if (aiModalResolve) {
+    aiModalResolve(value);
+    aiModalResolve = null;
   }
 }
 </script>
