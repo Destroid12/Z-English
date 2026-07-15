@@ -1588,7 +1588,7 @@ async function autoFixCurrentSlide() {
   
   setStatus('Z-AI is analyzing and fixing slide...', 'info');
   try {
-    const result = await callBackendPost(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken }), JSON.stringify({ slideJson: JSON.stringify(slide.elements) }));
+    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide.elements) }));
     if (!result.success) {
       setStatus(result.message || 'AI Auto-Fix failed.', 'error');
       return;
@@ -1623,7 +1623,7 @@ async function autoFixCurrentSession() {
     selectSlide(slides[i].id);
     
     try {
-      const result = await callBackendPost(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken }), JSON.stringify({ slideJson: JSON.stringify(slides[i].elements) }));
+      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i].elements) }));
       if (result.success && result.fixedElements && Array.isArray(result.fixedElements)) {
         slides[i].elements = result.fixedElements;
         slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
