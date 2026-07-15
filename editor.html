@@ -149,6 +149,12 @@
     <button class="btn btn-primary" id="autoFixSessionBtn" onclick="autoFixCurrentSession()" title="Auto-fix all slides in this session using AI" style="background-color: #6a1b9a; color: white;">
       <i class="fas fa-magic"></i> Auto-Fix Session
     </button>
+    <button class="btn btn-primary" id="stopAutoFixBtn" onclick="stopAutoFix()" title="Stop Auto-Fix" style="background-color: #d32f2f; color: white; display: none;">
+      <i class="fas fa-stop"></i> Stop Auto-Fix
+    </button>
+    <button class="btn btn-outline" id="undoAutoFixBtnTop" onclick="undoAutoFix()" title="Undo last Auto-Fix" style="display: none; border-color: #d32f2f; color: #d32f2f;">
+      <i class="fas fa-undo"></i> Undo Fix
+    </button>
 
     <span id="statusMsg" class="info"></span>
 
@@ -943,6 +949,9 @@ function renderElements() {
       <button class="btn btn-outline" style="font-size:0.8rem; padding:4px 8px; border-color:#6a1b9a; color:#6a1b9a;" onclick="autoFixCurrentSlide()" title="Fix emojis, texts, and add missing questions automatically">
         <i class="fas fa-magic"></i> Auto-Fix Slide
       </button>
+      <button class="btn btn-outline" id="undoAutoFixBtnSide" style="font-size:0.8rem; padding:4px 8px; border-color:#d32f2f; color:#d32f2f; display: none;" onclick="undoAutoFix()" title="Undo last Auto-Fix">
+        <i class="fas fa-undo"></i> Undo
+      </button>
     </div>
     <div class="field-row">
       <div class="field">
@@ -1615,27 +1624,72 @@ async function saveSession() {
   }
 }
 
+let undoStack = [];
+function saveUndoState() {
+  undoStack.push({ slides: JSON.stringify(slides), selectedSlideId: selectedSlideId });
+  document.getElementById('undoAutoFixBtnTop').style.display = 'inline-block';
+  document.getElementById('undoAutoFixBtnSide').style.display = 'inline-block';
+}
+function undoAutoFix() {
+  if (undoStack.length === 0) return;
+  if (!confirm('Undo the last Auto-Fix? This will restore the slides to their exact previous state.')) return;
+  const state = undoStack.pop();
+  slides = JSON.parse(state.slides);
+  renderSlideList();
+  if (state.selectedSlideId && slides.find(s => s.id === state.selectedSlideId)) {
+    selectSlide(state.selectedSlideId);
+  } else if (slides.length > 0) {
+    selectSlide(slides[0].id);
+  } else {
+    selectedSlideId = null;
+    document.getElementById('previewFrame').srcdoc = '';
+    renderElements();
+  }
+  if (undoStack.length === 0) {
+    document.getElementById('undoAutoFixBtnTop').style.display = 'none';
+    document.getElementById('undoAutoFixBtnSide').style.display = 'none';
+  }
+  setStatus('Auto-Fix undone.', 'success');
+}
+
+let cancelAutoFix = false;
+function stopAutoFix() {
+  cancelAutoFix = true;
+  setStatus('Stopping auto-fix...', 'info');
+}
+
 async function autoFixCurrentSlide() {
   const slide = getSelectedSlide();
   if (!slide) return;
   if (!confirm('Send this slide to Z-AI to automatically fix emojis, broken texts, and add missing questions? This will replace the current slide contents.')) return;
-  const customInstructions = prompt('Optional: Give Z-AI custom instructions (e.g. "make it simpler", "add 3 multiple choice questions"). Leave blank for default fixes:');
+  const customInstructions = prompt('Optional: Give Z-AI custom instructions (e.g. "make it simpler", "add 3 multiple choice questions", "delete this if it\'s a rules slide"). Leave blank for default fixes:');
   if (customInstructions === null) return;
   
+  saveUndoState();
   setStatus('Z-AI is analyzing and fixing slide...', 'info');
   try {
-    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide.elements), instructions: customInstructions || '' }));
+    const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slide), instructions: customInstructions || '' }));
     if (!result.success) {
       setStatus(result.message || 'AI Auto-Fix failed.', 'error');
       return;
     }
-    if (result.fixedElements && Array.isArray(result.fixedElements)) {
-      slide.elements = result.fixedElements;
-      // ensure elements have IDs
-      slide.elements.forEach(el => { if (!el.id) el.id = uid(); });
-      renderElements();
-      updatePreview();
-      setStatus('Slide automatically fixed!', 'success');
+    if (result.fixedSlide) {
+      if (result.fixedSlide.delete) {
+        slides = slides.filter(s => s.id !== slide.id);
+        renderSlideList();
+        if (slides.length > 0) selectSlide(slides[0].id);
+        else { selectedSlideId = null; document.getElementById('previewFrame').srcdoc = ''; renderElements(); }
+        setStatus('Slide deleted by AI.', 'success');
+      } else {
+        if (result.fixedSlide.title) slide.title = result.fixedSlide.title;
+        if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
+          slide.elements = result.fixedSlide.elements;
+          slide.elements.forEach(el => { if (!el.id) el.id = uid(); });
+        }
+        renderSlideList(); // re-render list in case title changed
+        selectSlide(slide.id); // refresh current view
+        setStatus('Slide automatically fixed!', 'success');
+      }
     } else {
       setStatus('AI returned an invalid format.', 'error');
     }
@@ -1647,27 +1701,46 @@ async function autoFixCurrentSlide() {
 async function autoFixCurrentSession() {
   if (!slides || slides.length === 0) return;
   if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed? This may take some time depending on the number of slides.')) return;
-  const customInstructions = prompt('Optional: Give Z-AI custom instructions for ALL slides (e.g. "make it simpler", "add a quiz"). Leave blank for default fixes:');
+  const customInstructions = prompt('Optional: Give Z-AI custom instructions for ALL slides (e.g. "make it simpler", "remove rules slides"). Leave blank for default fixes:');
   if (customInstructions === null) return;
   
+  saveUndoState();
+  cancelAutoFix = false;
   const btn = document.getElementById('autoFixSessionBtn');
+  const stopBtn = document.getElementById('stopAutoFixBtn');
   btn.disabled = true;
+  stopBtn.style.display = 'inline-block';
   
   let successCount = 0;
   let failCount = 0;
+  let deleteCount = 0;
   
-  for (let i = 0; i < slides.length; i++) {
-    setStatus(`Z-AI fixing slide ${i + 1}/${slides.length}...`, 'info');
+  // We loop backwards so that splicing doesn't affect the indices of remaining slides
+  for (let i = slides.length - 1; i >= 0; i--) {
+    if (cancelAutoFix) {
+      setStatus('Auto-Fix stopped by user.', 'info');
+      break;
+    }
+    
+    setStatus(`Z-AI fixing slide ${slides.length - i}/${slides.length}...`, 'info');
     selectSlide(slides[i].id);
     
     try {
-      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i].elements), instructions: customInstructions || '' }));
-      if (result.success && result.fixedElements && Array.isArray(result.fixedElements)) {
-        slides[i].elements = result.fixedElements;
-        slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
-        renderElements();
-        updatePreview();
-        successCount++;
+      const result = await callBackend(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(slides[i]), instructions: customInstructions || '' }));
+      if (result.success && result.fixedSlide) {
+        if (result.fixedSlide.delete) {
+          slides.splice(i, 1);
+          deleteCount++;
+        } else {
+          if (result.fixedSlide.title) slides[i].title = result.fixedSlide.title;
+          if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
+            slides[i].elements = result.fixedSlide.elements;
+            slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
+          }
+          successCount++;
+        }
+        renderSlideList();
+        if (slides.length > 0) selectSlide(slides[Math.min(i, slides.length - 1)].id);
       } else {
         failCount++;
       }
@@ -1680,7 +1753,10 @@ async function autoFixCurrentSession() {
   }
   
   btn.disabled = false;
-  setStatus(`Auto-Fix Session complete! Fixed ${successCount} slide(s). ${failCount > 0 ? '(' + failCount + ' failed)' : ''}`, successCount > 0 ? 'success' : 'error');
+  stopBtn.style.display = 'none';
+  if (!cancelAutoFix) {
+    setStatus(`Session Auto-Fix complete! Fixed: ${successCount}, Deleted: ${deleteCount}, Failed: ${failCount}`, failCount > 0 ? 'error' : 'success');
+  }
 }
 </script>
 </body>
