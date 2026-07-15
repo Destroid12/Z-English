@@ -144,8 +144,11 @@
     <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
     <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
     <button class="btn btn-outline" id="migrateAllBtn" onclick="runMigrateAllSessions()" title="Scan every saved session, re-host any embedded images/audio/video to Drive, and re-save if changed">
-  <i class="fas fa-broom"></i> Migrate All Sessions
-</button>
+      <i class="fas fa-broom"></i> Migrate All Sessions
+    </button>
+    <button class="btn btn-primary" id="autoFixSessionBtn" onclick="autoFixCurrentSession()" title="Auto-fix all slides in this session using AI" style="background-color: #6a1b9a; color: white;">
+      <i class="fas fa-magic"></i> Auto-Fix Session
+    </button>
 
     <span id="statusMsg" class="info"></span>
 
@@ -501,18 +504,34 @@ function compileSlide(slide) {
       const qStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
       chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> `;
       
-      const parts = (el.prompt || '').split('[blank]');
+      let floatingInputs = '';
+      const parts = (el.prompt || '').replace(/\n/g, '<br>').split('[blank]');
       for (let i = 0; i < parts.length; i++) {
-        chunk += esc(parts[i]);
+        chunk += parts[i];
         if (i < parts.length - 1) {
           const b = (el.blanks && el.blanks[i]) || { qtype: 'text', answer: '', altAnswers: [], options: [] };
           const altList = (b.altAnswers || []).filter(Boolean);
           const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+          
+          let inputHtml = '';
           if (b.qtype === 'select') {
             const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
-            chunk += `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+            inputHtml = `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+          } else if (b.qtype === 'radio') {
+            const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+          } else if (b.qtype === 'wordbank') {
+            const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
           } else {
-            chunk += `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+            inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+          }
+
+          if (b.pos) {
+            floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="${i}" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
+            chunk += `<span style="opacity:0.3;">[___]</span>`;
+          } else {
+            chunk += inputHtml;
           }
         }
       }
@@ -522,14 +541,26 @@ function compileSlide(slide) {
         const b = el.blanks[0];
         const altList = (b.altAnswers || []).filter(Boolean);
         const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+        let inputHtml = '';
         if (b.qtype === 'select') {
           const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
-          chunk += `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+          inputHtml = `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+        } else if (b.qtype === 'radio') {
+          const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+        } else if (b.qtype === 'wordbank') {
+          const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
         } else {
-          chunk += `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+        }
+        if (b.pos) {
+          floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="0" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
+        } else {
+          chunk += inputHtml;
         }
       }
-      chunk += `</div>\n`;
+      chunk += `</div>\n${floatingInputs}`;
     } else if (el.kind === 'list') {
       let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
       const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
@@ -537,11 +568,22 @@ function compileSlide(slide) {
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
     } else if (el.kind === 'link') {
-      const linkStyle = `display:flex; align-items:center; justify-content:space-between; padding:16px 22px; background-color:${escAttr(el.bgColor || '#007BFF')}; color:${escAttr(el.color || '#FFFFFF')}; text-decoration:none; border-radius:12px; font-weight:bold; font-size:18px; box-shadow:0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; border:2px solid rgba(0,0,0,0.05);`;
-      chunk = `<div style="margin:16px 0;"><a href="${escAttr(el.url)}" target="_blank" style="${linkStyle}"><span>${esc(el.text || 'Click Here')}</span><i class="fas fa-external-link-alt"></i></a></div>\n`;
+      let domain = '';
+      try { domain = new URL(el.url).hostname.replace('www.', ''); } catch (e) {}
+      const subtext = el.subtext || domain;
+      chunk = `<div style="margin:16px 0;">
+        <a class="link-row" href="${escAttr(el.url)}" target="_blank" rel="noopener">
+          <span style="font-size:24px;">🔗</span>
+          <div>${esc(el.text || 'Click Here')}${subtext ? `<br><small>${esc(subtext)}</small>` : ''}</div>
+        </a>
+      </div>\n`;
     }
 
     if (!chunk) return;
+
+    if (el.gap) {
+      chunk = `<div style="margin-bottom:${escAttr(el.gap)}px;">\n${chunk}</div>\n`;
+    }
 
     if (el.pos) {
       body += `<div class="editor-pos-el" data-el-id="${escAttr(el.id)}" style="position:absolute; top:${escAttr(el.pos.top)}; left:${escAttr(el.pos.left)}; max-width:80%;">${chunk}</div>\n`;
@@ -872,7 +914,12 @@ function renderElements() {
   if (!slide) { col.innerHTML = '<div class="empty-state">Select or add a slide to start editing.</div>'; return; }
 
   let html = `
-    <div class="panel-title">Slide Settings</div>
+    <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+      Slide Settings
+      <button class="btn btn-outline" style="font-size:0.8rem; padding:4px 8px; border-color:#6a1b9a; color:#6a1b9a;" onclick="autoFixCurrentSlide()" title="Fix emojis, texts, and add missing questions automatically">
+        <i class="fas fa-magic"></i> Auto-Fix Slide
+      </button>
+    </div>
     <div class="field-row">
       <div class="field">
         <label>Type</label>
@@ -1106,17 +1153,35 @@ function elemCardHTML(el, i, total) {
           <h4 style="margin:0 0 10px; font-size:13px; color:var(--blue-ink);">Answer Box ${i+1}</h4>
           <div class="field"><label>Question Type</label>
             <select onchange="updateElBlank('${el.id}', ${i}, 'qtype', this.value)">
-              <option value="text" ${!isSelect ? 'selected' : ''}>Type the answer</option>
-              <option value="select" ${isSelect ? 'selected' : ''}>Choose from options</option>
+              <option value="text" ${b.qtype === 'text' || !b.qtype ? 'selected' : ''}>Type the answer</option>
+              <option value="select" ${b.qtype === 'select' ? 'selected' : ''}>Dropdown menu</option>
+              <option value="radio" ${b.qtype === 'radio' ? 'selected' : ''}>Multiple Choice Buttons</option>
+              <option value="wordbank" ${b.qtype === 'wordbank' ? 'selected' : ''}>Sentence Word Bank</option>
             </select>
           </div>
-          ${isSelect ? `
-            <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\\n'))}</textarea></div>
+          ${b.qtype === 'select' || b.qtype === 'radio' ? `
+            <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Option</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          ` : b.qtype === 'wordbank' ? `
+            <div class="field"><label>Scrambled Words (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
+            <div class="field"><label>Correct Full Sentence</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
           ` : `
             <div class="field"><label>Correct Answer</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
           `}
-          <div class="field"><label>Other accepted answers (synonyms)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\\n'))}</textarea></div>
+          <div class="field"><label>Other accepted answers (synonyms)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\n'))}</textarea></div>
+          <div class="field" style="margin-top:8px;">
+            <label class="checkbox-field">
+              <input type="checkbox" ${b.pos ? 'checked' : ''} onchange="updateElBlankPosToggle('${el.id}', ${i}, this.checked)">
+              Free Position (Drag & Drop)
+            </label>
+          </div>
+          ${b.pos ? `
+            <div class="field-row" style="margin-top:4px;">
+              <div class="field"><label>Top %</label><input type="text" value="${escAttr(b.pos.top)}" oninput="updateElBlankPos('${el.id}', ${i}, 'top', this.value)"></div>
+              <div class="field"><label>Left %</label><input type="text" value="${escAttr(b.pos.left)}" oninput="updateElBlankPos('${el.id}', ${i}, 'left', this.value)"></div>
+            </div>
+            <div class="hint">Turn on "Reposition mode" to drag this answer box freely over the slide.</div>
+          ` : ''}
         </div>
       `;
     }
@@ -1129,11 +1194,8 @@ function elemCardHTML(el, i, total) {
   } else if (el.kind === 'link') {
     fields = `
       <div class="field"><label>URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
-      <div class="field"><label>Button Text</label><input type="text" value="${escAttr(el.text)}" oninput="updateElField('${el.id}','text',this.value)" placeholder="Click Here"></div>
-      <div class="field-row">
-        <div class="field"><label>Button Color</label><input type="color" value="${escAttr(el.bgColor || '#007BFF')}" oninput="updateElField('${el.id}','bgColor',this.value)"></div>
-        <div class="field"><label>Text Color</label><input type="color" value="${escAttr(el.color || '#FFFFFF')}" oninput="updateElField('${el.id}','color',this.value)"></div>
-      </div>
+      <div class="field"><label>Link Title</label><input type="text" value="${escAttr(el.text)}" oninput="updateElField('${el.id}','text',this.value)" placeholder="Practice Link"></div>
+      <div class="field"><label>Subtext (Optional)</label><input type="text" value="${escAttr(el.subtext)}" oninput="updateElField('${el.id}','subtext',this.value)" placeholder="wordwall.net (auto-detected if empty)"></div>
     `;
   }
 
@@ -1151,6 +1213,7 @@ function elemCardHTML(el, i, total) {
         </div>
         <div class="hint">Turn on "Reposition mode" above the preview, then drag this element right on the slide.</div>
       ` : ''}
+      <div class="field" style="margin-top:12px;"><label>Gap Below Element (px)</label><input type="number" min="0" value="${el.gap || 0}" oninput="updateElField('${el.id}','gap',this.value)"></div>
     </div>
   `;
 
@@ -1184,8 +1247,10 @@ function updateElField(elId, field, value) {
     while (el.blanks.length < numBlanks) {
       el.blanks.push({ qtype: 'text', answer: '', altAnswers: [], options: [] });
     }
-    // Only re-render if the number of answer boxes changed to prevent losing input focus!
-    if (el.blanks.length !== oldBlanksCount || numBlanks !== oldBlanksCount) {
+    if (el.blanks.length > numBlanks) {
+      el.blanks = el.blanks.slice(0, numBlanks);
+    }
+    if (el.blanks.length !== oldBlanksCount) {
       renderElemCards(slide);
     }
   }
@@ -1210,6 +1275,24 @@ function updateElBlank(elId, idx, field, value) {
   }
   updatePreview();
 }
+
+function updateElBlankPosToggle(elId, idx, enabled) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el || !el.blanks) return;
+  const b = el.blanks[idx]; if (!b) return;
+  b.pos = enabled ? { top: '50%', left: '50%' } : null;
+  renderElemCards(slide); updatePreview();
+}
+
+function updateElBlankPos(elId, idx, axis, value) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el || !el.blanks) return;
+  const b = el.blanks[idx]; if (!b) return;
+  if (!b.pos) b.pos = { top: '50%', left: '50%' };
+  b.pos[axis] = value;
+  updatePreview();
+}
+
 function updateElItems(elId, text) {
   const slide = getSelectedSlide(); if (!slide) return;
   const el = slide.elements.find(e => e.id === elId); if (!el) return;
@@ -1343,7 +1426,7 @@ function attachPosDragHandlers() {
   if (!frameEl) return;
   frameEl.style.position = frameEl.style.position || 'relative';
 
-  doc.querySelectorAll('.editor-pos-el').forEach(node => {
+  doc.querySelectorAll('.editor-pos-el, .editor-pos-blank').forEach(node => {
     node.style.outline = posModeOn ? '2px dashed rgba(76,168,221,0.6)' : 'none';
     node.style.cursor = posModeOn ? 'move' : 'auto';
     node.onmousedown = null;
@@ -1352,6 +1435,7 @@ function attachPosDragHandlers() {
     node.onmousedown = (ev) => {
       ev.preventDefault();
       const elId = node.dataset.elId;
+      const blankIdx = node.dataset.blankIdx !== undefined ? parseInt(node.dataset.blankIdx, 10) : undefined;
       function onMove(mv) {
         const rect = frameEl.getBoundingClientRect();
         let leftPct = ((mv.clientX - rect.left) / rect.width) * 100;
@@ -1367,9 +1451,14 @@ function attachPosDragHandlers() {
         onMove(uv);
         const s = getSelectedSlide();
         const e = s && s.elements.find(x => x.id === elId);
-        if (e && e.pos) {
-          e.pos.left = node.style.left;
-          e.pos.top = node.style.top;
+        if (e) {
+          if (blankIdx !== undefined && e.blanks && e.blanks[blankIdx] && e.blanks[blankIdx].pos) {
+            e.blanks[blankIdx].pos.left = node.style.left;
+            e.blanks[blankIdx].pos.top = node.style.top;
+          } else if (e.pos) {
+            e.pos.left = node.style.left;
+            e.pos.top = node.style.top;
+          }
           renderElemCards(s);
         }
       }
@@ -1490,6 +1579,70 @@ async function saveSession() {
   } finally {
     btn.disabled = false;
   }
+}
+
+async function autoFixCurrentSlide() {
+  const slide = getSelectedSlide();
+  if (!slide) return;
+  if (!confirm('Send this slide to Z-AI to automatically fix emojis, broken texts, and add missing questions? This will replace the current slide contents.')) return;
+  
+  setStatus('Z-AI is analyzing and fixing slide...', 'info');
+  try {
+    const result = await callBackendPost(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken }), JSON.stringify({ slideJson: JSON.stringify(slide.elements) }));
+    if (!result.success) {
+      setStatus(result.message || 'AI Auto-Fix failed.', 'error');
+      return;
+    }
+    if (result.fixedElements && Array.isArray(result.fixedElements)) {
+      slide.elements = result.fixedElements;
+      // ensure elements have IDs
+      slide.elements.forEach(el => { if (!el.id) el.id = uid(); });
+      renderElements();
+      updatePreview();
+      setStatus('Slide automatically fixed!', 'success');
+    } else {
+      setStatus('AI returned an invalid format.', 'error');
+    }
+  } catch (err) {
+    setStatus('Network error: ' + err.message, 'error');
+  }
+}
+
+async function autoFixCurrentSession() {
+  if (!slides || slides.length === 0) return;
+  if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed? This may take some time depending on the number of slides.')) return;
+  
+  const btn = document.getElementById('autoFixSessionBtn');
+  btn.disabled = true;
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (let i = 0; i < slides.length; i++) {
+    setStatus(`Z-AI fixing slide ${i + 1}/${slides.length}...`, 'info');
+    selectSlide(slides[i].id);
+    
+    try {
+      const result = await callBackendPost(new URLSearchParams({ action: 'autoFixSlide', token: sessionToken }), JSON.stringify({ slideJson: JSON.stringify(slides[i].elements) }));
+      if (result.success && result.fixedElements && Array.isArray(result.fixedElements)) {
+        slides[i].elements = result.fixedElements;
+        slides[i].elements.forEach(el => { if (!el.id) el.id = uid(); });
+        renderElements();
+        updatePreview();
+        successCount++;
+      } else {
+        failCount++;
+      }
+    } catch (err) {
+      failCount++;
+    }
+    
+    // Delay to respect rate limits
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  
+  btn.disabled = false;
+  setStatus(`Auto-Fix Session complete! Fixed ${successCount} slide(s). ${failCount > 0 ? '(' + failCount + ' failed)' : ''}`, successCount > 0 ? 'success' : 'error');
 }
 </script>
 </body>

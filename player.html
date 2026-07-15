@@ -60,6 +60,21 @@
   .interactive-input.correct, .interactive-select.correct { border-style: solid; border-color: var(--success); background: #E8F5E9; color: #2E7D32; box-shadow: 0 0 0 4px rgba(76, 175, 109, 0.15); }
   .interactive-input.incorrect, .interactive-select.incorrect { border-style: solid; border-color: var(--error); background: #FFEBEE; color: #C62828; box-shadow: 0 0 0 4px rgba(217, 69, 92, 0.15); animation: shake 0.4s; }
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .interactive-radio-group { display: inline-flex; flex-wrap: wrap; gap: 8px; vertical-align: middle; }
+  .interactive-radio { background: #fff; border: 2px solid var(--blue-mid); border-radius: 20px; padding: 6px 16px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; color: var(--blue-dark); cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+  .interactive-radio:hover { background: #E8F4FC; transform: translateY(-1px); }
+  .interactive-radio.selected { background: var(--blue-mid); color: #fff; border-color: var(--blue-dark); box-shadow: 0 4px 10px rgba(109, 179, 226, 0.3); }
+  .interactive-radio-group.correct .interactive-radio.selected { background: #4CAF50; border-color: #388E3C; color: #fff; }
+  .interactive-radio-group.incorrect .interactive-radio.selected { background: #F44336; border-color: #D32F2F; color: #fff; animation: shake 0.4s; }
+  .interactive-wordbank { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; width: 100%; }
+  .wordbank-dropzone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 46px; border: 2px dashed #A0B9C9; border-radius: 12px; padding: 8px; background: rgba(255,255,255,0.5); align-items: center; transition: all 0.2s; }
+  .wordbank-dropzone:empty::before { content: "Construct sentence here..."; color: #A0B9C9; font-style: italic; font-weight: 600; margin-left: 8px; }
+  .wordbank-words { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; background: #f0f5f9; border-radius: 12px; }
+  .interactive-word { background: #fff; border: 1px solid #c8d9e6; border-bottom-width: 3px; border-radius: 8px; padding: 8px 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 16px; color: var(--blue-dark); cursor: pointer; transition: all 0.1s; user-select: none; }
+  .interactive-word:active { transform: translateY(2px); border-bottom-width: 1px; margin-bottom: 2px; }
+  .interactive-word.hidden { opacity: 0; pointer-events: none; }
+  .interactive-wordbank.correct .wordbank-dropzone { border-color: #4CAF50; background: #E8F5E9; }
+  .interactive-wordbank.incorrect .wordbank-dropzone { border-color: #F44336; background: #FFEBEE; animation: shake 0.4s; }
   .check-btn { align-self: flex-start; margin-top: 16px; background: var(--blue-mid); color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 17px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(76, 168, 221, 0.3); display: flex; align-items: center; gap: 8px; }
   .check-btn:hover { transform: translateY(-2px); background: var(--blue-dark); box-shadow: 0 6px 15px rgba(76, 168, 221, 0.4); }
   .check-btn:active { transform: translateY(0); }
@@ -370,6 +385,33 @@ function initDeck(slides){
   
   document.querySelectorAll('.z-audio').forEach(initCustomAudio);
 
+  window.selectRadio = function(btn) {
+    const group = btn.closest('.interactive-radio-group');
+    if (!group) return;
+    group.querySelectorAll('.interactive-radio').forEach(r => r.classList.remove('selected'));
+    btn.classList.add('selected');
+    group.classList.remove('correct', 'incorrect');
+  };
+
+  window.toggleWord = function(btn) {
+    const bank = btn.closest('.interactive-wordbank');
+    if (!bank) return;
+    bank.classList.remove('correct', 'incorrect');
+    const dropzone = bank.querySelector('.wordbank-dropzone');
+    const clone = btn.cloneNode(true);
+    clone.onclick = function(e) { window.returnWord(e, this, btn); };
+    dropzone.appendChild(clone);
+    btn.classList.add('hidden');
+  };
+
+  window.returnWord = function(e, cloneElem, originalElem) {
+    e.stopPropagation();
+    if (cloneElem && originalElem) {
+      cloneElem.remove();
+      originalElem.classList.remove('hidden');
+    }
+  };
+
   window.checkAnswers = function(btn) {
     const slide = btn.closest('.slide');
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
@@ -394,6 +436,32 @@ function initDeck(slides){
       if (val !== "") {
         if (isCorrect) input.classList.add('correct');
         else input.classList.add('incorrect');
+      }
+    });
+
+    const radios = slide.querySelectorAll('.interactive-radio-group');
+    radios.forEach(group => {
+      const answer = group.dataset.answer.toLowerCase().trim();
+      const selected = group.querySelector('.interactive-radio.selected');
+      group.classList.remove('correct', 'incorrect');
+      if (selected) {
+        const val = selected.dataset.value.toLowerCase().trim();
+        if (val === answer) group.classList.add('correct');
+        else group.classList.add('incorrect');
+      }
+    });
+
+    const wordbanks = slide.querySelectorAll('.interactive-wordbank');
+    wordbanks.forEach(bank => {
+      const answer = bank.dataset.answer.toLowerCase().trim();
+      const dropzone = bank.querySelector('.wordbank-dropzone');
+      bank.classList.remove('correct', 'incorrect');
+      const selectedWords = Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ').toLowerCase().trim();
+      if (selectedWords !== '') {
+        const cleanAnswer = answer.replace(/[.,!?]/g, '').trim();
+        const cleanSelected = selectedWords.replace(/[.,!?]/g, '').trim();
+        if (cleanSelected === cleanAnswer) bank.classList.add('correct');
+        else bank.classList.add('incorrect');
       }
     });
   };
