@@ -117,6 +117,13 @@
   
   @keyframes matchShake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
   
+  .interactive-match { position: relative; }
+  .match-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+  .match-col { z-index: 1; }
+  .match-line { stroke: var(--blue-mid); stroke-width: 3.5px; stroke-linecap: round; transition: stroke 0.3s, opacity 0.3s; filter: drop-shadow(0 2px 4px rgba(76,168,221,0.2)); }
+  .interactive-match.correct .match-line { stroke: #4CAF50; filter: drop-shadow(0 2px 4px rgba(76,175,80,0.2)); }
+  .match-line.incorrect { stroke: #F44336; opacity: 0.7; stroke-dasharray: 8 8; filter: drop-shadow(0 2px 4px rgba(244,67,54,0.2)); }
+  
   .interactive-schedule{ display:flex; flex-direction:column; gap:10px; margin-top:12px; width:100%; counter-reset:schednum; }
   
   .schedule-item{
@@ -529,6 +536,7 @@ function initDeck(slides){
         delete e.dataset.matched;
         delete e.dataset.matchId;
       });
+      if(window.redrawMatchLines) window.redrawMatchLines(container);
       return;
     }
     
@@ -556,12 +564,60 @@ function initDeck(slides){
       
       activeMatchCol = null;
       activeMatchBtn = null;
+      if(window.redrawMatchLines) window.redrawMatchLines(container);
     } else {
       activeMatchCol = col;
       activeMatchBtn = btn;
       btn.classList.add('selected');
     }
   };
+
+  window.redrawMatchLines = function(container) {
+    let svg = container.querySelector('.match-lines');
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'match-lines');
+      container.insertBefore(svg, container.firstChild);
+    }
+    svg.innerHTML = '';
+    const containerRect = container.getBoundingClientRect();
+    
+    container.querySelectorAll('.match-left[data-matched]').forEach(left => {
+      const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
+      if (!right) return;
+      
+      const leftRect = left.getBoundingClientRect();
+      const rightRect = right.getBoundingClientRect();
+      
+      const x1 = leftRect.right - containerRect.left;
+      const y1 = leftRect.top + leftRect.height / 2 - containerRect.top;
+      
+      const x2 = rightRect.left - containerRect.left;
+      const y2 = rightRect.top + rightRect.height / 2 - containerRect.top;
+      
+      const isIncorrect = left.classList.contains('matched-incorrect');
+      const isCorrect = container.classList.contains('correct');
+      
+      let lineClass = 'match-line';
+      if (isIncorrect) lineClass += ' incorrect';
+      
+      const cpx1 = x1 + 40;
+      const cpx2 = x2 - 40;
+      
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${x1} ${y1} C ${cpx1} ${y1}, ${cpx2} ${y2}, ${x2} ${y2}`);
+      path.setAttribute('class', lineClass);
+      path.setAttribute('fill', 'none');
+      
+      svg.appendChild(path);
+    });
+  };
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.interactive-match').forEach(c => {
+      if(window.redrawMatchLines) window.redrawMatchLines(c);
+    });
+  });
 
   window.moveSched = function(btn, dir) {
     const item = btn.closest('.schedule-item');
@@ -691,6 +747,7 @@ function initDeck(slides){
       } else if (anyMatched) {
         container.classList.add('incorrect');
       }
+      if(window.redrawMatchLines) window.redrawMatchLines(container);
     });
 
     const schedules = slide.querySelectorAll('.interactive-schedule');
