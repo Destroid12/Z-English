@@ -505,9 +505,25 @@ function initDeck(slides){
     container.querySelectorAll('.matched-incorrect').forEach(e => e.classList.remove('matched-incorrect'));
     
     if (activeMatchCol === col) {
+      if (activeMatchBtn === btn) {
+        btn.classList.remove('selected');
+        activeMatchBtn = null;
+        activeMatchCol = null;
+        return;
+      }
       if (activeMatchBtn) activeMatchBtn.classList.remove('selected');
       activeMatchBtn = btn;
       btn.classList.add('selected');
+      return;
+    }
+    
+    // If clicking an already matched item when nothing is actively selected, unlink it!
+    if (!activeMatchBtn && btn.dataset.matchId) {
+      container.querySelectorAll(`.match-item[data-match-id="${btn.dataset.matchId}"]`).forEach(e => {
+        e.classList.remove('matched', 'matched-incorrect');
+        delete e.dataset.matched;
+        delete e.dataset.matchId;
+      });
       return;
     }
     
@@ -654,7 +670,8 @@ function initDeck(slides){
       lefts.forEach(left => {
         if (left.dataset.matched) {
           anyMatched = true;
-          if (left.dataset.matched !== left.dataset.targetIdx) {
+          const target = left.dataset.targetIdx !== undefined ? left.dataset.targetIdx : left.dataset.index;
+          if (left.dataset.matched !== target) {
             allCorrect = false;
             left.classList.add('matched-incorrect');
             const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
