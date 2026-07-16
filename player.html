@@ -515,19 +515,23 @@ function initDeck(slides){
       const isLeftFirst = activeMatchCol === 'left';
       const leftBtn = isLeftFirst ? activeMatchBtn : btn;
       const rightBtn = isLeftFirst ? btn : activeMatchBtn;
-      const leftIdx = leftBtn.dataset.index;
-      const rightIdx = rightBtn.dataset.index;
       
       leftBtn.classList.remove('selected');
       rightBtn.classList.remove('selected');
       
-      container.querySelectorAll(`.match-item[data-matched="${leftIdx}"]`).forEach(e => { e.classList.remove('matched'); delete e.dataset.matched; });
-      container.querySelectorAll(`.match-item[data-matched="${rightIdx}"]`).forEach(e => { e.classList.remove('matched'); delete e.dataset.matched; });
+      if (leftBtn.dataset.matchId) {
+        container.querySelectorAll(`.match-item[data-match-id="${leftBtn.dataset.matchId}"]`).forEach(e => { e.classList.remove('matched', 'matched-incorrect'); delete e.dataset.matched; delete e.dataset.matchId; });
+      }
+      if (rightBtn.dataset.matchId) {
+        container.querySelectorAll(`.match-item[data-match-id="${rightBtn.dataset.matchId}"]`).forEach(e => { e.classList.remove('matched', 'matched-incorrect'); delete e.dataset.matched; delete e.dataset.matchId; });
+      }
       
+      const matchId = 'm_' + Math.random().toString(36).substr(2, 9);
       leftBtn.classList.add('matched');
       rightBtn.classList.add('matched');
-      leftBtn.dataset.matched = rightIdx;
-      rightBtn.dataset.matched = rightIdx;
+      leftBtn.dataset.matchId = matchId;
+      rightBtn.dataset.matchId = matchId;
+      leftBtn.dataset.matched = rightBtn.dataset.index;
       
       activeMatchCol = null;
       activeMatchBtn = null;
@@ -542,8 +546,37 @@ function initDeck(slides){
     const item = btn.closest('.schedule-item');
     const container = item.parentElement;
     container.classList.remove('correct', 'incorrect');
-    if (dir === -1 && item.previousElementSibling) container.insertBefore(item, item.previousElementSibling);
-    if (dir === 1 && item.nextElementSibling) container.insertBefore(item.nextElementSibling, item);
+    
+    const all = Array.from(container.children);
+    const idx = all.indexOf(item);
+    if (idx + dir < 0 || idx + dir >= all.length) return;
+    
+    const target = all[idx + dir];
+    
+    const itemRect = item.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    
+    if (dir === -1) container.insertBefore(item, target);
+    else container.insertBefore(item, target.nextElementSibling);
+    
+    const moveY = targetRect.top - itemRect.top;
+    
+    item.style.transition = 'none';
+    target.style.transition = 'none';
+    item.style.transform = `translateY(${-moveY}px)`;
+    target.style.transform = `translateY(${moveY}px)`;
+    
+    requestAnimationFrame(() => {
+      item.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+      target.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+      item.style.transform = '';
+      target.style.transform = '';
+      
+      setTimeout(() => {
+        item.style.transition = '';
+        target.style.transition = '';
+      }, 250);
+    });
   };
 
   window.checkAnswers = function(btn) {
@@ -621,7 +654,7 @@ function initDeck(slides){
       lefts.forEach(left => {
         if (left.dataset.matched) {
           anyMatched = true;
-          if (left.dataset.matched !== left.dataset.index) {
+          if (left.dataset.matched !== left.dataset.targetIdx) {
             allCorrect = false;
             left.classList.add('matched-incorrect');
             const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);

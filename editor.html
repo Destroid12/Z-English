@@ -546,10 +546,19 @@ function compileSlide(slide) {
             inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
           } else if (b.qtype === 'match') {
             const lefts = []; const rights = [];
-            (b.options || []).forEach(o => { const p = o.split('|'); if(p.length>1) { lefts.push(p[0].trim()); rights.push(p[1].trim()); } });
-            const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-text="${escAttr(l)}" onclick="selectMatch(this, 'left')">${esc(l)}</button>`).join('');
-            const rightHtml = rights.map((r, i) => `<button class="match-item match-right" data-index="${i}" data-text="${escAttr(r)}" onclick="selectMatch(this, 'right')">${esc(r)}</button>`).join('');
-            inputHtml = `<div class="interactive-match" data-pairs="${escAttr(JSON.stringify(rights))}"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+            (b.options || []).forEach(o => { 
+              const p = o.split('|'); 
+              if(p.length>1) { 
+                const l = p[0].trim();
+                const r = p[1].trim();
+                if (l) lefts.push({ text: l, targetIdx: rights.length });
+                rights.push({ text: r, originalIdx: rights.length });
+              } 
+            });
+            const shuffledRights = [...rights].sort(() => Math.random() - 0.5);
+            const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+            const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
+            inputHtml = `<div class="interactive-match"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
           } else if (b.qtype === 'schedule') {
             const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
             inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
@@ -586,10 +595,19 @@ function compileSlide(slide) {
           inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
         } else if (b.qtype === 'match') {
           const lefts = []; const rights = [];
-          (b.options || []).forEach(o => { const p = o.split('|'); if(p.length>1) { lefts.push(p[0].trim()); rights.push(p[1].trim()); } });
-          const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-text="${escAttr(l)}" onclick="selectMatch(this, 'left')">${esc(l)}</button>`).join('');
-          const rightHtml = rights.map((r, i) => `<button class="match-item match-right" data-index="${i}" data-text="${escAttr(r)}" onclick="selectMatch(this, 'right')">${esc(r)}</button>`).join('');
-          inputHtml = `<div class="interactive-match" data-pairs="${escAttr(JSON.stringify(rights))}"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+          (b.options || []).forEach(o => { 
+            const p = o.split('|'); 
+            if(p.length>1) { 
+              const l = p[0].trim();
+              const r = p[1].trim();
+              if (l) lefts.push({ text: l, targetIdx: rights.length });
+              rights.push({ text: r, originalIdx: rights.length });
+            } 
+          });
+          const shuffledRights = [...rights].sort(() => Math.random() - 0.5);
+          const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+          const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
+          inputHtml = `<div class="interactive-match"><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
         } else if (b.qtype === 'schedule') {
           const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
           inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
