@@ -102,18 +102,18 @@
   .match-item.matched{
     border-color:var(--blue-mid); background:#EAF4FC; color:var(--blue-dark); cursor:pointer; box-shadow:none; transform:none;
   }
-  .match-item.matched::before{ background:var(--blue-mid); color:#fff; content:"\2194"; font-size: 14px; }
+  .match-item.matched::before{ background:var(--blue-mid) !important; color:#fff !important; content:"\2194" !important; font-size: 14px !important; }
   .match-item.matched::after{ content:"linked"; display:none; }
   
   .interactive-match.correct .match-item.matched{
     border-color:#4CAF50; background:#F1FAF3; color:#2E7D32; cursor:default;
   }
-  .interactive-match.correct .match-item.matched::before{ background:#4CAF50; color:#fff; content:"\2713"; font-size: 12.5px; }
+  .interactive-match.correct .match-item.matched::before{ background:#4CAF50 !important; color:#fff !important; content:"\2713" !important; font-size: 12.5px !important; }
   
   .match-item.matched-incorrect{
     border-color:#F44336; background:#FFF2F2; color:#C62828; animation: matchShake .4s;
   }
-  .match-item.matched-incorrect::before{ background:#F44336; color:#fff; content:"\2715"; font-size: 12.5px; }
+  .match-item.matched-incorrect::before{ background:#F44336 !important; color:#fff !important; content:"\2715" !important; font-size: 12.5px !important; }
   
   @keyframes matchShake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
   
@@ -687,7 +687,9 @@ function initDeck(slides){
         }
       });
       if (anyMatched && allCorrect) {
-        lefts.forEach(left => { left.classList.remove('matched-incorrect'); left.classList.add('matched'); });
+        container.classList.add('correct');
+      } else if (anyMatched) {
+        container.classList.add('incorrect');
       }
     });
 
