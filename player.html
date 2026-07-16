@@ -107,6 +107,7 @@
   
   .match-item.matched-correct {
     border-color:#4CAF50; background:#F1FAF3; color:#2E7D32; cursor:default;
+    animation: matchShake .4s;
   }
   .match-item.matched-correct::before { background:#4CAF50 !important; color:#fff !important; content:"\2713" !important; font-size: 12.5px !important; }
   
@@ -725,34 +726,36 @@ function initDeck(slides){
 
     const matches = slide.querySelectorAll('.interactive-match');
     matches.forEach(container => {
-      let allCorrect = true;
       let anyMatched = false;
       const lefts = container.querySelectorAll('.match-left');
-      container.querySelectorAll('.matched-incorrect, .matched-correct').forEach(e => e.classList.remove('matched-incorrect', 'matched-correct'));
+      // Clear previous state
+      container.querySelectorAll('.matched-incorrect, .matched-correct, .matched').forEach(e => e.classList.remove('matched-incorrect', 'matched-correct', 'matched'));
       lefts.forEach(left => {
         if (left.dataset.matched) {
           anyMatched = true;
           const target = left.dataset.targetIdx !== undefined ? left.dataset.targetIdx : left.dataset.index;
+          const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"`);
+          // Remove generic matched class
+          left.classList.remove('matched');
+          if (right) right.classList.remove('matched');
           if (left.dataset.matched !== target) {
-            allCorrect = false;
             left.classList.add('matched-incorrect');
-            const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
             if (right) right.classList.add('matched-incorrect');
           } else {
             left.classList.add('matched-correct');
-            const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
             if (right) right.classList.add('matched-correct');
           }
-        } else {
-          allCorrect = false;
         }
       });
-      if (anyMatched && allCorrect) {
-        container.classList.add('correct');
-      } else if (anyMatched) {
-        container.classList.add('incorrect');
+      // Update container class for overall feedback (optional)
+      if (anyMatched) {
+        const allCorrect = container.querySelectorAll('.matched-incorrect').length === 0 && container.querySelectorAll('.matched-correct').length > 0;
+        container.classList.toggle('correct', allCorrect);
+        container.classList.toggle('incorrect', !allCorrect && anyMatched);
       }
       if(window.redrawMatchLines) window.redrawMatchLines(container);
+    });
+
     });
 
     const schedules = slide.querySelectorAll('.interactive-schedule');
