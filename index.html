@@ -532,7 +532,13 @@
                     </div>
                     <div class="social-row">
                         <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        <div class="contact-info-row">
+    <i class="fas fa-phone"></i>
+    <div>
+        <h4 data-i18n="contactPhoneLabel">Phone</h4>
+        <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">+20 114 181 9300</a></p>
+    </div>
+</div>
                     </div>
                 </div>
 
@@ -599,42 +605,57 @@
 
             <div class="admin-panel active" id="admin-panel-students">
                 <div class="card">
-                    <h3 data-i18n="createStudentTitle" style="margin-bottom: 20px;">Create Student Account</h3>
-                    <div class="alert-box error" id="create-student-alert"><i class="fas fa-circle-exclamation"></i> <span id="create-student-alert-text"></span></div>
-                    <div class="alert-box success" id="create-student-success"><i class="fas fa-circle-check"></i> <span id="create-student-success-text"></span></div>
-                    <form onsubmit="handleCreateStudent(event)">
-                        <div class="form-grid">
-                            <div class="input-group">
-                                <label data-i18n="studentIdField">Student ID</label>
-                                <input type="text" id="new-student-id" class="input-control" required data-i18n-placeholder="studentIdPh" placeholder="e.g. STU-1042">
-                            </div>
-                            <div class="input-group">
-                                <label data-i18n="studentNameField">Full Name</label>
-                                <input type="text" id="new-student-name" class="input-control" required>
-                            </div>
-                            <div class="input-group">
-                                <label data-i18n="studentPasswordField">Password</label>
-                                <input type="text" id="new-student-password" class="input-control" required minlength="6" data-i18n-placeholder="studentPasswordPh" placeholder="At least 6 characters">
-                            </div>
-                            <div class="input-group">
-                                <label data-i18n="selectGender">Gender</label>
-                                <select id="new-student-gender" class="input-control">
-                                    <option value="male" data-i18n="genderMale">Male</option>
-                                    <option value="female" data-i18n="genderFemale">Female</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;" id="create-student-btn" data-i18n="createStudentBtn">Create Account</button>
-                    </form>
-                </div>
+    <h3 style="margin-bottom: 20px;" data-i18n="contactInfoTitle">Get in Touch</h3>
 
-                <div class="card" style="margin-top: 24px;">
-                    <div class="flex justify-between items-center">
-                        <h3 data-i18n="existingStudentsTitle">Existing Students</h3>
-                        <button class="btn btn-outline btn-sm" onclick="loadStudentsList()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
-                    </div>
-                    <div id="students-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
-                </div>
+    <div class="contact-info-row">
+        <i class="fas fa-envelope"></i>
+        <div>
+            <h4 data-i18n="contactEmailLabel">Email</h4>
+            <p>z.english.academy26@gmail.com</p>
+        </div>
+    </div>
+    <div class="contact-info-row">
+        <i class="fas fa-phone"></i>
+        <div>
+            <h4 data-i18n="contactPhoneLabel">Phone</h4>
+            <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">+20 114 181 9300</a></p>
+        </div>
+    </div>
+    <div class="social-row">
+        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://wa.me/201141819300" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 20px;" data-i18n="contactFormTitle">Send a Message</h3>
+    <div class="alert-box error" id="contact-alert"><i class="fas fa-circle-exclamation"></i> <span id="contact-alert-text"></span></div>
+    <div class="alert-box success" id="contact-success"><i class="fas fa-circle-check"></i> <span id="contact-success-text"></span></div>
+
+    <form onsubmit="handleContactSubmit(event)">
+        <div class="input-group">
+            <label data-i18n="contactFormName">Your Name</label>
+            <input type="text" id="contact-name" class="input-control" required>
+        </div>
+        <div class="input-group">
+            <label data-i18n="contactFormEmail">Your Email</label>
+            <input type="email" id="contact-email" class="input-control" required>
+        </div>
+        <div class="input-group">
+            <label data-i18n="contactFormMessage">Message</label>
+            <textarea id="contact-message" class="input-control" rows="4" required data-i18n-placeholder="contactFormMessagePh" placeholder="How can we help?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;" id="contact-send-btn" data-i18n="contactSendBtn">Send Message</button>
+    </form>
+
+    <div class="divider-or" data-i18n="orDivider">or</div>
+
+    <a href="mailto:z.english.academy26@gmail.com?subject=Z-English%20Inquiry&body=Hi%20Z-English%20team%2C%0A%0A" 
+       class="btn btn-outline" 
+       style="width: 100%; display:block; text-align:center; box-sizing:border-box;">
+       <i class="fas fa-envelope"></i> Email Us Directly
+    </a>
+</div>
             </div>
 
             <div class="admin-panel" id="admin-panel-sessions">
