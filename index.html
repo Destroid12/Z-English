@@ -514,53 +514,12 @@
 
             <div class="contact-grid">
                 <div class="card">
-    <h3 style="margin-bottom: 20px;" data-i18n="contactInfoTitle">Get in Touch</h3>
-
-    <div class="contact-info-row">
-        <i class="fas fa-envelope"></i>
-        <div>
-            <h4 data-i18n="contactEmailLabel">Email</h4>
-            <p>z.english.academy26@gmail.com</p>
-        </div>
-    </div>
-    <div class="contact-info-row">
-        <i class="fas fa-phone"></i>
-        <div>
-            <h4 data-i18n="contactPhoneLabel">Phone</h4>
-            <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">+20 114 181 9300</a></p>
-        </div>
-    </div>
-    <div class="social-row">
-        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-        <a href="https://wa.me/201141819300" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-    </div>
-</div>
-
-                <div class="card">
     <h3 style="margin-bottom: 20px;" data-i18n="contactFormTitle">Send a Message</h3>
     <div class="alert-box error" id="contact-alert"><i class="fas fa-circle-exclamation"></i> <span id="contact-alert-text"></span></div>
     <div class="alert-box success" id="contact-success"><i class="fas fa-circle-check"></i> <span id="contact-success-text"></span></div>
 
-    <form onsubmit="handleContactSubmit(event)">
-        <div class="input-group">
-            <label data-i18n="contactFormName">Your Name</label>
-            <input type="text" id="contact-name" class="input-control" required>
-        </div>
-        <div class="input-group">
-            <label data-i18n="contactFormEmail">Your Email</label>
-            <input type="email" id="contact-email" class="input-control" required>
-        </div>
-        <div class="input-group">
-            <label data-i18n="contactFormMessage">Message</label>
-            <textarea id="contact-message" class="input-control" rows="4" required data-i18n-placeholder="contactFormMessagePh" placeholder="How can we help?"></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;" id="contact-send-btn" data-i18n="contactSendBtn">Send Message</button>
-    </form>
-
-    <div class="divider-or" data-i18n="orDivider">or</div>
-
     <a href="mailto:z.english.academy26@gmail.com?subject=Z-English%20Inquiry&body=Hi%20Z-English%20team%2C%0A%0A" 
-       class="btn btn-outline" 
+       class="btn btn-primary" 
        style="width: 100%; display:block; text-align:center; box-sizing:border-box;">
        <i class="fas fa-envelope"></i> Email Us Directly
     </a>
