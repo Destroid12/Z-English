@@ -731,6 +731,33 @@
         </div>
     </div>
 </section>
+        <section id="ai-tutor" class="page-section container">
+    <div class="card" style="max-width: 700px; margin: 0 auto; display:flex; flex-direction:column; height: 70vh;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px;">
+            <h2 style="margin:0;"><i class="fas fa-graduation-cap" style="color:var(--z-blue);"></i> Z-AI Tutor</h2>
+            <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
+                <i class="fas fa-volume-high"></i> Read aloud: off
+            </button>
+        </div>
+
+        <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:10px 4px; background: var(--bg-color); border-radius: var(--radius-sm); margin-bottom:14px;"></div>
+
+        <div id="siteTutorRecIndicator" style="display:none; align-items:center; gap:6px; font-size:0.78rem; font-weight:800; color:var(--danger); margin-bottom:8px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--danger); display:inline-block;"></span> Listening…
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+            <div style="position:relative; display:flex;">
+                <button id="siteTutorMic" class="btn btn-outline" style="border-radius:50%; width:44px; height:44px; padding:0; display:flex; align-items:center; justify-content:center;" onclick="toggleSiteTutorMic()" title="Speak your question">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <div id="siteTutorMicLevel" style="position:absolute; inset:-4px; border-radius:50%; pointer-events:none;"></div>
+            </div>
+            <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask about any lesson, or say 'quiz me'..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}" style="flex:1;">
+            <button class="btn btn-primary" style="border-radius:50%; width:44px; height:44px; padding:0;" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+</section>
         <section id="community" class="page-section container">
             <div class="community-wrapper">
                 <div style="margin-bottom: 30px;">
