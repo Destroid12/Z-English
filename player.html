@@ -756,8 +756,6 @@ function initDeck(slides){
       if(window.redrawMatchLines) window.redrawMatchLines(container);
     });
 
-    });
-
     const schedules = slide.querySelectorAll('.interactive-schedule');
     schedules.forEach(container => {
       const correctOrder = JSON.parse(container.dataset.answer || '[]');
