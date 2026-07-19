@@ -567,212 +567,169 @@
         </section>
 
         <section id="admin-dashboard" class="page-section container">
-            <div class="dash-header">
-                <div>
-                    <h2 id="admin-greeting">Hi, Admin!</h2>
-                    <p data-i18n="adminDashSub">Manage student accounts and session content.</p>
-                    <div class="session-pill"><i class="fas fa-shield-halved"></i> <span id="admin-session-pill-text">Session secured</span></div>
-                </div>
-                <div class="avatar"><i class="fas fa-user-shield"></i></div>
-            </div>
-
-            <div class="admin-tabs">
-                <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
-                <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
-                <button type="button" class="admin-tab" onclick="switchAdminPanel('sections')" data-i18n="adminTabSections">Sections</button>
-                <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
-            </div>
-
-            <div class="admin-panel active" id="admin-panel-students">
-                <div class="card">
-
-    <div class="contact-info-row">
-        <i class="fas fa-envelope"></i>
+    <div class="dash-header">
         <div>
-            <h4 data-i18n="contactEmailLabel">Email</h4>
-            <p>z.english.academy26@gmail.com</p>
+            <h2 id="admin-greeting">Hi, Admin!</h2>
+            <p data-i18n="adminDashSub">Manage student accounts and session content.</p>
+            <div class="session-pill"><i class="fas fa-shield-halved"></i> <span id="admin-session-pill-text">Session secured</span></div>
         </div>
+        <div class="avatar"><i class="fas fa-user-shield"></i></div>
     </div>
-    <div class="contact-info-row">
-        <i class="fas fa-phone"></i>
-        <div>
-            <h4 data-i18n="contactPhoneLabel">Phone</h4>
-            <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">+20 114 181 9300</a></p>
-        </div>
+
+    <div class="admin-tabs">
+        <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('sections')" data-i18n="adminTabSections">Sections</button>
+        <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
-    <div class="social-row">
-        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-        <a href="https://wa.me/201141819300" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-    </div>
-</div>
 
-<div class="card">
-    <div class="alert-box error" id="contact-alert"><i class="fas fa-circle-exclamation"></i> <span id="contact-alert-text"></span></div>
-    <div class="alert-box success" id="contact-success"><i class="fas fa-circle-check"></i> <span id="contact-success-text"></span></div>
-
-    <form onsubmit="handleContactSubmit(event)">
-        <div class="input-group">
-            <label data-i18n="contactFormName">Your Name</label>
-            <input type="text" id="contact-name" class="input-control" required>
-        </div>
-        <div class="input-group">
-            <label data-i18n="contactFormEmail">Your Email</label>
-            <input type="email" id="contact-email" class="input-control" required>
-        </div>
-        <div class="input-group">
-            <label data-i18n="contactFormMessage">Message</label>
-            <textarea id="contact-message" class="input-control" rows="4" required data-i18n-placeholder="contactFormMessagePh" placeholder="How can we help?"></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;" id="contact-send-btn" data-i18n="contactSendBtn">Send Message</button>
-    </form>
-
-    <div class="divider-or" data-i18n="orDivider">or</div>
-
-    <a href="mailto:z.english.academy26@gmail.com?subject=Z-English%20Inquiry&body=Hi%20Z-English%20team%2C%0A%0A" 
-       class="btn btn-outline" 
-       style="width: 100%; display:block; text-align:center; box-sizing:border-box;">
-       <i class="fas fa-envelope"></i> Email Us Directly
-    </a>
-</div>
-            </div>
-
-            <div class="admin-panel" id="admin-panel-sessions">
-                <div class="card">
-                    <h3 data-i18n="setSessionTitle" style="margin-bottom: 20px;">Set Session Password, Link & Content</h3>
-                    <div class="alert-box error" id="session-form-alert"><i class="fas fa-circle-exclamation"></i> <span id="session-form-alert-text"></span></div>
-                    <div class="alert-box success" id="session-form-success"><i class="fas fa-circle-check"></i> <span id="session-form-success-text"></span></div>
-                    <form onsubmit="handleSetSession(event)" id="combined-session-form">
-                        <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-                            <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Session Details</legend>
-                            <div class="form-grid">
-                                <div class="input-group">
-                                    <label data-i18n="sectionLabel">Track</label>
-                                    <select id="sess-track" class="input-control">
-                                        <option value="basic" data-i18n="basicTrack">Basic</option>
-                                        <option value="advanced" data-i18n="advancedTrack">Advanced</option>
-                                    </select>
-                                </div>
-                                <div class="input-group">
-                                    <label data-i18n="levelLabel">Level</label>
-                                    <select id="sess-level" class="input-control"></select>
-                                </div>
-                                <div class="input-group">
-                                    <label data-i18n="sessionLabel">Session</label>
-                                    <select id="sess-number" class="input-control"></select>
-                                </div>
-                                <div class="input-group">
-                                    <label data-i18n="sessionPasswordLabel">Session Password</label>
-                                    <input type="text" id="sess-password" class="input-control" minlength="4">
-                                </div>
-                            </div>
-                            <div class="input-group">
-                                <label data-i18n="sessionLinkLabel">Session Link (Zoom, Meet, video, etc.)</label>
-                                <input type="url" id="sess-link" class="input-control" placeholder="https://...">
-                            </div>
-                        </fieldset>
-
-                        <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-                            <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Lesson Content (JSON)</legend>
-                            <div id="lesson-file-status" class="lesson-file-status" style="margin-bottom: 12px;"></div>
-                            <div id="lesson-dropzone" class="dropzone" onclick="document.getElementById('lesson-file-input').click()">
-                                <input type="file" id="lesson-file-input" accept="application/json,.json" style="display:none;" onchange="handleLessonFileInput(event)">
-                                <div class="dropzone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
-                                <div class="dropzone-text" id="dropzone-main-text" data-i18n="dropzoneMain">Drag &amp; drop the lesson JSON file here</div>
-                                <div class="dropzone-subtext" data-i18n="dropzoneSub">or click to browse your computer / Drive</div>
-                            </div>
-                            <div style="margin-top: 12px; display: flex; gap: 10px;">
-                                <button type="button" class="btn btn-outline btn-sm" id="clear-lesson-btn" onclick="clearLessonContent()" style="display: none;">
-                                    <i class="fas fa-trash"></i> Clear JSON
-                                </button>
-                            </div>
-                        </fieldset>
-
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button type="submit" class="btn btn-primary" id="save-session-btn" data-i18n="saveSessionBtn">Save Session & Content</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card" style="margin-top: 24px;">
-                    <div class="flex justify-between items-center">
-                        <h3 data-i18n="configuredSessionsTitle">Configured Sessions</h3>
-                        <button class="btn btn-outline btn-sm" onclick="loadSessionsOverview()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+    <div class="admin-panel active" id="admin-panel-students">
+        <div class="card">
+            <h3 data-i18n="createStudentTitle" style="margin-bottom: 20px;">Create Student Account</h3>
+            <div class="alert-box error" id="create-student-alert"><i class="fas fa-circle-exclamation"></i> <span id="create-student-alert-text"></span></div>
+            <div class="alert-box success" id="create-student-success"><i class="fas fa-circle-check"></i> <span id="create-student-success-text"></span></div>
+            <form onsubmit="handleCreateStudent(event)">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label data-i18n="studentIdField">Student ID</label>
+                        <input type="text" id="new-student-id" class="input-control" required data-i18n-placeholder="studentIdPh" placeholder="e.g. STU-1042">
                     </div>
-                    <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
+                    <div class="input-group">
+                        <label data-i18n="studentNameField">Full Name</label>
+                        <input type="text" id="new-student-name" class="input-control" required>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="studentPasswordField">Password</label>
+                        <input type="text" id="new-student-password" class="input-control" required minlength="6" data-i18n-placeholder="studentPasswordPh" placeholder="At least 6 characters">
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="selectGender">Gender</label>
+                        <select id="new-student-gender" class="input-control">
+                            <option value="male" data-i18n="genderMale">Male</option>
+                            <option value="female" data-i18n="genderFemale">Female</option>
+                        </select>
+                    </div>
                 </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;" id="create-student-btn" data-i18n="createStudentBtn">Create Account</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="flex justify-between items-center">
+                <h3 data-i18n="existingStudentsTitle">Existing Students</h3>
+                <button class="btn btn-outline btn-sm" onclick="loadStudentsList()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
             </div>
-
-            <div class="admin-panel" id="admin-panel-sections">
-                <div class="card">
-                    <h3 style="margin-bottom: 20px;">Categories</h3>
-                    <div class="alert-box error" id="cat-alert"><i class="fas fa-circle-exclamation"></i> <span id="cat-alert-text"></span></div>
-                    <form onsubmit="handleCreateCategory(event)" style="margin-bottom: 20px;">
-                        <div class="form-grid">
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Category Label</label>
-                                <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Homework, Listening">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
-                    </form>
-                    <div id="categories-list"></div>
-                </div>
-
-                <div class="card" style="margin-top: 24px; display:none;" id="sessions-manager-card">
-                    <h3 id="sessions-manager-title" style="margin-bottom: 20px;">Sessions</h3>
-                    <div class="alert-box error" id="custom-sess-alert"><i class="fas fa-circle-exclamation"></i> <span id="custom-sess-alert-text"></span></div>
-                    <div class="alert-box success" id="custom-sess-success"><i class="fas fa-circle-check"></i> <span id="custom-sess-success-text"></span></div>
-
-                    <form onsubmit="handleCreateCustomSession(event)">
-                        <div class="form-grid">
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Session Title</label>
-                                <input type="text" id="cs-title" class="input-control" required>
-                            </div>
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Link</label>
-                                <input type="url" id="cs-link" class="input-control" required placeholder="https://...">
-                            </div>
-                            <div class="input-group" style="margin-bottom:0;">
-                                <label>Password (optional)</label>
-                                <input type="text" id="cs-password" class="input-control">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
-                    </form>
-
-                    <div id="custom-sessions-list" style="margin-top: 20px;"></div>
-                </div>
-            </div>
-        </section>
-<section id="ai-tutor" class="page-section container">
-  <div class="community-wrapper">
-    <div class="flex justify-between items-center" style="margin-bottom: 16px;">
-      <div>
-        <h2 style="margin-bottom:2px;">Z-AI</h2>
-        <p style="margin:0;">Ask about anything in the curriculum, or say "quiz me".</p>
-      </div>
-      <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
-        <i class="fas fa-volume-high"></i> Read aloud: off
-      </button>
+            <div id="students-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
+        </div>
     </div>
-    <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; min-height:200px; max-height:60vh;"></div>
-    <div style="display:flex; gap:8px; padding:14px; border-top:2px solid var(--border-color); background:var(--card-bg); align-items:center;">
 
-  <div id="siteTutorMicWrap" style="position:relative; display:flex; align-items:center;">
-    <button id="siteTutorMic" class="btn btn-outline" onclick="toggleSiteTutorMic()"
-            style="flex:0 0 44px; display:flex; align-items:center; justify-content:center;">
-      <i class="fas fa-microphone"></i>
-    </button>
-    <div id="siteTutorMicLevel" style="position:absolute; inset:-4px; border-radius:12px; pointer-events:none; box-shadow:0 0 0 0 rgba(217,69,92,0);"></div>
-  </div>
-  <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask a question..."
-         onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}">
-  <button class="btn btn-primary" onclick="sendSiteTutorMsg()"><i class="fas fa-paper-plane"></i></button>
-</div>
-<div id="siteTutorRecIndicator" style="display:none; align-items:center; gap:6px; font-size:11px; font-weight:800; color:var(--danger); padding:0 14px 6px;">
-  <span style="width:8px;height:8px;border-radius:50%;background:var(--danger); animation: stdot2 1s infinite;"></span> Listening…
-</div>
-  </div>
+    <div class="admin-panel" id="admin-panel-sessions">
+        <div class="card">
+            <h3 data-i18n="setSessionTitle" style="margin-bottom: 20px;">Set Session Password, Link & Content</h3>
+            <div class="alert-box error" id="session-form-alert"><i class="fas fa-circle-exclamation"></i> <span id="session-form-alert-text"></span></div>
+            <div class="alert-box success" id="session-form-success"><i class="fas fa-circle-check"></i> <span id="session-form-success-text"></span></div>
+            <form onsubmit="handleSetSession(event)" id="combined-session-form">
+                <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                    <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Session Details</legend>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label data-i18n="sectionLabel">Track</label>
+                            <select id="sess-track" class="input-control">
+                                <option value="basic" data-i18n="basicTrack">Basic</option>
+                                <option value="advanced" data-i18n="advancedTrack">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="levelLabel">Level</label>
+                            <select id="sess-level" class="input-control"></select>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="sessionLabel">Session</label>
+                            <select id="sess-number" class="input-control"></select>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="sessionPasswordLabel">Session Password</label>
+                            <input type="text" id="sess-password" class="input-control" minlength="4">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="sessionLinkLabel">Session Link (Zoom, Meet, video, etc.)</label>
+                        <input type="url" id="sess-link" class="input-control" placeholder="https://...">
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                    <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Lesson Content (JSON)</legend>
+                    <div id="lesson-file-status" class="lesson-file-status" style="margin-bottom: 12px;"></div>
+                    <div id="lesson-dropzone" class="dropzone" onclick="document.getElementById('lesson-file-input').click()">
+                        <input type="file" id="lesson-file-input" accept="application/json,.json" style="display:none;" onchange="handleLessonFileInput(event)">
+                        <div class="dropzone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                        <div class="dropzone-text" id="dropzone-main-text" data-i18n="dropzoneMain">Drag &amp; drop the lesson JSON file here</div>
+                        <div class="dropzone-subtext" data-i18n="dropzoneSub">or click to browse your computer / Drive</div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-outline btn-sm" id="clear-lesson-btn" onclick="clearLessonContent()" style="display: none;">
+                            <i class="fas fa-trash"></i> Clear JSON
+                        </button>
+                    </div>
+                </fieldset>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-primary" id="save-session-btn" data-i18n="saveSessionBtn">Save Session & Content</button>
+                </div>
+            </form>
+        </div>
+        <div class="card" style="margin-top: 24px;">
+            <div class="flex justify-between items-center">
+                <h3 data-i18n="configuredSessionsTitle">Configured Sessions</h3>
+                <button class="btn btn-outline btn-sm" onclick="loadSessionsOverview()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+            </div>
+            <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
+        </div>
+    </div>
+
+    <div class="admin-panel" id="admin-panel-sections">
+        <div class="card">
+            <h3 style="margin-bottom: 20px;">Categories</h3>
+            <div class="alert-box error" id="cat-alert"><i class="fas fa-circle-exclamation"></i> <span id="cat-alert-text"></span></div>
+            <form onsubmit="handleCreateCategory(event)" style="margin-bottom: 20px;">
+                <div class="form-grid">
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Category Label</label>
+                        <input type="text" id="new-cat-label" class="input-control" required placeholder="e.g. Homework, Listening">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Category</button>
+            </form>
+            <div id="categories-list"></div>
+        </div>
+
+        <div class="card" style="margin-top: 24px; display:none;" id="sessions-manager-card">
+            <h3 id="sessions-manager-title" style="margin-bottom: 20px;">Sessions</h3>
+            <div class="alert-box error" id="custom-sess-alert"><i class="fas fa-circle-exclamation"></i> <span id="custom-sess-alert-text"></span></div>
+            <div class="alert-box success" id="custom-sess-success"><i class="fas fa-circle-check"></i> <span id="custom-sess-success-text"></span></div>
+
+            <form onsubmit="handleCreateCustomSession(event)">
+                <div class="form-grid">
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Session Title</label>
+                        <input type="text" id="cs-title" class="input-control" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Link</label>
+                        <input type="url" id="cs-link" class="input-control" required placeholder="https://...">
+                    </div>
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Password (optional)</label>
+                        <input type="text" id="cs-password" class="input-control">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Create Session</button>
+            </form>
+
+            <div id="custom-sessions-list" style="margin-top: 20px;"></div>
+        </div>
+    </div>
 </section>
         <section id="community" class="page-section container">
             <div class="community-wrapper">
