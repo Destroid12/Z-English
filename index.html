@@ -579,6 +579,15 @@
             <div class="level-list" id="level-list"></div>
 
             <div id="practice-sections-wrap" style="margin-top: 40px;"></div>
+            
+            <div id="join-temp-wrap" style="margin-top:40px; padding:20px; background:var(--bg); border-radius:12px; border:2px dashed var(--line); text-align:center;">
+                <h3 style="margin-top:0; color:var(--ink);">Got a Temporary Session Key?</h3>
+                <p style="color:var(--ink-soft); font-size:14px; margin-bottom:16px;">Enter it below to join the session immediately.</p>
+                <div style="display:flex; gap:10px; justify-content:center; max-width: 400px; margin: 0 auto;">
+                    <input type="text" id="tempSessionKeyInput" class="input-control" placeholder="e.g. temp-12345" style="flex:1;">
+                    <button class="btn btn-primary" onclick="joinTempSessionByKey()">Join</button>
+                </div>
+            </div>
         </section>
 
         <section id="admin-dashboard" class="page-section container">
@@ -1338,6 +1347,12 @@
         // =====================================================================
         // Student dashboard
         // =====================================================================
+        function joinTempSessionByKey() {
+            const key = document.getElementById('tempSessionKeyInput').value.trim();
+            if (!key) return;
+            window.location.href = `player.html?tempId=${encodeURIComponent(key)}`;
+        }
+
         function switchTrack(track) {
             if (track === 'advanced') return; // locked — coming soon
             currentTrack = track;
