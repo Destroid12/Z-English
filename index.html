@@ -2085,7 +2085,7 @@ let cachedVoices = [];
 function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
 if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
 const MALE_VOICE_NAMES = {
-  en: ['Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Daniel', 'Fred', 'Alex'],
+  en: ['Kore'],
   ar: ['Microsoft Naayf', 'Microsoft Hamed', 'Tarik']
 };
 function pickMaleVoice(lang) {
