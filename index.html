@@ -417,10 +417,9 @@
                 <p data-i18n="heroSub" style="font-size: 1.3rem; margin: 20px auto 40px; max-width: 600px;">
                    Your English learning destination.
                 </p>
-                <button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
-                <button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
+<button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
 <div style="margin-top:16px;">
-    <a href="#" onclick="navigate('contact'); return false;" style="font-weight:800; color:var(--z-blue-dark); text-decoration:underline;" data-i18n="trainToHireLink">
+    <a href="#" onclick="navigate('contact', true); return false;" style="font-weight:800; color:var(--z-blue-dark); text-decoration:underline;" data-i18n="trainToHireLink">
         Train To Hire
     </a>
 </div>
@@ -1528,12 +1527,6 @@
             el.className = 'lesson-file-status' + (kind ? ' ' + kind : '');
             document.getElementById('clear-lesson-btn').style.display = (kind === 'ok') ? 'inline-block' : 'none';
         }
-function navigate(pageId, fromTrainToHire) {
-  ...
-  if (pageId === 'contact') {
-    document.getElementById('trainToHireNote').style.display = fromTrainToHire ? 'block' : 'none';
-  }
-}
         function processLessonFile(file) {
             if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
                 setLessonStatus(`"${file.name}" isn't a .json file.`, 'bad');
@@ -2246,48 +2239,47 @@ function toggleSiteTutorMic() {
         }
 
         function renderCommunityFeed() {
-            const container = document.getElementById('feed-container');
-            container.innerHTML = '';
+    const container = document.getElementById('feed-container');
+    container.innerHTML = '';
 
-            let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
-            visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
+    let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
+    visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
 
-            if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
+    if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
 
-            visiblePosts.forEach(post => {
-                const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
-                const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
-                const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-                const liked = !!post.likedByMe;
-                const commentsOpen = openComments.has(String(post.id));
+    visiblePosts.forEach(post => {
+        const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
+        const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
+        const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const liked = !!post.likedByMe;
+        const commentsOpen = openComments.has(String(post.id));
+        const canDeletePost = currentUser.role === 'admin';
 
-                const card = document.createElement('div');
-                card.className = 'card post-card';
-                card.innerHTML = `
-                    <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
-                    <div class="post-content" style="flex-grow: 1;">
-                        ${isPinned}
-                        <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
-                        <p>${escapeHtml(post.content)}</p>
-                        <div class="post-meta">${dateStr}</div>
-                        const canDeletePost = currentUser.role === 'admin';
-...
-<div class="post-actions">
-    <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
-        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
-    </button>
-    <button onclick="toggleCommentsPanel('${post.id}')">
-        <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
-    </button>
-    ${canDeletePost ? `<button style="color:var(--danger); margin-left:auto;" onclick="deletePostUI('${post.id}')"><i class="fas fa-trash"></i></button>` : ''}
-</div>
-                        <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
-                    </div>
-                `;
-                container.appendChild(card);
-                if (commentsOpen) renderCommentsForPost(post.id);
-            });
-        }
+        const card = document.createElement('div');
+        card.className = 'card post-card';
+        card.innerHTML = `
+            <div class="post-avatar">${(post.author || '?').charAt(0).toUpperCase()}</div>
+            <div class="post-content" style="flex-grow: 1;">
+                ${isPinned}
+                <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
+                <p>${escapeHtml(post.content)}</p>
+                <div class="post-meta">${dateStr}</div>
+                <div class="post-actions">
+                    <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
+                        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
+                    </button>
+                    <button onclick="toggleCommentsPanel('${post.id}')">
+                        <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
+                    </button>
+                    ${canDeletePost ? `<button style="color:var(--danger); margin-left:auto;" onclick="deletePostUI('${post.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+                <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
+            </div>
+        `;
+        container.appendChild(card);
+        if (commentsOpen) renderCommentsForPost(post.id);
+    });
+}
 
         // --- Likes: update the UI instantly, sync with the server in the background ---
 async function deletePostUI(postId) {
