@@ -1874,14 +1874,9 @@ async function publishTempSession() {
   setStatus('Publishing temporary session...', 'info');
 
   try {
-    const parsedSlides = slides.map(html => {
-      const div = document.createElement('div');
-      div.innerHTML = html;
-      return div;
-    });
-
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
+    const parsedSlides = slides.map(html => parseSlideHTML(html));
     const compiledSlides = parsedSlides.map(compileSlide);
     const slidesJson = JSON.stringify(compiledSlides);
 
