@@ -418,6 +418,12 @@
                    Your English learning destination.
                 </p>
                 <button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
+                <button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
+<div style="margin-top:16px;">
+    <a href="#" onclick="navigate('contact'); return false;" style="font-weight:800; color:var(--z-blue-dark); text-decoration:underline;" data-i18n="trainToHireLink">
+        Train To Hire
+    </a>
+</div>
             </div>
 
             <div class="features-grid text-center">
@@ -509,6 +515,9 @@
         <section id="contact" class="page-section container">
             <div class="info-hero">
                 <h1 style="font-size: 2.4rem;" data-i18n="contactHeroTitle">Contact Us</h1>
+                <p id="trainToHireNote" style="display:none; background:var(--z-yellow-light,#FFF3D6); color:var(--z-yellow-dark); font-weight:800; padding:10px 16px; border-radius:12px; margin-top:14px;">
+    Contact us for the Train To Hire course
+</p>
                 <p data-i18n="contactHeroSub">Questions about enrollment, sessions, or your account? Reach out — we're happy to help.</p>
             </div>
 
@@ -526,7 +535,7 @@
             <i class="fas fa-phone"></i>
             <div>
                 <h4 data-i18n="contactPhoneLabel">Phone</h4>
-                <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">+20 114 181 9300</a></p>
+                <p><a href="https://wa.me/201141819300" target="_blank" rel="noopener" dir="ltr" style="color:inherit; text-decoration:none; unicode-bidi:isolate;">+20 114 181 9300</a></p>
             </div>
         </div>
         <div class="social-row">
@@ -1010,6 +1019,12 @@
             }
         }
 
+        function getDeviceId() {
+  let id = localStorage.getItem('zenglish_device_id');
+  if (!id) { id = generateSessionToken(); localStorage.setItem('zenglish_device_id', id); }
+  return id;
+}
+
         // --- Language ---
         function toggleLangMenu() { document.getElementById('lang-dropdown').classList.toggle('open'); }
         document.addEventListener('click', (e) => {
@@ -1150,27 +1165,26 @@
         }
 
         async function handleAuthSubmit(e) {
-            e.preventDefault();
-            hideAuthAlert();
-            const email = document.getElementById('auth-email').value.trim();
-            const password = document.getElementById('auth-password').value;
-            if (!email || !password) { showAuthAlert(translations[currentLang].errFillFields); return; }
+    e.preventDefault();
+    hideAuthAlert();
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) { showAuthAlert(translations[currentLang].errFillFields); return; }
 
-            const btn = document.getElementById('auth-submit-btn');
-            btn.disabled = true; setLoading(true);
-            try {
-                const body = new URLSearchParams({ action: 'login', email, password });
-                const result = await callBackend(body);
-                if (!result.success) { showAuthAlert(result.message || translations[currentLang].errLoginFailed); return; }
-                completeLogin(result.user, result.sessionToken);
-            } catch (err) {
-                console.error(err);
-                showAuthAlert(translations[currentLang].errNetwork);
-            } finally {
-                btn.disabled = false; setLoading(false);
-            }
-        }
-
+    const btn = document.getElementById('auth-submit-btn');
+    btn.disabled = true; setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'login', email, password, deviceId: getDeviceId() });
+        const result = await callBackend(body);
+        if (!result.success) { showAuthAlert(result.message || translations[currentLang].errLoginFailed); return; }
+        completeLogin(result.user, result.sessionToken);
+    } catch (err) {
+        console.error(err);
+        showAuthAlert(translations[currentLang].errNetwork);
+    } finally {
+        btn.disabled = false; setLoading(false);
+    }
+}
         function initGoogleButton() {
             if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
                 document.getElementById('google-fallback-btn').style.display = 'flex';
@@ -1511,7 +1525,12 @@
             el.className = 'lesson-file-status' + (kind ? ' ' + kind : '');
             document.getElementById('clear-lesson-btn').style.display = (kind === 'ok') ? 'inline-block' : 'none';
         }
-
+function navigate(pageId, fromTrainToHire) {
+  ...
+  if (pageId === 'contact') {
+    document.getElementById('trainToHireNote').style.display = fromTrainToHire ? 'block' : 'none';
+  }
+}
         function processLessonFile(file) {
             if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
                 setLessonStatus(`"${file.name}" isn't a .json file.`, 'bad');
@@ -1671,19 +1690,80 @@
         }
 
         async function loadStudentsList() {
-            const wrap = document.getElementById('students-table-wrap');
-            if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
-            try {
-                const result = await callBackendGet(new URLSearchParams({ action: 'listStudents', token: sessionToken }));
-                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                const students = result.students || [];
-                if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
-                let rows = students.map(s => `<tr><td>${s.id}</td><td>${s.name}</td><td>${s.gender}</td></tr>`).join('');
-                wrap.innerHTML = `<table class="data-table"><thead><tr><th>ID</th><th>${translations[currentLang].studentNameField}</th><th>${translations[currentLang].selectGender}</th></tr></thead><tbody>${rows}</tbody></table>`;
-            } catch (err) {
-                wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
-            }
-        }
+    const wrap = document.getElementById('students-table-wrap');
+    if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+    try {
+        const result = await callBackendGet(new URLSearchParams({ action: 'listStudents', token: sessionToken }));
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        const students = result.students || [];
+        if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+        let rows = students.map(s => `
+            <tr>
+                <td>${escapeHtml(s.id)}</td>
+                <td>${escapeHtml(s.name)}</td>
+                <td>${escapeHtml(s.gender)}</td>
+                <td>
+                    ${s.hasDevice1
+                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','1')">Free Device 1</button>`
+                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Device 1: empty</span>`}
+                </td>
+                <td>
+                    ${s.hasDevice2
+                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','2')">Free Device 2</button>`
+                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Device 2: empty</span>`}
+                </td>
+                <td>
+                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteStudentUI('${s.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        wrap.innerHTML = `<table class="data-table">
+            <thead><tr>
+                <th>ID</th>
+                <th>${translations[currentLang].studentNameField}</th>
+                <th>${translations[currentLang].selectGender}</th>
+                <th>Device 1</th>
+                <th>Device 2</th>
+                <th></th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    } catch (err) {
+        wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+    }
+}
+
+        async function freeSlot(studentId, slot) {
+    if (!confirm(`Free device slot ${slot} for this student? They'll be able to log in from a new device next time.`)) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'freeDeviceSlot', token: sessionToken, studentId, slot });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not free that slot.'); return; }
+        loadStudentsList();
+    } catch (err) {
+        console.error(err);
+        alert('Could not free that slot. Please try again.');
+    } finally { setLoading(false); }
+}
+
+async function deleteStudentUI(studentId) {
+    if (!confirm(`Delete student "${studentId}"? This cannot be undone.`)) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'deleteStudent', token: sessionToken, studentId });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not delete that student.'); return; }
+        loadStudentsList();
+    } catch (err) {
+        console.error(err);
+        alert('Could not delete that student. Please try again.');
+    } finally { setLoading(false); }
+}
 
         // =====================================================================
         // Categories & custom (link-only) sessions
@@ -2187,14 +2267,17 @@ function toggleSiteTutorMic() {
                         <h4 style="display: flex; align-items: center;">${post.author} ${roleBadge}</h4>
                         <p>${escapeHtml(post.content)}</p>
                         <div class="post-meta">${dateStr}</div>
-                        <div class="post-actions">
-                            <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
-                                <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
-                            </button>
-                            <button onclick="toggleCommentsPanel('${post.id}')">
-                                <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
-                            </button>
-                        </div>
+                        const canDeletePost = currentUser.role === 'admin';
+...
+<div class="post-actions">
+    <button class="${liked ? 'liked' : ''}" onclick="toggleLikePost('${post.id}')">
+        <i class="${liked ? 'fas' : 'far'} fa-heart"></i> <span class="like-count-${post.id}">${post.likeCount || 0}</span>
+    </button>
+    <button onclick="toggleCommentsPanel('${post.id}')">
+        <i class="far fa-comment"></i> <span class="comments-toggle-count-${post.id}">${post.commentCount || 0}</span>
+    </button>
+    ${canDeletePost ? `<button style="color:var(--danger); margin-left:auto;" onclick="deletePostUI('${post.id}')"><i class="fas fa-trash"></i></button>` : ''}
+</div>
                         <div class="comments-section" id="comments-${post.id}" style="display:${commentsOpen ? 'block' : 'none'};"></div>
                     </div>
                 `;
@@ -2204,6 +2287,21 @@ function toggleSiteTutorMic() {
         }
 
         // --- Likes: update the UI instantly, sync with the server in the background ---
+async function deletePostUI(postId) {
+    if (!confirm('Delete this post? This also removes its comments and likes.')) return;
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'deletePost', token: sessionToken, postId });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not delete post.'); return; }
+        postsCache = postsCache.filter(p => String(p.id) !== String(postId));
+        renderCommunityFeed();
+    } catch (err) {
+        alert('Could not delete post. Please try again.');
+    } finally { setLoading(false); }
+}
+        
         async function toggleLikePost(postId) {
             if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
             const post = postsCache.find(p => String(p.id) === String(postId));
