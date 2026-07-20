@@ -162,6 +162,11 @@
         .lang-option.active .fa-check { display: inline-block; }
         .lang-option.active { color: var(--z-blue-dark); }
 
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(16, 42, 67, 0.4); backdrop-filter: blur(2px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal { background: #fff; padding: 24px; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 12px 40px rgba(0,0,0,0.15); transform: translateY(20px); transition: transform 0.2s ease; border: 2px solid var(--border-color); }
+        .modal-overlay.active .modal { transform: translateY(0); }
+
         .btn {
             display: inline-block;
             font-weight: 800;
@@ -2578,8 +2583,9 @@ async function loadTempSessions() {
         <strong>ID:</strong> ${s.id}<br>
         <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()} ${s.expired ? '<span style="color:var(--danger)">(Expired)</span>' : ''}<br>
         <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <a href="editor.html?editTempId=${s.id}" class="btn btn-outline btn-sm" target="_blank"><i class="fas fa-edit"></i> Edit Slides</a>
           <button type="button" class="btn btn-outline btn-sm" onclick="openTempAccessModal('${s.id}')"><i class="fas fa-users"></i> Manage Access</button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')">Add 24h</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')"><i class="fas fa-clock"></i> Extend Time</button>
           <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteTempSession('${s.id}')">Close / Delete</button>
         </div>
       </div>`;
@@ -2591,12 +2597,18 @@ async function loadTempSessions() {
 }
 
 async function updateTempSession(id) {
-  if (!confirm('Add 24 hours to this session?')) return;
+  const hoursStr = prompt('Enter the number of hours to add to this temporary session (e.g. 1, 24, 72):', '24');
+  if (hoursStr === null) return;
+  const hours = parseFloat(hoursStr);
+  if (isNaN(hours) || hours <= 0) {
+      alert('Please enter a valid positive number of hours.');
+      return;
+  }
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'updateTempSession', token: sessionToken, tempId: id, expiresInHours: 24 })
+      body: JSON.stringify({ action: 'updateTempSession', token: sessionToken, tempId: id, expiresInHours: hours })
     });
     const data = await res.json();
     if (data.success) loadTempSessions();
@@ -2636,7 +2648,11 @@ async function openTempAccessModal(tempId) {
   document.getElementById('tempAccessModal').classList.add('active');
   
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'getTempSessionAccess', token: sessionToken, tempId: tempId })
+    });
     const data = await res.json();
     if (data.success) {
       currentAuthorizedStudents = data.authorizedStudents || [];

@@ -158,7 +158,8 @@
 
     <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
     <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
-    <button class="btn btn-secondary" onclick="openTempSessionModal()"><i class="fas fa-link"></i> Publish Temp Link</button>
+    <button class="btn btn-primary" id="saveTempBtn" onclick="saveTempSessionContent()" style="display:none;"><i class="fas fa-floppy-disk"></i> Save Temp Session</button>
+    <button class="btn btn-secondary" id="publishTempBtn" onclick="openTempSessionModal()"><i class="fas fa-link"></i> Publish Temp Link</button>
     <button class="btn btn-outline" id="migrateAllBtn" onclick="runMigrateAllSessions()" title="Scan every saved session, re-host any embedded images/audio/video to Drive, and re-save if changed">
       <i class="fas fa-broom"></i> Migrate All Sessions
     </button>
@@ -238,11 +239,27 @@ function restoreSession() {
   } catch (e) { return false; }
 }
 
+const urlParams = new URLSearchParams(window.location.search);
+const editTempId = urlParams.get('editTempId');
+
 if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
   document.getElementById('blocked').style.display = 'flex';
 } else {
   document.getElementById('app').style.display = 'block';
-  initSelects();
+  if (editTempId) {
+    document.getElementById('sel-track').style.display = 'none';
+    document.getElementById('sel-level').style.display = 'none';
+    document.getElementById('sel-session').style.display = 'none';
+    document.getElementById('loadBtn').style.display = 'none';
+    document.getElementById('saveBtn').style.display = 'none';
+    document.getElementById('publishTempBtn').style.display = 'none';
+    document.getElementById('saveTempBtn').style.display = 'inline-block';
+    
+    // Auto-load temp session
+    loadTempSessionContent(editTempId);
+  } else {
+    initSelects();
+  }
 }
 
 function initSelects() {
@@ -1635,6 +1652,50 @@ async function loadSession() {
   } catch (err) {
     console.error('loadSession failed:', err);
     setStatus('Could not reach the server: ' + err.message, 'error');
+  }
+}
+
+}
+
+async function loadTempSessionContent(tempId) {
+  setStatus('Loading temporary session...', 'info');
+  try {
+    const result = await callBackendGet(new URLSearchParams({ action: 'getLessonContent', token: sessionToken, tempId: tempId, userToken: sessionToken }));
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) {
+      slides = [blankSlide('content')];
+      selectedSlideId = slides[0].id;
+      setStatus(result.message || 'No content found.', 'error');
+    } else {
+      slides = (result.slides || []).map(parseSlideHTML);
+      if (slides.length === 0) slides = [blankSlide('content')];
+      selectedSlideId = slides[0].id;
+      setStatus(`Loaded temporary session with ${slides.length} slide(s).`, 'success');
+    }
+    renderSlideList(); renderElements(); updatePreview();
+  } catch (err) {
+    setStatus('Could not reach the server: ' + err.message, 'error');
+  }
+}
+
+async function saveTempSessionContent() {
+  if (slides.length === 0) { setStatus('Add at least one slide before saving.', 'error'); return; }
+  const btn = document.getElementById('saveTempBtn');
+  btn.disabled = true;
+  setStatus('Saving...', 'info');
+  try {
+    const compiledSlides = slides.map(compileSlide);
+    const slidesJson = JSON.stringify(compiledSlides);
+
+    const body = new URLSearchParams({ action: 'updateTempSessionContent', token: sessionToken, tempId: editTempId, slidesJson });
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
+    setStatus('Saved Temporary Session!', 'success');
+  } catch (err) {
+    setStatus('Could not reach the server: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
   }
 }
 
