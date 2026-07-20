@@ -1898,8 +1898,15 @@ async function autoFixCurrentSession() {
 <div class="modal-overlay" id="tempSessionModal">
   <div class="modal-content">
     <h3 class="modal-title">🔗 Publish Temporary Session</h3>
-    <p class="modal-desc">Share these slides instantly. Set how many hours the link should remain active before expiring.</p>
-    <input type="number" class="modal-textarea" id="tempSessionHours" value="24" min="1" max="720" style="height: auto; font-size: 1.2rem; text-align: center; margin-bottom: 15px;">
+    <p class="modal-desc">Share these slides instantly. Give your session a name and set how many hours the link should remain active.</p>
+    <div style="margin-bottom: 12px;">
+      <label style="display:block; font-size:12px; font-weight:800; color:var(--ink-soft); margin-bottom:4px; text-transform:uppercase;">Session Name</label>
+      <input type="text" id="tempSessionName" placeholder="e.g. Homework 1 / Quiz 2" style="width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label style="display:block; font-size:12px; font-weight:800; color:var(--ink-soft); margin-bottom:4px; text-transform:uppercase;">Expiration (Hours)</label>
+      <input type="number" id="tempSessionHours" value="24" min="1" max="720" style="width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:10px; font-family:inherit; font-size:1.1rem; text-align:center; box-sizing:border-box;">
+    </div>
     <div class="modal-actions">
       <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('tempSessionModal').classList.remove('active')">Cancel</button>
       <button class="modal-btn modal-btn-submit" onclick="publishTempSession()">Publish & Get Link</button>
@@ -1929,6 +1936,7 @@ async function publishTempSession() {
   document.getElementById('tempSessionModal').classList.remove('active');
   if (slides.length === 0) { setStatus('Add at least one slide before publishing.', 'error'); return; }
   
+  const name = (document.getElementById('tempSessionName').value || '').trim();
   const hours = parseFloat(document.getElementById('tempSessionHours').value) || 24;
   setStatus('Publishing temporary session...', 'info');
 
@@ -1942,6 +1950,7 @@ async function publishTempSession() {
     const body = new URLSearchParams({
       action: 'publishTempSession',
       token: sessionToken,
+      name: name,
       slidesJson: slidesJson,
       expiresInHours: hours
     });

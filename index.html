@@ -2579,10 +2579,22 @@ async function loadTempSessions() {
       return;
     }
     const html = data.sessions.map(s => {
-      return `<div style="border:1px solid var(--border-color); padding: 12px; margin-bottom: 8px; border-radius: 4px;">
-        <strong>ID:</strong> ${s.id}<br>
-        <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()} ${s.expired ? '<span style="color:var(--danger)">(Expired)</span>' : ''}<br>
-        <div style="margin-top: 10px; display: flex; gap: 8px;">
+      const sName = escapeHtml(s.name || 'Untitled Temporary Session');
+      return `<div style="border:1px solid var(--border-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; background:#fff; box-shadow: var(--shadow-soft);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+          <div>
+            <h4 style="margin:0; font-size:1.05rem; color:var(--z-blue-dark);"><i class="fas fa-link" style="margin-right:6px;"></i> ${sName}</h4>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">ID: <code>${s.id}</code></span>
+          </div>
+          <span style="font-size: 0.8rem; padding:3px 8px; border-radius:6px; font-weight:700; ${s.expired ? 'background:var(--danger-light); color:var(--danger);' : 'background:var(--success-light); color:var(--success);'}">
+            ${s.expired ? 'Expired' : 'Active'}
+          </span>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom:12px;">
+          <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()}
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyTempLink('${s.id}')"><i class="fas fa-copy"></i> Copy Link</button>
           <a href="editor.html?editTempId=${s.id}" class="btn btn-outline btn-sm" target="_blank"><i class="fas fa-edit"></i> Edit Slides</a>
           <button type="button" class="btn btn-outline btn-sm" onclick="openTempAccessModal('${s.id}')"><i class="fas fa-users"></i> Manage Access</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')"><i class="fas fa-clock"></i> Extend Time</button>
@@ -2594,6 +2606,23 @@ async function loadTempSessions() {
   } catch (err) {
     document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Error loading sessions.</p>';
   }
+}
+
+function copyTempLink(tempId) {
+  let path = window.location.pathname;
+  if (path.endsWith('index.html')) {
+      path = path.replace('index.html', 'player.html');
+  } else if (path.endsWith('/')) {
+      path += 'player.html';
+  } else {
+      path += '/player.html';
+  }
+  const link = `${window.location.origin}${path}?tempId=${encodeURIComponent(tempId)}`;
+  navigator.clipboard.writeText(link).then(() => {
+      alert('Temporary Session Link copied to clipboard!\n\n' + link);
+  }).catch(() => {
+      prompt('Copy this link:', link);
+  });
 }
 
 async function updateTempSession(id) {
