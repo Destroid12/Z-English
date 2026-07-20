@@ -1879,7 +1879,6 @@ async function publishTempSession() {
       return div;
     });
 
-    const sessionToken = getSessionToken();
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
     const compiledSlides = parsedSlides.map(compileSlide);

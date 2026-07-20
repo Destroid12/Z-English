@@ -1432,12 +1432,32 @@
                         msgEl.classList.add('error');
                         return;
                     }
-                    window.location.href = `player.html?token=${encodeURIComponent(result.accessToken)}&link=${encodeURIComponent(result.link || '')}`;
+                    window.location.href = `player.html?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}&link=${encodeURIComponent(result.link || '')}`;
                 }
             } catch (err) {
                 console.error(err);
                 msgEl.textContent = translations[currentLang].errNetwork;
                 msgEl.classList.add('error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function openAdminPreview(track, level, sessionNum) {
+            if (!sessionToken) return;
+            setLoading(true);
+            try {
+                const body = new URLSearchParams({ action: 'unlockSession', token: sessionToken, track, level, sessionNumber: sessionNum });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (result.success) {
+                    window.open(`player.html?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}`, '_blank');
+                } else {
+                    alert(result.message || 'Could not open preview.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error.');
             } finally {
                 setLoading(false);
             }
@@ -2546,7 +2566,7 @@ async function deletePostUI(postId) {
 async function loadTempSessions() {
   document.getElementById('temp-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listTempSessions&token=' + encodeURIComponent(currentAdminToken));
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listTempSessions&token=' + encodeURIComponent(sessionToken));
     const data = await res.json();
     if (!data.success) {
       document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
@@ -2574,7 +2594,7 @@ async function updateTempSession(id) {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'updateTempSession', token: currentAdminToken, tempId: id, expiresInHours: 24 })
+      body: JSON.stringify({ action: 'updateTempSession', token: sessionToken, tempId: id, expiresInHours: 24 })
     });
     const data = await res.json();
     if (data.success) loadTempSessions();
@@ -2587,7 +2607,7 @@ async function deleteTempSession(id) {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'deleteTempSession', token: currentAdminToken, tempId: id })
+      body: JSON.stringify({ action: 'deleteTempSession', token: sessionToken, tempId: id })
     });
     const data = await res.json();
     if (data.success) loadTempSessions();
