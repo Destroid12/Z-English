@@ -288,6 +288,8 @@
 #tutorMic.listening{ background:var(--error); color:#fff; border-color:var(--error); animation: micPulse 1s infinite; }
 #tutorMic:disabled{ opacity:0.4; cursor:not-allowed; }
 @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,69,92,0.4); } 50%{ box-shadow:0 0 0 8px rgba(217,69,92,0); } }
+.lang-toggle { background: var(--bg); color: var(--ink-soft); border: 2px solid var(--line); border-radius: 12px; padding: 0 10px; font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; margin-left: 6px; height: 42px; transition: all 0.2s; flex: 0 0 auto; }
+.lang-toggle.ar { background: var(--blue-mid); color: #fff; border-color: var(--blue-mid); }
   #tutorPanel{
     position:fixed; top:76px; right:22px; z-index:80;
     width:360px; max-width:calc(100vw - 32px);
@@ -383,6 +385,7 @@
 
   <div id="tutorMicWrap">
     <button id="tutorMic" aria-label="Voice input" title="Speak your question"><i class="fas fa-microphone"></i></button>
+    <button id="tutorLangToggle" class="lang-toggle" title="Toggle language (EN/AR)">EN</button>
     <div id="tutorMicLevel"></div>
   </div>
   <textarea id="tutorInput" rows="1" placeholder="Ask about this lesson, or say 'quiz me'..."></textarea>
@@ -648,13 +651,23 @@ function initDeck(slides){
   window.moveSched = function(btn, dir) {
     const item = btn.closest('.schedule-item');
     const container = item.parentElement;
-    container.classList.remove('correct', 'incorrect');
     
+    if (item.dataset.moving === '1') return;
+    item.dataset.moving = '1';
+    
+    container.classList.remove('correct', 'incorrect');
     const all = Array.from(container.children);
+    all.forEach(i => i.style.animation = 'none');
+    void container.offsetWidth;
+    
     const idx = all.indexOf(item);
-    if (idx + dir < 0 || idx + dir >= all.length) return;
+    if (idx + dir < 0 || idx + dir >= all.length) {
+      delete item.dataset.moving;
+      return;
+    }
     
     const target = all[idx + dir];
+    target.dataset.moving = '1';
     
     const itemRect = item.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
@@ -678,6 +691,9 @@ function initDeck(slides){
       setTimeout(() => {
         item.style.transition = '';
         target.style.transition = '';
+        all.forEach(i => i.style.animation = '');
+        delete item.dataset.moving;
+        delete target.dataset.moving;
       }, 250);
     });
   };
@@ -968,13 +984,13 @@ function pickVoice(lang) {
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
   const preferred = isAr
-    ? ['Tarik', 'Microsoft Naayf', 'Microsoft Hamed']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Alex'];
+    ? ['Naayf', 'Hamed', 'Tarik', 'Maged']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-  return pool.find(v => /male/i.test(v.name)) || pool[0] || null;
+  return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 function speakText(text) {
   if (!('speechSynthesis' in window)) return;
@@ -1065,10 +1081,23 @@ function stopAudioRecording() {
   });
 }
 
+let tutorMicLang = 'en-US';
+document.getElementById('tutorLangToggle').addEventListener('click', function() {
+  if (this.textContent === 'EN') {
+    this.textContent = 'AR';
+    this.classList.add('ar');
+    tutorMicLang = 'ar-EG';
+  } else {
+    this.textContent = 'EN';
+    this.classList.remove('ar');
+    tutorMicLang = 'en-US';
+  }
+});
+
 if (recognizer) {
   document.getElementById('tutorMic').addEventListener('click', () => {
   if (isListening) { recognizer.stop(); return; }
-  recognizer.lang = detectSpeechLang(document.getElementById('tutorInput').value || 'en');
+  recognizer.lang = tutorMicLang;
   try {
     recognizer.start();
     isListening = true;

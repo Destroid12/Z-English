@@ -578,10 +578,12 @@ function compileSlide(slide) {
             const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
             inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
           } else if (b.qtype === 'schedule') {
-            const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+            const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+            const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
             inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
           } else if (b.qtype === 'wordbank') {
-            const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+            const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+            const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
           } else {
             inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
@@ -627,10 +629,12 @@ function compileSlide(slide) {
           const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
           inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
         } else if (b.qtype === 'schedule') {
-          const opts = (b.options || []).map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+          const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+          const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
           inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
         } else if (b.qtype === 'wordbank') {
-          const opts = (b.options || []).map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+          const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+          const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
         } else {
           inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;

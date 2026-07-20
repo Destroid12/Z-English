@@ -398,6 +398,8 @@
         .comment-composer input:focus { border-color: var(--z-blue); }
         .comment-composer button { background: var(--z-blue); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; }
         .reply-composer { margin-top: 8px; }
+        .lang-toggle { background: var(--bg); color: var(--z-ink-soft); border: 2px solid var(--z-line); border-radius: 12px; padding: 0 10px; font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; height: 44px; transition: all 0.2s; flex: 0 0 auto; }
+        .lang-toggle.ar { background: var(--z-blue); color: #fff; border-color: var(--z-blue); }
     </style>
 </head>
 <body>
@@ -772,6 +774,7 @@
                 <button id="siteTutorMic" class="btn btn-outline" style="border-radius:50%; width:44px; height:44px; padding:0; display:flex; align-items:center; justify-content:center;" onclick="toggleSiteTutorMic()" title="Speak your question">
                     <i class="fas fa-microphone"></i>
                 </button>
+                <button id="siteTutorLangToggle" class="lang-toggle" title="Toggle language (EN/AR)" style="margin-left: 6px;">EN</button>
                 <div id="siteTutorMicLevel" style="position:absolute; inset:-4px; border-radius:50%; pointer-events:none;"></div>
             </div>
             <input type="text" id="siteTutorInput" class="input-control" placeholder="Ask about any lesson, or say 'quiz me'..." onkeydown="if(event.key==='Enter'){sendSiteTutorMsg()}" style="flex:1;">
@@ -2090,13 +2093,13 @@ function pickVoice(lang) {
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
   const preferred = isAr
-    ? ['Tarik', 'Microsoft Naayf', 'Microsoft Hamed']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Alex'];
+    ? ['Naayf', 'Hamed', 'Tarik', 'Maged']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-  return pool.find(v => /male/i.test(v.name)) || pool[0] || null;
+  return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 
 function speakSiteTutorText(text) {
@@ -2147,6 +2150,18 @@ function stopAudioRecording() {
         
 // ---- mic level meter ----
 let siteMicAudioCtx=null, siteMicAnalyser=null, siteMicStream=null, siteMicRafId=null;
+let siteTutorMicLang = 'en-US';
+document.getElementById('siteTutorLangToggle').addEventListener('click', function() {
+  if (this.textContent === 'EN') {
+    this.textContent = 'AR';
+    this.classList.add('ar');
+    siteTutorMicLang = 'ar-EG';
+  } else {
+    this.textContent = 'EN';
+    this.classList.remove('ar');
+    siteTutorMicLang = 'en-US';
+  }
+});
 async function startSiteMicLevelMeter() {
   try {
     siteMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -2203,7 +2218,7 @@ if (SiteSTTCtor) {
 function toggleSiteTutorMic() {
   if (!siteTutorRecognizer) { siteTutorAddMsg('bot', "Voice input isn't supported in this browser — try Chrome or Edge."); return; }
   if (siteTutorListening) { siteTutorRecognizer.stop(); return; }
-  siteTutorRecognizer.lang = detectSpeechLang(document.getElementById('siteTutorInput').value || 'en');
+  siteTutorRecognizer.lang = siteTutorMicLang;
   try {
     siteTutorRecognizer.start();
     siteTutorListening = true;
