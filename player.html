@@ -994,15 +994,20 @@ if ('speechSynthesis' in window) {
 function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
   const isAr = lang.startsWith('ar');
-  const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
+  const pool = cachedVoices.filter(v => {
+    const l = (v.lang || '').toLowerCase();
+    const n = (v.name || '').toLowerCase();
+    if (isAr) return l.startsWith('ar') || n.includes('arabic') || n.includes('عربي');
+    return l.startsWith('en') || n.includes('english');
+  });
   
   if (isAr) {
-    const egVoice = pool.find(v => v.lang.toLowerCase() === 'ar-eg' && /shakir|maged|male/i.test(v.name)) || pool.find(v => v.lang.toLowerCase() === 'ar-eg');
+    const egVoice = pool.find(v => (v.lang || '').toLowerCase() === 'ar-eg' && /shakir|maged|male/i.test(v.name)) || pool.find(v => (v.lang || '').toLowerCase() === 'ar-eg');
     if (egVoice) return egVoice;
   }
 
   const preferred = isAr
-    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged']
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
     : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
@@ -1017,9 +1022,16 @@ function speakText(text) {
   const lang = detectSpeechLang(text);
   utter.lang = lang;
   const voice = pickVoice(lang);
-  if (voice) utter.voice = voice;
-  utter.rate = 0.97;   // slightly slower than default = less clipped/robotic
-  utter.pitch = 1.03;  // a touch warmer than flat default pitch
+  if (voice) {
+    utter.voice = voice;
+  } else if (lang.startsWith('ar')) {
+    if (!window.warnedNoArabicTTS) {
+      window.warnedNoArabicTTS = true;
+      tutorAddMessage('system', "⚠️ No Arabic TTS voice was found on your browser/device. The AI will likely skip Arabic words. Try Microsoft Edge or install the Arabic language pack in Windows Settings.");
+    }
+  }
+  utter.rate = 0.97;
+  utter.pitch = 1.03;
   window.speechSynthesis.speak(utter);
 }
 
