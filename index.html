@@ -2080,34 +2080,51 @@ const siteTutorAutoSendOn = true;
 
 function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US'; }
 
-// ---- Single male voice (see #5) ----
+// ---- Human Natural Voice Selection ----
 let cachedVoices = [];
 function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
 if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
-const MALE_VOICE_NAMES = {
-  en: ['Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Daniel', 'Fred', 'Alex'],
-  ar: ['Microsoft Naayf', 'Microsoft Hamed', 'Tarik']
+
+const HUMAN_VOICE_NAMES = {
+  en: [
+    'Ryan Online (Natural)', 'Guy Online (Natural)', 'Christopher Online (Natural)', 
+    'Jenny Online (Natural)', 'Aria Online (Natural)', 'Google US English', 
+    'Google UK English Male', 'Google UK English Female', 'Siri', 'Samantha (Enhanced)', 
+    'Daniel (Enhanced)', 'Oliver (Enhanced)', 'Tom (Enhanced)', 'Natural', 'Neural', 'Online'
+  ],
+  ar: [
+    'Naayf Online (Natural)', 'Hamed Online (Natural)', 'Salma Online (Natural)',
+    'Shakir Online (Natural)', 'Google Arabic', 'Tarik (Enhanced)', 'Maged (Enhanced)',
+    'Natural', 'Neural', 'Online'
+  ]
 };
-function pickMaleVoice(lang) {
+
+function pickHumanVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
   const isAr = lang.startsWith('ar');
-  const names = isAr ? MALE_VOICE_NAMES.ar : MALE_VOICE_NAMES.en;
-  for (const name of names) {
-    const m = cachedVoices.find(v => v.name.includes(name));
+  const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
+  if (!pool.length) return cachedVoices[0] || null;
+
+  const prefs = isAr ? HUMAN_VOICE_NAMES.ar : HUMAN_VOICE_NAMES.en;
+  for (const name of prefs) {
+    const m = pool.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
     if (m) return m;
   }
-  const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
-  return pool.find(v => !/female/i.test(v.name)) || pool[0] || null;
+
+  const nonRobotic = pool.filter(v => !/desktop|espeak|sapi|david|fred/i.test(v.name));
+  return nonRobotic[0] || pool[0];
 }
+
 function speakSiteTutorText(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   const lang = detectSpeechLang(text);
   utter.lang = lang;
-  const voice = pickMaleVoice(lang);
+  const voice = pickHumanVoice(lang);
   if (voice) utter.voice = voice;
-  utter.rate = 0.97; utter.pitch = 0.95;
+  utter.rate = 0.98; 
+  utter.pitch = 1.0;
   window.speechSynthesis.speak(utter);
 }
 function toggleSiteTutorSpeak() {
