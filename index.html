@@ -1695,6 +1695,7 @@
         const result = await callBackendGet(new URLSearchParams({ action: 'listStudents', token: sessionToken }));
         if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
         const students = result.students || [];
+        window.allStudentsCache = students;
         if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
         let rows = students.map(s => {
             const hasLevel = (t, l) => s.unlockedLevels && s.unlockedLevels.some(ul => String(ul.track) === String(t) && String(ul.level) === String(l));
@@ -2577,6 +2578,7 @@ async function loadTempSessions() {
         <strong>ID:</strong> ${s.id}<br>
         <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()} ${s.expired ? '<span style="color:var(--danger)">(Expired)</span>' : ''}<br>
         <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openTempAccessModal('${s.id}')"><i class="fas fa-users"></i> Manage Access</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')">Add 24h</button>
           <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteTempSession('${s.id}')">Close / Delete</button>
         </div>
@@ -2611,6 +2613,85 @@ async function deleteTempSession(id) {
     });
     const data = await res.json();
     if (data.success) loadTempSessions();
+  } catch(e){}
+}
+</script>
+<div class="modal-overlay" id="tempAccessModal">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <h3 style="margin:0;">Manage Access</h3>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('tempAccessModal').classList.remove('active')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <input type="text" id="tempAccessSearch" class="input-control" placeholder="Search by student ID or name..." onkeyup="filterTempAccess()" style="margin-bottom:14px;">
+    <div id="tempAccessList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px;"></div>
+  </div>
+</div>
+<script>
+let currentTempIdForAccess = null;
+let currentAuthorizedStudents = [];
+
+async function openTempAccessModal(tempId) {
+  currentTempIdForAccess = tempId;
+  document.getElementById('tempAccessList').innerHTML = '<p>Loading...</p>';
+  document.getElementById('tempAccessModal').classList.add('active');
+  
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
+    const data = await res.json();
+    if (data.success) {
+      currentAuthorizedStudents = data.authorizedStudents || [];
+      renderTempAccess();
+    } else {
+      document.getElementById('tempAccessList').innerHTML = '<p class="error">Failed to load access list.</p>';
+    }
+  } catch(e) {
+    document.getElementById('tempAccessList').innerHTML = '<p class="error">Network error.</p>';
+  }
+}
+
+function renderTempAccess() {
+  const listEl = document.getElementById('tempAccessList');
+  const students = window.allStudentsCache || [];
+  if (students.length === 0) {
+    listEl.innerHTML = '<p>No students found.</p>';
+    return;
+  }
+  
+  const query = (document.getElementById('tempAccessSearch').value || '').toLowerCase();
+  
+  const html = students.filter(s => s.id.toLowerCase().includes(query) || s.name.toLowerCase().includes(query)).map(s => {
+    const hasAccess = currentAuthorizedStudents.includes(s.id);
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px; border-bottom: 1px solid var(--border-color);">
+        <div>
+          <strong>${escapeHtml(s.id)}</strong><br>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(s.name)}</span>
+        </div>
+        <button class="btn ${hasAccess ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="toggleTempAccess('${s.id}', ${!hasAccess})">${hasAccess ? 'Revoke' : 'Grant'}</button>
+      </div>
+    `;
+  }).join('');
+  
+  listEl.innerHTML = html || '<p>No matching students.</p>';
+}
+
+function filterTempAccess() {
+  renderTempAccess();
+}
+
+async function toggleTempAccess(studentId, hasAccess) {
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'toggleTempSessionAccess', token: sessionToken, tempId: currentTempIdForAccess, studentId, hasAccess: hasAccess ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (hasAccess) currentAuthorizedStudents.push(studentId);
+      else currentAuthorizedStudents = currentAuthorizedStudents.filter(id => id !== studentId);
+      renderTempAccess();
+    }
   } catch(e){}
 }
 </script>

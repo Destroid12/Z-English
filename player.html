@@ -425,11 +425,12 @@ async function loadLesson(){
     return;
   }
   try {
+    const userToken = localStorage.getItem('z_session_token') || '';
     let url = '';
     if (tempId) {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}`;
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}`;
     } else {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}`;
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}`;
     }
     console.log('Fetching lesson from:', url);
     const res = await fetch(url);
