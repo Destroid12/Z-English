@@ -2647,6 +2647,10 @@ async function openTempAccessModal(tempId) {
   document.getElementById('tempAccessList').innerHTML = '<p>Loading...</p>';
   document.getElementById('tempAccessModal').classList.add('active');
   
+  if (!window.allStudentsCache) {
+    try { await loadStudentsList(); } catch(err){}
+  }
+  
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
     const data = await res.json();
@@ -2671,13 +2675,13 @@ function renderTempAccess() {
   
   const query = (document.getElementById('tempAccessSearch').value || '').toLowerCase();
   
-  const html = students.filter(s => s.id.toLowerCase().includes(query) || s.name.toLowerCase().includes(query)).map(s => {
+  const html = students.filter(s => String(s.id || '').toLowerCase().includes(query) || String(s.name || '').toLowerCase().includes(query)).map(s => {
     const hasAccess = currentAuthorizedStudents.includes(s.id);
     return `
       <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px; border-bottom: 1px solid var(--border-color);">
         <div>
-          <strong>${escapeHtml(s.id)}</strong><br>
-          <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(s.name)}</span>
+          <strong>${escapeHtml(String(s.id))}</strong><br>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(String(s.name || ''))}</span>
         </div>
         <button class="btn ${hasAccess ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="toggleTempAccess('${s.id}', ${!hasAccess})">${hasAccess ? 'Revoke' : 'Grant'}</button>
       </div>
