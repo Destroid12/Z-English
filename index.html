@@ -2676,14 +2676,15 @@ function renderTempAccess() {
   const query = (document.getElementById('tempAccessSearch').value || '').toLowerCase();
   
   const html = students.filter(s => String(s.id || '').toLowerCase().includes(query) || String(s.name || '').toLowerCase().includes(query)).map(s => {
-    const hasAccess = currentAuthorizedStudents.includes(s.id);
+    const sId = String(s.id);
+    const hasAccess = currentAuthorizedStudents.some(id => String(id) === sId);
     return `
       <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px; border-bottom: 1px solid var(--border-color);">
         <div>
-          <strong>${escapeHtml(String(s.id))}</strong><br>
+          <strong>${escapeHtml(sId)}</strong><br>
           <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(String(s.name || ''))}</span>
         </div>
-        <button class="btn ${hasAccess ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="toggleTempAccess('${s.id}', ${!hasAccess})">${hasAccess ? 'Revoke' : 'Grant'}</button>
+        <button class="btn ${hasAccess ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="toggleTempAccess(this, '${escapeHtml(sId)}', ${!hasAccess})">${hasAccess ? 'Revoke' : 'Grant'}</button>
       </div>
     `;
   }).join('');
@@ -2695,20 +2696,36 @@ function filterTempAccess() {
   renderTempAccess();
 }
 
-async function toggleTempAccess(studentId, hasAccess) {
+async function toggleTempAccess(btnEl, studentId, hasAccess) {
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerText = 'Updating...';
+  }
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'toggleTempSessionAccess', token: sessionToken, tempId: currentTempIdForAccess, studentId, hasAccess: hasAccess ? 'true' : 'false' })
+      body: JSON.stringify({ action: 'toggleTempSessionAccess', token: sessionToken, tempId: currentTempIdForAccess, studentId: String(studentId), hasAccess: hasAccess ? 'true' : 'false' })
     });
     const data = await res.json();
     if (data.success) {
-      if (hasAccess) currentAuthorizedStudents.push(studentId);
-      else currentAuthorizedStudents = currentAuthorizedStudents.filter(id => id !== studentId);
+      const sId = String(studentId);
+      if (hasAccess) {
+        if (!currentAuthorizedStudents.some(id => String(id) === sId)) {
+          currentAuthorizedStudents.push(sId);
+        }
+      } else {
+        currentAuthorizedStudents = currentAuthorizedStudents.filter(id => String(id) !== sId);
+      }
+      renderTempAccess();
+    } else {
+      alert(data.message || 'Failed to update access.');
       renderTempAccess();
     }
-  } catch(e){}
+  } catch(e) {
+    alert('Network error updating access.');
+    renderTempAccess();
+  }
 }
 </script>
 </body>
