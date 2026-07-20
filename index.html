@@ -2648,11 +2648,7 @@ async function openTempAccessModal(tempId) {
   document.getElementById('tempAccessModal').classList.add('active');
   
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'getTempSessionAccess', token: sessionToken, tempId: tempId })
-    });
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
     const data = await res.json();
     if (data.success) {
       currentAuthorizedStudents = data.authorizedStudents || [];
