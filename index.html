@@ -2080,39 +2080,23 @@ const siteTutorAutoSendOn = true;
 
 function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' : 'en-US'; }
 
-// ---- Human Natural Voice Selection ----
+// ---- Voice selection (matches player.html) ----
 let cachedVoices = [];
 function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
 if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
 
-const HUMAN_VOICE_NAMES = {
-  en: [
-    'Ryan Online (Natural)', 'Guy Online (Natural)', 'Christopher Online (Natural)', 
-    'Jenny Online (Natural)', 'Aria Online (Natural)', 'Google US English', 
-    'Google UK English Male', 'Google UK English Female', 'Siri', 'Samantha (Enhanced)', 
-    'Daniel (Enhanced)', 'Oliver (Enhanced)', 'Tom (Enhanced)', 'Natural', 'Neural', 'Online'
-  ],
-  ar: [
-    'Naayf Online (Natural)', 'Hamed Online (Natural)', 'Salma Online (Natural)',
-    'Shakir Online (Natural)', 'Google Arabic', 'Tarik (Enhanced)', 'Maged (Enhanced)',
-    'Natural', 'Neural', 'Online'
-  ]
-};
-
-function pickHumanVoice(lang) {
+function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
-  if (!pool.length) return cachedVoices[0] || null;
-
-  const prefs = isAr ? HUMAN_VOICE_NAMES.ar : HUMAN_VOICE_NAMES.en;
-  for (const name of prefs) {
-    const m = pool.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
+  const preferred = isAr
+    ? ['Tarik', 'Microsoft Naayf', 'Microsoft Hamed']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Alex'];
+  for (const name of preferred) {
+    const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-
-  const nonRobotic = pool.filter(v => !/desktop|espeak|sapi|david|fred/i.test(v.name));
-  return nonRobotic[0] || pool[0];
+  return pool.find(v => /male/i.test(v.name)) || pool[0] || null;
 }
 
 function speakSiteTutorText(text) {
@@ -2121,10 +2105,10 @@ function speakSiteTutorText(text) {
   const utter = new SpeechSynthesisUtterance(text);
   const lang = detectSpeechLang(text);
   utter.lang = lang;
-  const voice = pickHumanVoice(lang);
+  const voice = pickVoice(lang);
   if (voice) utter.voice = voice;
-  utter.rate = 0.98; 
-  utter.pitch = 1.0;
+  utter.rate = 0.97;
+  utter.pitch = 1.03;
   window.speechSynthesis.speak(utter);
 }
 function toggleSiteTutorSpeak() {
