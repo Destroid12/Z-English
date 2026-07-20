@@ -158,6 +158,7 @@
 
     <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
     <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+    <button class="btn btn-secondary" onclick="openTempSessionModal()"><i class="fas fa-link"></i> Publish Temp Link</button>
     <button class="btn btn-outline" id="migrateAllBtn" onclick="runMigrateAllSessions()" title="Scan every saved session, re-host any embedded images/audio/video to Drive, and re-save if changed">
       <i class="fas fa-broom"></i> Migrate All Sessions
     </button>
@@ -1834,6 +1835,18 @@ async function autoFixCurrentSession() {
   </div>
 </div>
 
+<div class="modal-overlay" id="tempSessionModal">
+  <div class="modal-content">
+    <h3 class="modal-title">🔗 Publish Temporary Session</h3>
+    <p class="modal-desc">Share these slides instantly. Set how many hours the link should remain active before expiring.</p>
+    <input type="number" class="modal-textarea" id="tempSessionHours" value="24" min="1" max="720" style="height: auto; font-size: 1.2rem; text-align: center; margin-bottom: 15px;">
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('tempSessionModal').classList.remove('active')">Cancel</button>
+      <button class="modal-btn modal-btn-submit" onclick="publishTempSession()">Publish & Get Link</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let aiModalResolve = null;
 function openAiModal() {
@@ -1850,6 +1863,60 @@ function closeAiModal(value) {
     aiModalResolve(value);
     aiModalResolve = null;
   }
+}
+
+async function publishTempSession() {
+  document.getElementById('tempSessionModal').classList.remove('active');
+  if (slides.length === 0) { setStatus('Add at least one slide before publishing.', 'error'); return; }
+  
+  const hours = parseFloat(document.getElementById('tempSessionHours').value) || 24;
+  setStatus('Publishing temporary session...', 'info');
+
+  try {
+    const parsedSlides = slides.map(html => {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return div;
+    });
+
+    const sessionToken = getSessionToken();
+    if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
+
+    const compiledSlides = parsedSlides.map(compileSlide);
+    const slidesJson = JSON.stringify(compiledSlides);
+
+    const body = new URLSearchParams({
+      action: 'publishTempSession',
+      token: sessionToken,
+      slidesJson: slidesJson,
+      expiresInHours: hours
+    });
+
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Failed to publish.', 'error'); return; }
+    
+    let path = window.location.pathname;
+    if (path.endsWith('editor.html')) {
+        path = path.replace('editor.html', 'player.html');
+    } else if (path.endsWith('/')) {
+        path += 'player.html';
+    } else {
+        path += '/player.html';
+    }
+    const link = `${window.location.origin}${path}?tempId=${encodeURIComponent(result.tempId)}`;
+    
+    navigator.clipboard.writeText(link).catch(()=>{});
+    setStatus('Temp Session Published! Link copied to clipboard.', 'success');
+    alert('Temporary Session Link (copied to clipboard):\n\n' + link);
+
+  } catch (err) {
+    console.error(err);
+    setStatus('Failed to publish: ' + err.message, 'error');
+  }
+}
+function openTempSessionModal() {
+  document.getElementById('tempSessionModal').classList.add('active');
 }
 </script>
 </body>

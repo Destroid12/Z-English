@@ -400,6 +400,7 @@ const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLK
 
 // --- Read the params the dashboard put in the URL ---
 const params = new URLSearchParams(window.location.search);
+const tempId = params.get('tempId');
 const track = params.get('track');
 const level = params.get('level');
 const sessionNumber = params.get('sessionNumber');
@@ -419,12 +420,17 @@ function showBlocked(message){
 }
 
 async function loadLesson(){
-  if (!track || !level || !sessionNumber || !accessToken) {
+  if (!tempId && (!track || !level || !sessionNumber || !accessToken)) {
     showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
     return;
   }
   try {
-    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}`;
+    let url = '';
+    if (tempId) {
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}`;
+    } else {
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}`;
+    }
     console.log('Fetching lesson from:', url);
     const res = await fetch(url);
 
@@ -463,9 +469,14 @@ window.currentSlideIndex = 0;
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
-  const trackLabel = track === 'advanced' ? 'Advanced' : 'Basic';
-  document.getElementById('lessonLabel').textContent = `${trackLabel} · Level ${level} · Session ${sessionNumber}`;
-  document.title = `${trackLabel} | Session ${sessionNumber}`;
+  if (tempId) {
+    document.getElementById('lessonLabel').textContent = `Temporary Session`;
+    document.title = `Temporary Session`;
+  } else {
+    const trackLabel = track === 'advanced' ? 'Advanced' : 'Basic';
+    document.getElementById('lessonLabel').textContent = `${trackLabel} – Level ${level} – Session ${sessionNumber}`;
+    document.title = `${trackLabel} | Session ${sessionNumber}`;
+  }
 
   const stage = document.getElementById('stage');
   slides.forEach((html, i) => {

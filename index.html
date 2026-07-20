@@ -588,6 +588,7 @@
         <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('sections')" data-i18n="adminTabSections">Sections</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('tempsessions')">Temp Sessions</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
 
@@ -633,7 +634,7 @@
 
     <div class="admin-panel" id="admin-panel-sessions">
         <div class="card">
-            <h3 data-i18n="setSessionTitle" style="margin-bottom: 20px;">Set Session Password, Link & Content</h3>
+            <h3 data-i18n="setSessionTitle" style="margin-bottom: 20px;">Set Session Link & Content</h3>
             <div class="alert-box error" id="session-form-alert"><i class="fas fa-circle-exclamation"></i> <span id="session-form-alert-text"></span></div>
             <div class="alert-box success" id="session-form-success"><i class="fas fa-circle-check"></i> <span id="session-form-success-text"></span></div>
             <form onsubmit="handleSetSession(event)" id="combined-session-form">
@@ -654,10 +655,6 @@
                         <div class="input-group">
                             <label data-i18n="sessionLabel">Session</label>
                             <select id="sess-number" class="input-control"></select>
-                        </div>
-                        <div class="input-group">
-                            <label data-i18n="sessionPasswordLabel">Session Password</label>
-                            <input type="text" id="sess-password" class="input-control" minlength="4">
                         </div>
                     </div>
                     <div class="input-group">
@@ -738,6 +735,18 @@
             <div id="custom-sessions-list" style="margin-top: 20px;"></div>
         </div>
     </div>
+
+    <div class="admin-panel" id="admin-panel-tempsessions">
+        <div class="card">
+            <div class="flex justify-between items-center">
+                <h3 style="margin-bottom: 20px;">Temporary Sessions</h3>
+                <button class="btn btn-outline btn-sm" onclick="loadTempSessions()"><i class="fas fa-rotate"></i> Refresh</button>
+            </div>
+            <div id="temp-sessions-list">
+               <p style="margin-top:16px;">Click Refresh to load temporary sessions.</p>
+            </div>
+        </div>
+    </div>
 </section>
         <section id="ai-tutor" class="page-section container">
     <div class="card" style="max-width: 700px; margin: 0 auto; display:flex; flex-direction:column; height: 70vh;">
@@ -807,7 +816,7 @@
         let sessionToken = null;
         let currentLang = 'en';
         let currentTrack = 'basic';
-        let adminSessionsCache = {}; // Cache to allow Admins to bypass session passwords
+        let adminSessionsCache = {}; // Cache for admin sessions
 
         // --- Internationalization ---
         const translations = {
@@ -832,9 +841,9 @@
                 basicTrack: "Basic", advancedTrack: "Advanced",
                 comingSoonBadge: "Coming soon",
                 levelWord: "Level", sessionWord: "Session",
-                sessionPasswordPh: "Enter session password",
+                sessionPasswordPh: "Enter password",
                 unlockBtn: "Unlock", openSessionBtn: "Open Session",
-                wrongPasswordMsg: "Incorrect password for this session.",
+                wrongPasswordMsg: "Incorrect.",
                 sessionUnlockedMsg: "Unlocked! Opening your session...",
                 sessionErrGeneric: "Couldn't check that password. Try again.",
                 adminDashSub: "Manage student accounts and session content.",
@@ -849,9 +858,9 @@
                 errCreateStudentFields: "Please fill in every field.",
                 errStudentIdTaken: "That student ID is already in use.",
                 studentCreatedMsg: "Student account created successfully.",
-                setSessionTitle: "Set Session Password & Link",
+                setSessionTitle: "Set Session Link & Content",
                 sectionLabel: "Track", levelLabel: "Level", sessionLabel: "Session",
-                sessionPasswordLabel: "Session Password", sessionLinkLabel: "Session Link (Zoom, Meet, video, etc.)",
+                sessionPasswordLabel: "Session Password (Deprecated)", sessionLinkLabel: "Session Link (Zoom, Meet, video, etc.)",
                 saveSessionBtn: "Save", sessionSavedMsg: "Session content saved.",
                 configuredSessionsTitle: "Configured Sessions",
                 commTitle: "Community Chat", postBtn: "Post Message", postPh: "Share a tip or ask a question...",
@@ -1176,7 +1185,7 @@
     const btn = document.getElementById('auth-submit-btn');
     btn.disabled = true; setLoading(true);
     try {
-        const body = new URLSearchParams({ action: 'login', email, password, deviceId: getDeviceId() });
+        const body = new URLSearchParams({ action: 'login', email, password, deviceId: getDeviceId(), deviceName: navigator.userAgent.slice(0, 100) });
         const result = await callBackend(body);
         if (!result.success) { showAuthAlert(result.message || translations[currentLang].errLoginFailed); return; }
         completeLogin(result.user, result.sessionToken);
@@ -1383,103 +1392,55 @@
                     <div class="session-msg" id="msg-${key}"></div>
                 `;
             } else {
-                row.innerHTML = `
-                    <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
-                    <div class="session-controls" id="controls-${key}">
-                        <input type="password" class="input-control small" id="pw-${key}" placeholder="${translations[currentLang].sessionPasswordPh}">
-                        <button type="button" class="btn btn-primary btn-sm unlock-btn" onclick="unlockSession('${currentTrack}', ${level}, ${sessionNum})">
-                            <i class="fas fa-unlock"></i> ${translations[currentLang].unlockBtn}
-                        </button>
-                    </div>
-                    <div class="session-msg" id="msg-${key}"></div>
-                `;
+                const isUnlocked = currentUser.unlockedLevels && currentUser.unlockedLevels.some(l => String(l.track) === String(currentTrack) && String(l.level) === String(level));
+                if (isUnlocked) {
+                    row.innerHTML = `
+                        <div class="session-label"><i class="fas fa-lock-open" id="icon-${key}" style="color:var(--success);"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
+                        <div class="session-controls" id="controls-${key}">
+                            <button type="button" class="btn btn-outline btn-sm unlock-btn" onclick="unlockSession('${currentTrack}', ${level}, ${sessionNum})"><i class="fas fa-arrow-right"></i> Open Session</button>
+                        </div>
+                        <div class="session-msg" id="msg-${key}"></div>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <div class="session-label"><i class="fas fa-lock" id="icon-${key}"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
+                        <div class="session-controls" id="controls-${key}">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);"><i class="fas fa-lock"></i> Locked</span>
+                        </div>
+                        <div class="session-msg" id="msg-${key}"></div>
+                    `;
+                }
             }
             return row;
-        }
-        async function openAdminPreview(track, level, sessionNum) {
-            const key = `${track}-${level}-${sessionNum}`;
-            const msgEl = document.getElementById(`msg-${key}`);
-            const btn = document.getElementById(`preview-btn-${key}`);
-            msgEl.textContent = ''; msgEl.className = 'session-msg';
-
-            if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
-
-            if (btn) btn.disabled = true;
-            setLoading(true);
-            try {
-                const body = new URLSearchParams({ action: 'getPreviewToken', token: sessionToken, track, level, sessionNumber: sessionNum });
-                const result = await callBackend(body);
-                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                if (!result.success) {
-                    msgEl.textContent = result.message || translations[currentLang].errNetwork;
-                    msgEl.classList.add('error');
-                    return;
-                }
-                const link = adminSessionsCache[key];
-                if (!link) {
-                    msgEl.textContent = 'No link/content set for this session yet.';
-                    msgEl.classList.add('error');
-                    return;
-                }
-                const playerUrl = `${link}?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}`;
-                window.open(playerUrl, '_blank');
-            } catch (err) {
-                console.error(err);
-                msgEl.textContent = translations[currentLang].errNetwork;
-                msgEl.classList.add('error');
-            } finally {
-                if (btn) btn.disabled = false;
-                setLoading(false);
-            }
         }
 
         async function unlockSession(track, level, sessionNum) {
             const key = `${track}-${level}-${sessionNum}`;
-            const pwInput = document.getElementById(`pw-${key}`);
-            const password = pwInput.value;
             const msgEl = document.getElementById(`msg-${key}`);
             msgEl.textContent = ''; msgEl.className = 'session-msg';
 
-            if (!password) return;
             if (!currentUser || !sessionToken) { handleAuthOrLogoutOnExpiry(); return; }
 
             setLoading(true);
             try {
                 if (backendConfigured()) {
-                    const body = new URLSearchParams({ action: 'unlockSession', token: sessionToken, track, level, sessionNumber: sessionNum, password });
+                    const body = new URLSearchParams({ action: 'unlockSession', token: sessionToken, track, level, sessionNumber: sessionNum });
                     const result = await callBackend(body);
                     if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
                     if (!result.success) {
-                        msgEl.textContent = translations[currentLang].wrongPasswordMsg;
+                        msgEl.textContent = result.message || 'Could not open session.';
                         msgEl.classList.add('error');
                         return;
                     }
-                    const playerUrl = `${result.link}?track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNum)}&lt=${encodeURIComponent(result.accessToken)}`;
-                    onSessionUnlocked(key, playerUrl, msgEl);
-                } else {
-                    if (password === 'demo') {
-                        onSessionUnlocked(key, 'https://example.com/demo-session', msgEl);
-                    } else {
-                        msgEl.textContent = translations[currentLang].wrongPasswordMsg;
-                        msgEl.classList.add('error');
-                    }
+                    window.location.href = `player.html?token=${encodeURIComponent(result.accessToken)}&link=${encodeURIComponent(result.link || '')}`;
                 }
             } catch (err) {
                 console.error(err);
-                msgEl.textContent = translations[currentLang].sessionErrGeneric;
+                msgEl.textContent = translations[currentLang].errNetwork;
                 msgEl.classList.add('error');
             } finally {
                 setLoading(false);
             }
-        }
-
-        function onSessionUnlocked(key, link, msgEl) {
-            msgEl.textContent = translations[currentLang].sessionUnlockedMsg;
-            msgEl.classList.add('success');
-            document.getElementById(`icon-${key}`).className = 'fas fa-lock-open';
-            const controls = document.getElementById(`controls-${key}`);
-            controls.innerHTML = `<a href="${link}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-up-right-from-square"></i> ${translations[currentLang].openSessionBtn}</a>`;
-            window.open(link, '_blank');
         }
 
         // =====================================================================
@@ -1490,6 +1451,7 @@
             document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
             document.querySelector(`.admin-tab[onclick="switchAdminPanel('${panel}')"]`).classList.add('active');
             document.getElementById(`admin-panel-${panel}`).classList.add('active');
+            if (panel === 'tempsessions') loadTempSessions();
         }
 
         let cachedLessonContent = null;
@@ -1569,8 +1531,12 @@
             const track = document.getElementById('sess-track').value;
             const level = document.getElementById('sess-level').value;
             const sessionNumber = document.getElementById('sess-number').value;
-            const password = document.getElementById('sess-password').value;
             const link = document.getElementById('sess-link').value.trim();
+
+            if (!track || !level || !sessionNumber || !link) {
+                showElAlert('session-form-alert', 'session-form-alert-text', 'Please fill out all session details.');
+                return;
+            }
 
             const btn = document.getElementById('save-session-btn');
             btn.disabled = true; setLoading(true);
@@ -1581,20 +1547,18 @@
                 let sessionSaved = false;
                 let lessonSaved = false;
 
-                if (password && link) {
-                    try {
-                        const body = new URLSearchParams({ action: 'setSessionContent', token: sessionToken, track, level, sessionNumber, password, link });
-                        const result = await callBackend(body);
-                        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                        if (!result.success) {
-                            showElAlert('session-form-alert', 'session-form-alert-text', result.message || translations[currentLang].errNetwork);
-                            return;
-                        }
-                        sessionSaved = true;
-                    } catch (err) {
-                        showElAlert('session-form-alert', 'session-form-alert-text', translations[currentLang].errNetwork);
+                try {
+                    const body = new URLSearchParams({ action: 'setSessionContent', token: sessionToken, track, level, sessionNumber, link });
+                    const result = await callBackend(body);
+                    if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                    if (!result.success) {
+                        showElAlert('session-form-alert', 'session-form-alert-text', result.message || translations[currentLang].errNetwork);
                         return;
                     }
+                    sessionSaved = true;
+                } catch (err) {
+                    showElAlert('session-form-alert', 'session-form-alert-text', translations[currentLang].errNetwork);
+                    return;
                 }
 
                 if (cachedLessonContent) {
@@ -1616,9 +1580,8 @@
 
                 if (sessionSaved || lessonSaved) {
                     showElAlert('session-form-success', 'session-form-success-text', translations[currentLang].sessionSavedMsg);
-                    if (password) document.getElementById('sess-password').value = '';
-                    if (link) document.getElementById('sess-link').value = '';
-                    await fetchAdminSessions(); // re-fetch to cache new links
+                    document.getElementById('sess-link').value = '';
+                    await fetchAdminSessions();
                     loadSessionsOverview();
                 } else {
                     showElAlert('session-form-alert', 'session-form-alert-text', 'Please fill in session details or upload lesson content.');
@@ -1647,6 +1610,26 @@
 
         function showElAlert(id, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(id).classList.add('show'); }
         function hideElAlert(id) { document.getElementById(id).classList.remove('show'); }
+
+        function toggleStudentAccessPanel(id) {
+            const panel = document.getElementById(`access-panel-${id}`);
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        async function toggleLevelAccess(studentId, track, level, granted) {
+            setLoading(true);
+            try {
+                const action = granted ? 'grantLevelAccess' : 'revokeLevelAccess';
+                const body = new URLSearchParams({ action, token: sessionToken, studentId, track, level });
+                const result = await callBackend(body);
+                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+                if (!result.success) { alert(result.message || 'Error updating access'); }
+            } catch (err) {
+                console.error(err);
+                alert('Network error.');
+            } finally {
+                setLoading(false);
+            }
+        }
 
         async function handleCreateStudent(e) {
             e.preventDefault();
@@ -1693,33 +1676,47 @@
         if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
         const students = result.students || [];
         if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
-        let rows = students.map(s => `
+        let rows = students.map(s => {
+            const hasLevel = (t, l) => s.unlockedLevels && s.unlockedLevels.some(ul => String(ul.track) === String(t) && String(ul.level) === String(l));
+            return `
             <tr>
                 <td>${escapeHtml(s.id)}</td>
                 <td>${escapeHtml(s.name)}</td>
-                <td>${escapeHtml(s.gender)}</td>
+                <td>
+                    <button class="btn btn-outline btn-sm" onclick="toggleStudentAccessPanel('${s.id}')">Manage Access</button>
+                    <div id="access-panel-${s.id}" style="display:none; margin-top:10px; background:var(--bg-color); padding:10px; border-radius:8px;">
+                        <strong>Basic Track</strong><br>
+                        ${[1,2,3,4,5,6,7,8,9,10].map(l => `
+                            <label style="margin-right:8px; font-size:0.8rem;"><input type="checkbox" onchange="toggleLevelAccess('${s.id}', 'basic', ${l}, this.checked)" ${hasLevel('basic', l) ? 'checked' : ''}> L${l}</label>
+                        `).join('')}
+                        <br><strong>Advanced Track</strong><br>
+                        ${[1,2,3,4,5,6,7,8,9,10].map(l => `
+                            <label style="margin-right:8px; font-size:0.8rem;"><input type="checkbox" onchange="toggleLevelAccess('${s.id}', 'advanced', ${l}, this.checked)" ${hasLevel('advanced', l) ? 'checked' : ''}> L${l}</label>
+                        `).join('')}
+                    </div>
+                </td>
                 <td>
                     ${s.hasDevice1
-                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','1')">Free Device 1</button>`
-                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Device 1: empty</span>`}
+                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','1')">Free Slot 1</button><br><span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(s.device1Name)}</span>`
+                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Empty</span>`}
                 </td>
                 <td>
                     ${s.hasDevice2
-                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','2')">Free Device 2</button>`
-                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Device 2: empty</span>`}
+                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','2')">Free Slot 2</button><br><span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(s.device2Name)}</span>`
+                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Empty</span>`}
                 </td>
                 <td>
                     <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteStudentUI('${s.id}')">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
         wrap.innerHTML = `<table class="data-table">
             <thead><tr>
                 <th>ID</th>
                 <th>${translations[currentLang].studentNameField}</th>
-                <th>${translations[currentLang].selectGender}</th>
+                <th>Level Access</th>
                 <th>Device 1</th>
                 <th>Device 2</th>
                 <th></th>
@@ -2545,5 +2542,57 @@ async function deletePostUI(postId) {
 
         initFromSession();
     </script>
+<script>
+async function loadTempSessions() {
+  document.getElementById('temp-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listTempSessions&token=' + encodeURIComponent(currentAdminToken));
+    const data = await res.json();
+    if (!data.success) {
+      document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
+      return;
+    }
+    const html = data.sessions.map(s => {
+      return `<div style="border:1px solid var(--border-color); padding: 12px; margin-bottom: 8px; border-radius: 4px;">
+        <strong>ID:</strong> ${s.id}<br>
+        <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()} ${s.expired ? '<span style="color:var(--danger)">(Expired)</span>' : ''}<br>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')">Add 24h</button>
+          <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteTempSession('${s.id}')">Close / Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('temp-sessions-list').innerHTML = html || '<p style="margin-top:16px;">No temporary sessions.</p>';
+  } catch (err) {
+    document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Error loading sessions.</p>';
+  }
+}
+
+async function updateTempSession(id) {
+  if (!confirm('Add 24 hours to this session?')) return;
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'updateTempSession', token: currentAdminToken, tempId: id, expiresInHours: 24 })
+    });
+    const data = await res.json();
+    if (data.success) loadTempSessions();
+  } catch(e){}
+}
+
+async function deleteTempSession(id) {
+  if (!confirm('Delete this session permanently?')) return;
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'deleteTempSession', token: currentAdminToken, tempId: id })
+    });
+    const data = await res.json();
+    if (data.success) loadTempSessions();
+  } catch(e){}
+}
+</script>
 </body>
 </html>
