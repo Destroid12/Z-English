@@ -501,6 +501,18 @@ function initDeck(slides){
     stage.appendChild(sec);
   });
   
+  // Auto-shuffle arrange/schedule and wordbank questions on load
+  document.querySelectorAll('.interactive-schedule').forEach(container => {
+    const items = Array.from(container.children);
+    items.sort(() => Math.random() - 0.5);
+    items.forEach(item => container.appendChild(item));
+  });
+  document.querySelectorAll('.wordbank-words').forEach(container => {
+    const items = Array.from(container.children);
+    items.sort(() => Math.random() - 0.5);
+    items.forEach(item => container.appendChild(item));
+  });
+
   document.querySelectorAll('.z-audio').forEach(initCustomAudio);
 
   window.selectRadio = function(btn) {
@@ -983,8 +995,14 @@ function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
+  
+  if (isAr) {
+    const egVoice = pool.find(v => v.lang.toLowerCase() === 'ar-eg' && /shakir|maged|male/i.test(v.name)) || pool.find(v => v.lang.toLowerCase() === 'ar-eg');
+    if (egVoice) return egVoice;
+  }
+
   const preferred = isAr
-    ? ['Naayf', 'Hamed', 'Tarik', 'Maged']
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged']
     : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));

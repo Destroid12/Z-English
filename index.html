@@ -2092,8 +2092,14 @@ function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
   const isAr = lang.startsWith('ar');
   const pool = cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(isAr ? 'ar' : 'en'));
+  
+  if (isAr) {
+    const egVoice = pool.find(v => v.lang.toLowerCase() === 'ar-eg' && /shakir|maged|male/i.test(v.name)) || pool.find(v => v.lang.toLowerCase() === 'ar-eg');
+    if (egVoice) return egVoice;
+  }
+
   const preferred = isAr
-    ? ['Naayf', 'Hamed', 'Tarik', 'Maged']
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged']
     : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
