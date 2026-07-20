@@ -500,7 +500,8 @@ function compileSlide(slide) {
         }
         if (!videoHtml) videoHtml = `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>`;
         chunk += videoHtml + '\n';
-        if (el.caption) chunk += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
+      }
     } else if (el.kind === 'audio') {
       if (el.url) {
         let audioHtml = '';

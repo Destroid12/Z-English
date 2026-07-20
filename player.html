@@ -425,7 +425,17 @@ async function loadLesson(){
     return;
   }
   try {
-    const userToken = localStorage.getItem('z_session_token') || '';
+    let userToken = '';
+    try {
+      const rawSession = localStorage.getItem('zenglish_session');
+      if (rawSession) {
+        const parsedSession = JSON.parse(rawSession);
+        userToken = parsedSession.token || '';
+      }
+    } catch (e) {
+      console.error('Failed to read session token:', e);
+    }
+    
     let url = '';
     if (tempId) {
       url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}`;
