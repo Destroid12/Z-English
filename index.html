@@ -1109,24 +1109,27 @@
             }
         }
 
-        async function navigate(pageId) {
-            if (pageId === 'ai-tutor' && !currentUser) { navigate('login'); return; }
-            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
+        async function navigate(pageId, fromTrainToHire) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
 
-            if (pageId === 'community') fetchAndRenderCommunity();
-            if (pageId === 'login') initGoogleButton();
-            if (pageId === 'student-dashboard') {
-                if (currentUser && currentUser.role === 'admin') {
-                    setLoading(true);
-                    await fetchAdminSessions();
-                    setLoading(false);
-                }
-                renderLevelList();
-                loadCategoriesForDashboard();
-            }
-            if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); loadCategories(); }
+    if (pageId === 'contact') {
+        document.getElementById('trainToHireNote').style.display = fromTrainToHire ? 'block' : 'none';
+    }
+
+    if (pageId === 'community') fetchAndRenderCommunity();
+    if (pageId === 'login') initGoogleButton();
+    if (pageId === 'student-dashboard') {
+        if (currentUser && currentUser.role === 'admin') {
+            setLoading(true);
+            await fetchAdminSessions();
+            setLoading(false);
         }
+        renderLevelList();
+        loadCategoriesForDashboard();
+    }
+    if (pageId === 'admin-dashboard') { loadStudentsList(); loadSessionsOverview(); loadCategories(); }
+}
 
         // --- Auth ---
         function togglePasswordVisibility() {
