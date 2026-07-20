@@ -2085,7 +2085,12 @@ let cachedVoices = [];
 function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
 if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
 const MALE_VOICE_NAMES = {
-  en: ['Kore'],
+  en: [
+    'Microsoft Guy',         // Excellent natural voice on Windows/Edge
+    'Alex',                  // Standard high-quality male on macOS/iOS
+    'Daniel',                // British English male on Apple devices
+    'Google UK English Male' // Standard male voice on Chrome/Android
+  ],
   ar: ['Microsoft Naayf', 'Microsoft Hamed', 'Tarik']
 };
 function pickMaleVoice(lang) {
