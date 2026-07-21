@@ -1090,7 +1090,7 @@ async function submitTest() {
       if (!txt.querySelector('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) {
         let textContent = txt.textContent.trim().replace(/\s+/g, ' ');
         if (textContent.length > 0) {
-          slideAnswers.push({ type: 'info', question: textContent, answer: null });
+          slideAnswers.push({ node: txt, type: 'info', question: textContent, answer: null });
         }
       }
     });
@@ -1098,14 +1098,14 @@ async function submitTest() {
     // Inputs/Selects
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
     inputs.forEach(input => {
-      slideAnswers.push({ type: 'input', question: getQuestionText(input), answer: input.value.trim() });
+      slideAnswers.push({ node: input, type: 'input', question: getQuestionText(input), answer: input.value.trim() });
     });
 
     // Radios
     const radios = slide.querySelectorAll('.interactive-radio-group');
     radios.forEach(group => {
       const selected = group.querySelector('.interactive-radio.selected');
-      slideAnswers.push({ type: 'radio', question: getQuestionText(group), answer: selected ? selected.dataset.value : '' });
+      slideAnswers.push({ node: group, type: 'radio', question: getQuestionText(group), answer: selected ? selected.dataset.value : '' });
     });
 
     // Wordbanks
@@ -1113,14 +1113,14 @@ async function submitTest() {
     wordbanks.forEach(bank => {
       const dropzone = bank.querySelector('.wordbank-dropzone');
       const words = Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ');
-      slideAnswers.push({ type: 'wordbank', question: getQuestionText(bank), answer: words });
+      slideAnswers.push({ node: bank, type: 'wordbank', question: getQuestionText(bank), answer: words });
     });
 
     // Checkboxes
     const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
     checkboxes.forEach(group => {
       const selected = Array.from(group.querySelectorAll('.interactive-checkbox.selected')).map(b => b.dataset.value).join(', ');
-      slideAnswers.push({ type: 'checkbox', question: getQuestionText(group), answer: selected });
+      slideAnswers.push({ node: group, type: 'checkbox', question: getQuestionText(group), answer: selected });
     });
     
     // Matches
@@ -1134,14 +1134,20 @@ async function submitTest() {
           if (right) mappings.push(`${left.textContent.trim()} -> ${right.textContent.trim()}`);
         }
       });
-      slideAnswers.push({ type: 'match', question: getQuestionText(container), answer: mappings.join(' | ') });
+      slideAnswers.push({ node: container, type: 'match', question: getQuestionText(container), answer: mappings.join(' | ') });
     });
 
     // Arrange/Schedules
     const schedules = slide.querySelectorAll('.interactive-schedule');
     schedules.forEach(container => {
       const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value).join(', ');
-      slideAnswers.push({ type: 'arrange', question: getQuestionText(container), answer: currentOrder });
+      slideAnswers.push({ node: container, type: 'arrange', question: getQuestionText(container), answer: currentOrder });
+    });
+
+    // Sort by actual DOM position
+    slideAnswers.sort((a, b) => {
+      if (a.node === b.node) return 0;
+      return a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
     });
 
     // Formatting for display
