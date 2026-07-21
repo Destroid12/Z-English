@@ -367,6 +367,7 @@
     <button class="nav-btn" id="prevBtn" aria-label="Previous slide">&#8592;</button>
     <span class="nav-hint">← Nav →</span>
     <button class="nav-btn" id="nextBtn" aria-label="Next slide">&#8594;</button>
+    <button class="btn btn-primary" id="submitTestBtn" style="display:none; margin-left:15px; font-weight:bold;" onclick="submitTest()">Submit Test</button>
   </div>
 
   <div id="tutorPanel">
@@ -404,10 +405,14 @@ const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLK
 // --- Read the params the dashboard put in the URL ---
 const params = new URLSearchParams(window.location.search);
 const tempId = params.get('tempId');
+const testCode = params.get('testCode');
 const track = params.get('track');
 const level = params.get('level');
 const sessionNumber = params.get('sessionNumber');
 const accessToken = params.get('lt');
+
+let isTestMode = false;
+let testAnswers = [];
 
 const gateOverlay = document.getElementById('gateOverlay');
 const deckWrap = document.getElementById('deckWrap');
@@ -423,7 +428,7 @@ function showBlocked(message){
 }
 
 async function loadLesson(){
-  if (!tempId && (!track || !level || !sessionNumber || !accessToken)) {
+  if (!tempId && !testCode && (!track || !level || !sessionNumber || !accessToken)) {
     showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
     return;
   }
@@ -440,7 +445,10 @@ async function loadLesson(){
     }
     
     let url = '';
-    if (tempId) {
+    if (testCode) {
+      isTestMode = true;
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=validateTestCode&code=${encodeURIComponent(testCode)}`;
+    } else if (tempId) {
       url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}`;
     } else {
       url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}`;
@@ -480,6 +488,13 @@ async function loadLesson(){
 // =====================================================================
 window.currentSlideIndex = 0;
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
@@ -498,18 +513,24 @@ function initDeck(slides){
     sec.className = 'slide';
     sec.dataset.index = i;
     sec.innerHTML = html;
+    
+    if (isTestMode) {
+      const checkBtn = sec.querySelector('.check-btn');
+      if (checkBtn) checkBtn.style.display = 'none';
+    }
+    
     stage.appendChild(sec);
   });
   
   // Auto-shuffle arrange/schedule and wordbank questions on load
   document.querySelectorAll('.interactive-schedule').forEach(container => {
     const items = Array.from(container.children);
-    items.sort(() => Math.random() - 0.5);
+    shuffleArray(items);
     items.forEach(item => container.appendChild(item));
   });
   document.querySelectorAll('.wordbank-words').forEach(container => {
     const items = Array.from(container.children);
-    items.sort(() => Math.random() - 0.5);
+    shuffleArray(items);
     items.forEach(item => container.appendChild(item));
   });
 
@@ -852,6 +873,12 @@ function initDeck(slides){
     progressFill.style.width = ((current + 1) / total * 100) + '%';
     prevBtn.disabled = current === 0;
     nextBtn.disabled = current === total - 1;
+    
+    const submitBtn = document.getElementById('submitTestBtn');
+    if (submitBtn) {
+      submitBtn.style.display = (isTestMode && current === total - 1) ? 'inline-block' : 'none';
+    }
+    
     window.currentSlideIndex = current;
   }
   function goTo(i){ current = Math.max(0, Math.min(total - 1, i)); render(); }
@@ -1034,6 +1061,101 @@ function speakText(text) {
   utter.pitch = 1.03;
   window.speechSynthesis.speak(utter);
 }
+
+async function submitTest() {
+  const studentName = prompt('Please enter your full name to submit the test:');
+  if (!studentName) return;
+
+  const answers = [];
+  const slideEls = Array.from(document.querySelectorAll('.slide'));
+
+  slideEls.forEach((slide, i) => {
+    let slideAnswers = [];
+    
+    // Inputs/Selects
+    const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
+    inputs.forEach(input => {
+      slideAnswers.push({ type: 'input', answer: input.value.trim() });
+    });
+
+    // Radios
+    const radios = slide.querySelectorAll('.interactive-radio-group');
+    radios.forEach(group => {
+      const selected = group.querySelector('.interactive-radio.selected');
+      slideAnswers.push({ type: 'radio', answer: selected ? selected.dataset.value : '' });
+    });
+
+    // Wordbanks
+    const wordbanks = slide.querySelectorAll('.interactive-wordbank');
+    wordbanks.forEach(bank => {
+      const dropzone = bank.querySelector('.wordbank-dropzone');
+      const words = Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ');
+      slideAnswers.push({ type: 'wordbank', answer: words });
+    });
+
+    // Checkboxes
+    const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
+    checkboxes.forEach(group => {
+      const selected = Array.from(group.querySelectorAll('.interactive-checkbox.selected')).map(b => b.dataset.value).join(', ');
+      slideAnswers.push({ type: 'checkbox', answer: selected });
+    });
+    
+    // Matches
+    const matches = slide.querySelectorAll('.interactive-match');
+    matches.forEach(container => {
+      const mappings = [];
+      const lefts = container.querySelectorAll('.match-left');
+      lefts.forEach(left => {
+        if (left.dataset.matched) {
+          const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
+          if (right) mappings.push(`${left.textContent.trim()} -> ${right.textContent.trim()}`);
+        }
+      });
+      slideAnswers.push({ type: 'match', answer: mappings.join(' | ') });
+    });
+
+    // Arrange/Schedules
+    const schedules = slide.querySelectorAll('.interactive-schedule');
+    schedules.forEach(container => {
+      const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value).join(', ');
+      slideAnswers.push({ type: 'arrange', answer: currentOrder });
+    });
+
+    // Formatting for display
+    let formattedAnswer = slideAnswers.filter(a => a.answer).map(a => `[${a.type}] ${a.answer}`).join('\n');
+    answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
+  });
+
+  const btn = document.getElementById('submitTestBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      body: new URLSearchParams({
+        action: 'submitTest',
+        code: testCode,
+        studentName: studentName,
+        answersJson: JSON.stringify(answers)
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert('Test submitted successfully! You will now be redirected to the home page.');
+      window.location.href = 'index.html';
+    } else {
+      alert('Failed to submit test: ' + data.message);
+      btn.disabled = false;
+      btn.textContent = 'Submit Test';
+    }
+  } catch (err) {
+    alert('Error submitting test: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Submit Test';
+  }
+}
+
 
 function updateSpeakToggleUI() {
   const btn = document.getElementById('tutorSpeakToggle');

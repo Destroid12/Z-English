@@ -424,7 +424,7 @@
                 <p data-i18n="heroSub" style="font-size: 1.3rem; margin: 20px auto 40px; max-width: 600px;">
                    Your English learning destination.
                 </p>
-<button class="btn btn-primary" onclick="navigate('login')" data-i18n="startLearning">Start Learning</button>
+<button class="btn btn-primary" onclick="onStartLearningClicked()" data-i18n="startLearning">Start Learning</button>
 <div style="margin-top:16px;">
     <a href="#" onclick="navigate('contact', true); return false;" style="font-weight:800; color:var(--z-blue-dark); text-decoration:underline;" data-i18n="trainToHireLink">
         Train To Hire
@@ -444,6 +444,14 @@
                 <div class="card">
                     <h3 style="color: var(--z-blue);"><i class="fas fa-chalkboard-teacher"></i> <span data-i18n="feat3Title">Curated</span></h3>
                     <p data-i18n="feat3Desc" style="margin-top: 10px;">Every student account is created and issued by administration — no open sign-up.</p>
+                </div>
+            </div>
+            <div id="test-entry-wrap" style="margin-top:40px; max-width:600px; margin-left:auto; margin-right:auto; padding:20px; background:var(--bg); border-radius:12px; border:2px dashed var(--line); text-align:center;">
+                <h3 style="margin-top:0; color:var(--ink);">Have a Test Code?</h3>
+                <p style="color:var(--ink-soft); font-size:14px; margin-bottom:16px;">Enter your one-time access code to take a test.</p>
+                <div style="display:flex; gap:10px; justify-content:center; max-width: 400px; margin: 0 auto;">
+                    <input type="text" id="testCodeInput" class="form-input" placeholder="e.g. A1B2C3" style="flex:1; text-transform:uppercase;" maxlength="6">
+                    <button class="btn btn-secondary" onclick="joinTestSession()">Start Test</button>
                 </div>
             </div>
         </section>
@@ -604,6 +612,7 @@
         <button type="button" class="admin-tab active" onclick="switchAdminPanel('students')" data-i18n="adminTabStudents">Student Accounts</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('sessions')" data-i18n="adminTabSessions">Session Content</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('tempsessions')">Temp Sessions</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
 
@@ -750,6 +759,49 @@
             <div id="custom-sessions-list" style="margin-top: 20px;"></div>
         </div>
     </div>
+
+    >Test Sessions</button>
+
+    <div class="admin-panel" id="admin-panel-testsessions">
+        <div class="card">
+            <div class="flex justify-between items-center">
+                <h3 style="margin-bottom: 20px;">Test Sessions & Codes</h3>
+                <div>
+                    <button class="btn btn-outline btn-sm" onclick="loadTestSessionsAdmin()"><i class="fas fa-rotate"></i> Refresh</button>
+                    <a href="editor.html" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Create New Test</a>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: 800; font-size: 12px; text-transform: uppercase;">Select a Test Session</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <select id="testSessionSelectAdmin" class="form-input" style="flex:1;" onchange="onTestSessionSelectedAdmin()"></select>
+                    <a href="#" id="editTestSessionLink" class="btn btn-outline" style="display:none;" target="_blank"><i class="fas fa-pen"></i> Edit Test Content</a>
+                </div>
+            </div>
+
+            <div id="test-session-admin-content" style="display: none;">
+                <!-- Codes Section -->
+                <div style="background: var(--bg-soft); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                    <div class="flex justify-between items-center" style="margin-bottom: 10px;">
+                        <h4 style="margin:0;">One-Time Codes</h4>
+                        <div style="display:flex; gap:10px;">
+                            <input type="number" id="testCodeCount" value="1" min="1" max="50" class="form-input" style="width: 70px; padding: 5px;">
+                            <button class="btn btn-primary btn-sm" onclick="generateTestCodes()">Generate Codes</button>
+                        </div>
+                    </div>
+                    <div id="test-codes-list">Loading codes...</div>
+                </div>
+
+                <!-- Submissions Section -->
+                <div style="background: var(--bg-soft); padding: 15px; border-radius: 12px;">
+                    <h4 style="margin-top:0; margin-bottom:10px;">Submissions</h4>
+                    <div id="test-submissions-list">Loading submissions...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <div class="admin-panel" id="admin-panel-tempsessions">
         <div class="card">
@@ -1133,6 +1185,15 @@
             }
         }
 
+        function onStartLearningClicked() {
+            if (currentUser) {
+                if (currentUser.role === 'admin') navigate('admin-dashboard');
+                else navigate('student-dashboard');
+            } else {
+                navigate('login');
+            }
+        }
+
         async function navigate(pageId, fromTrainToHire) {
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
@@ -1301,6 +1362,18 @@
         function hideContactAlerts() {
             document.getElementById('contact-alert').classList.remove('show');
             document.getElementById('contact-success').classList.remove('show');
+        }
+
+        function joinTempSessionByKey() {
+            const key = document.getElementById('tempSessionKeyInput').value.trim();
+            if (!key) return;
+            window.location.href = `player.html?tempId=${encodeURIComponent(key)}`;
+        }
+
+        function joinTestSession() {
+            const code = document.getElementById('testCodeInput').value.trim().toUpperCase();
+            if (!code) return;
+            window.location.href = `player.html?testCode=${encodeURIComponent(code)}`;
         }
 
         async function handleContactSubmit(e) {
@@ -1494,6 +1567,7 @@
             document.querySelector(`.admin-tab[onclick="switchAdminPanel('${panel}')"]`).classList.add('active');
             document.getElementById(`admin-panel-${panel}`).classList.add('active');
             if (panel === 'tempsessions') loadTempSessions();
+            if (panel === 'testsessions') loadTestSessionsAdmin();
         }
 
         let cachedLessonContent = null;
@@ -2617,6 +2691,179 @@ async function deletePostUI(postId) {
         initFromSession();
     </script>
 <script>
+let adminTestSessions = [];
+
+async function loadTestSessionsAdmin() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    try {
+        const res = await callBackendGet(new URLSearchParams({ action: 'listTestSessions', token: sessionToken }));
+        if (res.success) {
+            adminTestSessions = res.sessions || [];
+            const select = document.getElementById('testSessionSelectAdmin');
+            select.innerHTML = '<option value="">-- Select a Test --</option>' + 
+                adminTestSessions.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            
+            document.getElementById('test-session-admin-content').style.display = 'none';
+        }
+    } catch(e) {}
+}
+
+async function onTestSessionSelectedAdmin() {
+    const testId = document.getElementById('testSessionSelectAdmin').value;
+    const editLink = document.getElementById('editTestSessionLink');
+    if (!testId) {
+        document.getElementById('test-session-admin-content').style.display = 'none';
+        editLink.style.display = 'none';
+        return;
+    }
+    editLink.href = `editor.html?editTestId=${testId}`;
+    editLink.style.display = 'inline-block';
+    
+    document.getElementById('test-session-admin-content').style.display = 'block';
+    await loadTestCodes(testId);
+    await loadTestSubmissions(testId);
+}
+
+async function loadTestCodes(testId) {
+    document.getElementById('test-codes-list').innerHTML = 'Loading...';
+    try {
+        const res = await callBackendGet(new URLSearchParams({ action: 'listTestCodes', token: sessionToken, testId }));
+        if (res.success) {
+            const codes = res.codes || [];
+            if (codes.length === 0) {
+                document.getElementById('test-codes-list').innerHTML = '<p>No codes generated yet.</p>';
+            } else {
+                let html = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">';
+                codes.forEach(c => {
+                    const status = c.used ? `<span style="color:red; font-size:11px;">USED by ${c.studentName}</span>` : `<span style="color:green; font-size:11px;">AVAILABLE</span>`;
+                    html += `
+                        <div style="background:#fff; border: 1px solid var(--line); padding: 10px; border-radius: 8px; position:relative;">
+                            <div style="font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 2px;">${c.code}</div>
+                            <div style="margin-top: 5px;">${status}</div>
+                            <button onclick="deleteTestCode('${c.code}')" class="btn btn-outline btn-sm" style="position:absolute; top: 5px; right: 5px; padding: 2px 6px; border:none; color:var(--text-light);"><i class="fas fa-trash"></i></button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('test-codes-list').innerHTML = html;
+            }
+        }
+    } catch(e) {}
+}
+
+async function generateTestCodes() {
+    const testId = document.getElementById('testSessionSelectAdmin').value;
+    const count = document.getElementById('testCodeCount').value;
+    if (!testId) return;
+    
+    document.getElementById('test-codes-list').innerHTML = 'Generating...';
+    try {
+        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'generateTestCodes', token: sessionToken, testId, count })
+        });
+        const data = await res.json();
+        if (data.success) {
+            await loadTestCodes(testId);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch(e) {}
+}
+
+async function deleteTestCode(code) {
+    if (!confirm('Delete this code? If it was used, the submission stays but the code is removed.')) return;
+    const testId = document.getElementById('testSessionSelectAdmin').value;
+    try {
+        await fetch(GOOGLE_APP_SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'deleteTestCode', token: sessionToken, code })
+        });
+        await loadTestCodes(testId);
+    } catch(e) {}
+}
+
+async function loadTestSubmissions(testId) {
+    document.getElementById('test-submissions-list').innerHTML = 'Loading...';
+    try {
+        const res = await callBackendGet(new URLSearchParams({ action: 'listTestSubmissions', token: sessionToken, testId }));
+        if (res.success) {
+            const subs = res.submissions || [];
+            if (subs.length === 0) {
+                document.getElementById('test-submissions-list').innerHTML = '<p>No submissions yet.</p>';
+            } else {
+                let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+                subs.forEach((sub, idx) => {
+                    const date = new Date(sub.submittedAt).toLocaleString();
+                    html += `
+                        <div style="background:#fff; border: 1px solid var(--line); padding: 15px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h4 style="margin:0 0 5px 0;">${sub.studentName} <span style="font-weight:normal; color:var(--text-light); font-size:12px;">(Code: ${sub.code})</span></h4>
+                                <div style="font-size: 12px; color:var(--text-light);">${date}</div>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick='viewSubmissionDetails(${idx})'><i class="fas fa-eye"></i> View</button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('test-submissions-list').innerHTML = html;
+                window._cachedSubmissions = subs;
+            }
+        }
+    } catch(e) {}
+}
+
+function viewSubmissionDetails(index) {
+    const sub = window._cachedSubmissions[index];
+    if (!sub) return;
+    
+    let answers = [];
+    try { answers = JSON.parse(sub.answersJson); } catch(e) {}
+    
+    let detailsHtml = `<div style="padding: 20px;">
+        <h3>Test Submission</h3>
+        <p><strong>Name:</strong> ${sub.studentName}</p>
+        <p><strong>Code:</strong> ${sub.code}</p>
+        <p><strong>Date:</strong> ${new Date(sub.submittedAt).toLocaleString()}</p>
+        <hr style="margin:20px 0;">
+        <h4>Answers</h4>
+        <div style="display:flex; flex-direction:column; gap:15px;">
+    `;
+    
+    answers.forEach((ans, i) => {
+        detailsHtml += `
+            <div style="background:var(--bg-soft); padding:10px; border-radius:8px;">
+                <div style="font-weight:bold; font-size:12px; color:var(--text-light); margin-bottom:5px;">Slide ${i + 1} (${ans.type})</div>
+                <div>${ans.answer || '<em>No answer</em>'}</div>
+            </div>
+        `;
+    });
+    
+    detailsHtml += `
+        </div>
+        <div style="margin-top:20px;">
+            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-file-pdf"></i> Print / Save PDF</button>
+        </div>
+    </div>`;
+    
+    // Open in a new blank window for easy printing
+    const w = window.open('', '_blank');
+    w.document.write(`
+        <html>
+        <head>
+            <title>${sub.studentName} - Test Submission</title>
+            <link rel="stylesheet" href="style.css">
+            <style>
+                body { font-family: 'Outfit', sans-serif; padding: 20px; background: #fff; color: #1e293b; }
+            </style>
+        </head>
+        <body>${detailsHtml}</body>
+        </html>
+    `);
+    w.document.close();
+}
+
+
 async function loadTempSessions() {
   document.getElementById('temp-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {

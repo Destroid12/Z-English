@@ -160,6 +160,8 @@
     <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
     <button class="btn btn-primary" id="saveTempBtn" onclick="saveTempSessionContent()" style="display:none;"><i class="fas fa-floppy-disk"></i> Save Temp Session</button>
     <button class="btn btn-secondary" id="publishTempBtn" onclick="openTempSessionModal()"><i class="fas fa-link"></i> Publish Temp Link</button>
+    <button class="btn btn-primary" id="saveTestBtn" onclick="saveTestSessionContent()" style="display:none;"><i class="fas fa-floppy-disk"></i> Save Test Session</button>
+    <button class="btn btn-secondary" id="publishTestBtn" onclick="openTestSessionModal()"><i class="fas fa-link"></i> Publish Test Session</button>
     <button class="btn btn-outline" id="migrateAllBtn" onclick="runMigrateAllSessions()" title="Scan every saved session, re-host any embedded images/audio/video to Drive, and re-save if changed">
       <i class="fas fa-broom"></i> Migrate All Sessions
     </button>
@@ -241,12 +243,96 @@ function restoreSession() {
 
 const urlParams = new URLSearchParams(window.location.search);
 const editTempId = urlParams.get('editTempId');
+const editTestId = urlParams.get('editTestId');
+
+async function loadTestSessionContent(testId) {
+  setStatus('Loading test session...', 'info');
+  try {
+    const result = await callBackendGet(new URLSearchParams({ action: 'getTestSessionContent', token: sessionToken, testId: testId }));
+    if (!result.success) { setStatus('Failed to load test session: ' + (result.message||''), 'error'); return; }
+    
+    slides = [];
+    result.slides.forEach(s => {
+      const el = document.createElement('div');
+      el.innerHTML = s;
+      slides.push(parseSlideHTML(el.innerHTML));
+    });
+    
+    setStatus('Test session loaded.', 'success');
+    if (slides.length > 0) renderSlide(0);
+  } catch (err) {
+    setStatus('Error loading test session: ' + err.message, 'error');
+  }
+}
+
+async function saveTestSessionContent() {
+  if (slides.length === 0) { setStatus('Add at least one slide before saving.', 'error'); return; }
+  const btn = document.getElementById('saveTestBtn');
+  btn.disabled = true;
+  setStatus('Saving...', 'info');
+  try {
+    const compiledSlides = slides.map(compileSlide);
+    const slidesJson = JSON.stringify(compiledSlides);
+    const body = new URLSearchParams({ action: 'updateTestSessionContent', token: sessionToken, testId: editTestId, slidesJson });
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
+    setStatus('Saved Test Session!', 'success');
+  } catch (err) {
+    setStatus('Could not reach the server: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function openTestSessionModal() {
+  document.getElementById('testSessionModal').classList.add('active');
+}
+
+async function publishTestSession() {
+  document.getElementById('testSessionModal').classList.remove('active');
+  if (slides.length === 0) { setStatus('Add at least one slide before publishing.', 'error'); return; }
+  
+  const name = (document.getElementById('testSessionName').value || '').trim();
+  setStatus('Publishing test session...', 'info');
+
+  try {
+    if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
+
+    const compiledSlides = slides.map(compileSlide);
+    const slidesJson = JSON.stringify(compiledSlides);
+
+    const body = new URLSearchParams({
+      action: 'publishTestSession',
+      token: sessionToken,
+      name: name,
+      slidesJson: slidesJson
+    });
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Failed to publish.', 'error'); return; }
+    setStatus('Test session published!', 'success');
+    alert('Test Session Created! You can generate access codes from the Admin Panel.');
+  } catch (err) {
+    setStatus('Failed to publish: ' + err.message, 'error');
+  }
+}
 
 if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
   document.getElementById('blocked').style.display = 'flex';
 } else {
   document.getElementById('app').style.display = 'block';
-  if (editTempId) {
+  if (editTestId) {
+    document.getElementById('sel-track').style.display = 'none';
+    document.getElementById('sel-level').style.display = 'none';
+    document.getElementById('sel-session').style.display = 'none';
+    document.getElementById('loadBtn').style.display = 'none';
+    document.getElementById('saveBtn').style.display = 'none';
+    document.getElementById('publishTempBtn').style.display = 'none';
+    document.getElementById('publishTestBtn').style.display = 'none';
+    document.getElementById('saveTestBtn').style.display = 'inline-block';
+    loadTestSessionContent(editTestId);
+  } else if (editTempId) {
     document.getElementById('sel-track').style.display = 'none';
     document.getElementById('sel-level').style.display = 'none';
     document.getElementById('sel-session').style.display = 'none';
@@ -573,16 +659,16 @@ function compileSlide(slide) {
                 rights.push({ text: r, originalIdx: rights.length });
               } 
             });
-            const shuffledRights = [...rights].sort(() => Math.random() - 0.5);
+            const shuffledRights = [...rights];
             const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
             const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
             inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
           } else if (b.qtype === 'schedule') {
-            const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+            const shuffled = [...(b.options || [])];
             const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
             inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
           } else if (b.qtype === 'wordbank') {
-            const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+            const shuffled = [...(b.options || [])];
             const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
           } else {
@@ -624,16 +710,16 @@ function compileSlide(slide) {
               rights.push({ text: r, originalIdx: rights.length });
             } 
           });
-          const shuffledRights = [...rights].sort(() => Math.random() - 0.5);
+          const shuffledRights = [...rights];
           const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
           const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
           inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
         } else if (b.qtype === 'schedule') {
-          const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+          const shuffled = [...(b.options || [])];
           const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
           inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
         } else if (b.qtype === 'wordbank') {
-          const shuffled = [...(b.options || [])].sort(() => Math.random() - 0.5);
+          const shuffled = [...(b.options || [])];
           const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
         } else {
@@ -1899,6 +1985,20 @@ async function autoFixCurrentSession() {
   </div>
 </div>
 
+<div class="modal-overlay" id="testSessionModal">
+  <div class="modal-content">
+    <h3 class="modal-title">ðŸ“ Publish Test Session</h3>
+    <p class="modal-desc">Create a new test session. You can generate access codes from the Admin Panel later.</p>
+    <div style="margin-bottom: 15px;">
+      <label style="display:block; font-size:12px; font-weight:800; color:var(--ink-soft); margin-bottom:4px; text-transform:uppercase;">Test Name</label>
+      <input type="text" id="testSessionName" placeholder="e.g. Midterm Exam" style="width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; box-sizing:border-box;">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('testSessionModal').classList.remove('active')">Cancel</button>
+      <button class="modal-btn modal-btn-submit" onclick="publishTestSession()">Publish Test</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="tempSessionModal">
   <div class="modal-content">
     <h3 class="modal-title">🔗 Publish Temporary Session</h3>
@@ -1947,8 +2047,7 @@ async function publishTempSession() {
   try {
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
-    const parsedSlides = slides.map(html => parseSlideHTML(html));
-    const compiledSlides = parsedSlides.map(compileSlide);
+    const compiledSlides = slides.map(compileSlide);
     const slidesJson = JSON.stringify(compiledSlides);
 
     const body = new URLSearchParams({
