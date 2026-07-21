@@ -1134,7 +1134,7 @@ async function submitTest() {
     });
 
     // Formatting for display
-    let formattedAnswer = slideAnswers.filter(a => a.answer).map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n');
+    let formattedAnswer = slideAnswers.map(a => `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`).join('\n\n');
     answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
   });
 
