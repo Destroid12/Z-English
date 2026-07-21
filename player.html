@@ -1084,6 +1084,17 @@ async function submitTest() {
   slideEls.forEach((slide, i) => {
     let slideAnswers = [];
     
+    // Non-interactive text blocks (like Reading Comprehension texts or Instructions)
+    const infos = slide.querySelectorAll('.content-text, .content-html');
+    infos.forEach(txt => {
+      if (!txt.querySelector('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) {
+        let textContent = txt.textContent.trim().replace(/\s+/g, ' ');
+        if (textContent.length > 0) {
+          slideAnswers.push({ type: 'info', question: textContent, answer: null });
+        }
+      }
+    });
+
     // Inputs/Selects
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
     inputs.forEach(input => {
@@ -1134,7 +1145,10 @@ async function submitTest() {
     });
 
     // Formatting for display
-    let formattedAnswer = slideAnswers.map(a => `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`).join('\n\n');
+    let formattedAnswer = slideAnswers.map(a => {
+      if (a.type === 'info') return `[Context]: ${a.question}`;
+      return `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`;
+    }).join('\n\n');
     answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
   });
 
