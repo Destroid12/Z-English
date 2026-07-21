@@ -1085,8 +1085,8 @@ const ELEM_LABELS = {
   audio: { icon: 'fa-volume-high', label: 'Audio (URL)' },
   question: { icon: 'fa-circle-question', label: 'Question' },
   list: { icon: 'fa-list', label: 'List / Agenda' },
-  codeblock: { icon: 'fa-laptop-code', label: 'HTML Code Block' },
-  raw: { icon: 'fa-code', label: 'Raw HTML (legacy)' }
+  codeblock: { icon: 'fa-laptop-code', label: 'Code Snippet Display' },
+  raw: { icon: 'fa-code', label: 'Raw HTML' }
 };
 
 function renderElements() {
@@ -1153,7 +1153,7 @@ function renderElements() {
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
-          <button onclick="addElement('codeblock')"><i class="fas fa-laptop-code"></i> HTML Code Block</button>
+          <button onclick="addElement('codeblock')"><i class="fas fa-laptop-code"></i> Code Snippet Display</button>
           <button onclick="addElement('raw')"><i class="fas fa-code"></i> Raw HTML</button>
           <button onclick="addElement('link')"><i class="fas fa-link"></i> Hyperlink</button>
         </div>
