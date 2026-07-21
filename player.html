@@ -1069,20 +1069,32 @@ async function submitTest() {
   const answers = [];
   const slideEls = Array.from(document.querySelectorAll('.slide'));
 
+  const getQuestionText = (el) => {
+    let parent = el.closest('.content-text') || el.closest('.editor-pos-blank') || el.parentElement;
+    if (!parent) return 'Question';
+    let clone = parent.cloneNode(true);
+    clone.querySelectorAll('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule').forEach(interactiveEl => {
+      let span = document.createElement('span');
+      span.textContent = ' _____ ';
+      interactiveEl.replaceWith(span);
+    });
+    return clone.textContent.trim().replace(/\s+/g, ' ').substring(0, 150);
+  };
+
   slideEls.forEach((slide, i) => {
     let slideAnswers = [];
     
     // Inputs/Selects
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
     inputs.forEach(input => {
-      slideAnswers.push({ type: 'input', answer: input.value.trim() });
+      slideAnswers.push({ type: 'input', question: getQuestionText(input), answer: input.value.trim() });
     });
 
     // Radios
     const radios = slide.querySelectorAll('.interactive-radio-group');
     radios.forEach(group => {
       const selected = group.querySelector('.interactive-radio.selected');
-      slideAnswers.push({ type: 'radio', answer: selected ? selected.dataset.value : '' });
+      slideAnswers.push({ type: 'radio', question: getQuestionText(group), answer: selected ? selected.dataset.value : '' });
     });
 
     // Wordbanks
@@ -1090,14 +1102,14 @@ async function submitTest() {
     wordbanks.forEach(bank => {
       const dropzone = bank.querySelector('.wordbank-dropzone');
       const words = Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ');
-      slideAnswers.push({ type: 'wordbank', answer: words });
+      slideAnswers.push({ type: 'wordbank', question: getQuestionText(bank), answer: words });
     });
 
     // Checkboxes
     const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
     checkboxes.forEach(group => {
       const selected = Array.from(group.querySelectorAll('.interactive-checkbox.selected')).map(b => b.dataset.value).join(', ');
-      slideAnswers.push({ type: 'checkbox', answer: selected });
+      slideAnswers.push({ type: 'checkbox', question: getQuestionText(group), answer: selected });
     });
     
     // Matches
@@ -1111,18 +1123,18 @@ async function submitTest() {
           if (right) mappings.push(`${left.textContent.trim()} -> ${right.textContent.trim()}`);
         }
       });
-      slideAnswers.push({ type: 'match', answer: mappings.join(' | ') });
+      slideAnswers.push({ type: 'match', question: getQuestionText(container), answer: mappings.join(' | ') });
     });
 
     // Arrange/Schedules
     const schedules = slide.querySelectorAll('.interactive-schedule');
     schedules.forEach(container => {
       const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value).join(', ');
-      slideAnswers.push({ type: 'arrange', answer: currentOrder });
+      slideAnswers.push({ type: 'arrange', question: getQuestionText(container), answer: currentOrder });
     });
 
     // Formatting for display
-    let formattedAnswer = slideAnswers.filter(a => a.answer).map(a => `[${a.type}] ${a.answer}`).join('\n');
+    let formattedAnswer = slideAnswers.filter(a => a.answer).map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n');
     answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
   });
 
