@@ -1129,7 +1129,7 @@
                 applyTranslations();
                 updateNavbar();
                 if (currentUser) {
-                    if (currentUser.role === 'student') { updateGreeting(); renderLevelList(); }
+                    if (currentUser.role === 'student' || currentUser.role === 'instructor') { updateGreeting(); renderLevelList(); }
                     if (currentUser.role === 'admin') { document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + currentUser.name + '!'; }
                     if (document.getElementById('community').classList.contains('active')) { updateCommunityStatusText(); fetchAndRenderCommunity(); }
                 }
@@ -1177,7 +1177,7 @@
                     <a href="#" class="nav-link" onclick="navigate('ai-tutor')">${translations[currentLang].navAITutor || 'Z-AI'}</a>
                     <button class="btn btn-outline" style="padding: 8px 16px;" onclick="handleLogout()">${translations[currentLang].navLogout}</button>
                     ${langSwitcher}`;
-            } else if (currentUser && currentUser.role === 'student') {
+            } else if (currentUser && (currentUser.role === 'student' || currentUser.role === 'instructor')) {
                 nav.innerHTML = `
                     <a href="#" class="nav-link" onclick="navigate('student-dashboard')">${translations[currentLang].navDash}</a>
                     <a href="#" class="nav-link" onclick="navigate('community')">${translations[currentLang].navComm}</a>
@@ -1504,7 +1504,7 @@
                     <div class="session-msg" id="msg-${key}"></div>
                 `;
             } else {
-                const isUnlocked = currentUser.unlockedLevels && currentUser.unlockedLevels.some(l => String(l.track) === String(currentTrack) && String(l.level) === String(level));
+                const isUnlocked = currentUser.role === 'instructor' || (currentUser.unlockedLevels && currentUser.unlockedLevels.some(l => String(l.track) === String(currentTrack) && String(l.level) === String(level)));
                 if (isUnlocked) {
                     row.innerHTML = `
                         <div class="session-label"><i class="fas fa-lock-open" id="icon-${key}" style="color:var(--success);"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
@@ -2050,7 +2050,7 @@ async function deleteStudentUI(studentId) {
         // =====================================================================
         async function loadCategoriesForDashboard() {
             const wrap = document.getElementById('practice-sections-wrap');
-            if (!wrap || !currentUser || currentUser.role !== 'student') return;
+            if (!wrap || !currentUser || (currentUser.role !== 'student' && currentUser.role !== 'instructor')) return;
             try {
                 const catResult = await callBackendGet(new URLSearchParams({ action: 'listCategories', token: sessionToken }));
                 if (catResult.expired) { handleAuthOrLogoutOnExpiry(); return; }
@@ -2404,14 +2404,14 @@ function toggleSiteTutorMic() {
     const container = document.getElementById('feed-container');
     container.innerHTML = '';
 
-    let visiblePosts = currentUser.role === 'admin' ? postsCache : postsCache.filter(p => p.role === 'admin' || p.gender === currentUser.gender);
+    let visiblePosts = (currentUser.role === 'admin' || currentUser.role === 'instructor') ? postsCache : postsCache.filter(p => p.role === 'admin' || p.role === 'instructor' || p.gender === currentUser.gender);
     visiblePosts.sort((a, b) => (b.isPinned === a.isPinned) ? 0 : b.isPinned ? 1 : -1);
 
     if (visiblePosts.length === 0) { container.innerHTML = `<div class="empty-feed">${translations[currentLang].emptyFeed}</div>`; return; }
 
     visiblePosts.forEach(post => {
         const isPinned = post.isPinned ? `<span class="badge" style="background: var(--z-yellow-dark); color: white; margin-bottom: 10px;"><i class="fas fa-thumbtack"></i> ${currentLang === 'en' ? 'Announcement' : 'إعلان'}</span>` : '';
-        const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : '';
+        const roleBadge = post.role === 'admin' ? `<span class="badge admin" style="margin: 0 10px;">Admin</span>` : (post.role === 'instructor' ? `<span class="badge" style="margin: 0 10px; background: var(--primary); color: white;">Instructor</span>` : '');
         const dateStr = post.date ? new Date(post.date).toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const liked = !!post.likedByMe;
         const commentsOpen = openComments.has(String(post.id));
@@ -2544,7 +2544,7 @@ async function deletePostUI(postId) {
                         <div class="comment-avatar">${(c.author || '?').charAt(0).toUpperCase()}</div>
                         <div class="comment-body">
                             <div class="comment-bubble">
-                                <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : ''}</div>
+                                <div class="comment-author">${escapeHtml(c.author)}${c.role === 'admin' ? ' <span class="badge admin" style="padding:2px 8px; font-size:0.65rem;">Admin</span>' : (c.role === 'instructor' ? ' <span class="badge" style="padding:2px 8px; font-size:0.65rem; background: var(--primary); color: white;">Instructor</span>' : '')}</div>
                                 ${parent ? `<div class="reply-quote">↳ replying to ${escapeHtml(parent.author)}: "${escapeHtml(truncateText(parent.content, 60))}"</div>` : ''}
                                 <div class="comment-text">${escapeHtml(c.content)}</div>
                             </div>
@@ -2697,7 +2697,7 @@ async function deletePostUI(postId) {
                 if (currentUser.role === 'admin') {
                     document.getElementById('admin-greeting').textContent = (currentLang === 'en' ? 'Hi, ' : 'مرحباً، ') + currentUser.name + '!';
                     await fetchAdminSessions();
-                } else if (currentUser.role === 'student') {
+                } else if (currentUser.role === 'student' || currentUser.role === 'instructor') {
                     updateGreeting();
                 }
                 // Always stay on the landing page — user clicks "Start Learning" to proceed
