@@ -884,8 +884,8 @@ function initDeck(slides){
     
     const submitBtn = document.getElementById('submitTestBtn');
     if (submitBtn) {
-      submitBtn.style.display = (current === total - 1) ? 'inline-block' : 'none';
-      submitBtn.textContent = isTestMode ? 'Submit Test' : 'Submit Answers';
+      submitBtn.style.display = (current === total - 1 && isTestMode) ? 'inline-block' : 'none';
+      submitBtn.textContent = 'Submit Test';
     }
     
     window.currentSlideIndex = current;
