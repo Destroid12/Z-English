@@ -671,8 +671,16 @@ function compileSlide(slide) {
             inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
           } else if (b.qtype === 'match') {
             const lefts = []; const rights = [];
-            (b.options || []).forEach(o => { 
-              const p = o.split('|'); 
+            let opts = (b.options && b.options.length > 0) ? b.options : [];
+            if (opts.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+              opts = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+              b.options = opts;
+            }
+            opts.forEach(o => { 
+              let p = String(o).split('|'); 
+              if (p.length === 1 && (o.includes(' - ') || o.includes(' : ') || o.includes(' = '))) {
+                p = String(o).split(/ - | : | = /);
+              }
               if(p.length>1) { 
                 const l = p[0].trim();
                 const r = p[1].trim();
@@ -722,8 +730,16 @@ function compileSlide(slide) {
           inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
         } else if (b.qtype === 'match') {
           const lefts = []; const rights = [];
-          (b.options || []).forEach(o => { 
-            const p = o.split('|'); 
+          let opts = (b.options && b.options.length > 0) ? b.options : [];
+          if (opts.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+            opts = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+            b.options = opts;
+          }
+          opts.forEach(o => { 
+            let p = String(o).split('|'); 
+            if (p.length === 1 && (o.includes(' - ') || o.includes(' : ') || o.includes(' = '))) {
+              p = String(o).split(/ - | : | = /);
+            }
             if(p.length>1) { 
               const l = p[0].trim();
               const r = p[1].trim();
@@ -1376,7 +1392,7 @@ function elemCardHTML(el, i, total) {
             <div class="field"><label>Options (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Options (comma-separated)</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
           ` : b.qtype === 'match' ? `
-            <div class="field"><label>Matching Pairs (format: Left Word | Right Word, one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
+            <div class="field"><label>Matching Pairs (format: Left Word | Right Word, one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((((b.options && b.options.length > 0) ? b.options : (el.pairs && Array.isArray(el.pairs) ? el.pairs.map(p => `${p.left || ''} | ${p.right || ''}`) : []))).join('\n'))}</textarea></div>
           ` : b.qtype === 'schedule' ? `
             <div class="field"><label>List Items in Correct Order (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
           ` : b.qtype === 'wordbank' ? `
@@ -1490,6 +1506,14 @@ function updateElBlank(elId, idx, field, value) {
   }
   
   if (field === 'qtype') {
+    if (value === 'match') {
+      let opts = (b.options && b.options.length > 0) ? b.options : [];
+      if (opts.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+        b.options = el.pairs.map(p => `${p.left || ''} | ${p.right || ''}`);
+      } else if (!b.options || b.options.length === 0) {
+        b.options = ['Word 1 | Meaning 1', 'Word 2 | Meaning 2', 'Word 3 | Meaning 3'];
+      }
+    }
     renderElemCards(slide);
   }
   updatePreview();
@@ -1926,7 +1950,16 @@ async function autoFixCurrentSlide() {
         if (result.fixedSlide.title) slide.title = result.fixedSlide.title;
         if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
           slide.elements = restoreLargeDataUrls(result.fixedSlide, dataMap).elements;
-          slide.elements.forEach(el => { if (!el.id) el.id = uid(); });
+          slide.elements.forEach(el => {
+            if (!el.id) el.id = uid();
+            if (el.kind === 'question' && el.blanks) {
+              el.blanks.forEach(b => {
+                if (b.qtype === 'match' && (!b.options || b.options.length === 0) && el.pairs && Array.isArray(el.pairs)) {
+                  b.options = el.pairs.map(p => `${p.left || ''} | ${p.right || ''}`);
+                }
+              });
+            }
+          });
         }
         renderSlideList(); // re-render list in case title changed
         selectSlide(slide.id); // refresh current view
@@ -1970,7 +2003,16 @@ async function autoFixCurrentSession() {
       slides = result.slides.map(s => {
         if (!s.id) s.id = uid();
         if (s.elements) {
-          s.elements.forEach(el => { if (!el.id) el.id = uid(); });
+          s.elements.forEach(el => {
+            if (!el.id) el.id = uid();
+            if (el.kind === 'question' && el.blanks) {
+              el.blanks.forEach(b => {
+                if (b.qtype === 'match' && (!b.options || b.options.length === 0) && el.pairs && Array.isArray(el.pairs)) {
+                  b.options = el.pairs.map(p => `${p.left || ''} | ${p.right || ''}`);
+                }
+              });
+            }
+          });
         }
         return s;
       });
