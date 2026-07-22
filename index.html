@@ -2906,50 +2906,6 @@ function viewSubmissionDetails(index) {
     `;
     modal.classList.add('active');
 }
-            @media print { .btn { display:none !important; } }
-        </style>
-        </head><body>${detailsHtml}
-        <script>
-        var _sub = ${subJson};
-        var _answers = ${ansJson};
-        function downloadPDF() {
-            var jsPDF = window.jspdf.jsPDF;
-            var doc = new jsPDF();
-            var y = 20;
-            doc.setFontSize(20);
-            doc.setFont('helvetica','bold');
-            doc.text('Test Submission', 105, y, {align:'center'});
-            y += 15;
-            doc.setFontSize(12);
-            doc.setFont('helvetica','normal');
-            doc.text('Student: ' + _sub.studentName, 20, y); y += 8;
-            doc.text('Code: ' + _sub.code, 20, y); y += 8;
-            doc.text('Date: ' + new Date(_sub.submittedAt).toLocaleString(), 20, y); y += 8;
-            doc.text('Test ID: ' + (_sub.testId || 'N/A'), 20, y); y += 12;
-            doc.setDrawColor(200);
-            doc.line(20, y, 190, y); y += 10;
-            _answers.forEach(function(ans, i) {
-                if (y > 270) { doc.addPage(); y = 20; }
-                doc.setFont('helvetica','bold');
-                doc.setFontSize(11);
-                doc.text(ans.type || ('Slide ' + (i+1)), 20, y); y += 7;
-                doc.setFont('helvetica','normal');
-                doc.setFontSize(10);
-                var ansText = ans.answer || '(No answer)';
-                var lines = doc.splitTextToSize(ansText, 165);
-                lines.forEach(function(line) {
-                    if (y > 280) { doc.addPage(); y = 20; }
-                    doc.text(line, 25, y); y += 6;
-                });
-                y += 5;
-            });
-            doc.save(_sub.studentName + ' - Test Submission.pdf');
-        }
-        <\/script>
-        </body></html>`);
-    w.document.close();
-}
-
 
 async function loadTempSessions() {
   const btn = document.getElementById('refresh-temp-btn');
