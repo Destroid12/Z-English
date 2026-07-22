@@ -2891,6 +2891,8 @@ function viewSubmissionDetails(index) {
 <html>
 <head>
   <title>Submission Report: ${escapeHtml(sub.studentName)}</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 20px; display: flex; justify-content: center; }
     .container { background: #fff; border-radius: 12px; max-width: 800px; width: 100%; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
@@ -2898,17 +2900,26 @@ function viewSubmissionDetails(index) {
     .meta { color: #64748b; font-size: 14px; margin-bottom: 30px; }
     .meta p { margin: 5px 0; }
     .meta strong { color: #0f172a; }
-    .btn { padding: 10px 20px; background: #1E6FA6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; float: right; margin-top: -50px; }
+    
+    .actions { display: flex; gap: 10px; float: right; margin-top: -50px; }
+    .btn { padding: 10px 20px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.9; }
+    .btn-print { background: #64748b; }
+    .btn-pdf { background: #1E6FA6; }
+    
     @media print {
       body { background: white; padding: 0; }
       .container { box-shadow: none; max-width: 100%; }
-      .btn { display: none; }
+      .actions { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <button class="btn" onclick="window.print()">Print / Save PDF</button>
+  <div class="container" id="report-content">
+    <div class="actions" data-html2canvas-ignore="true">
+      <button class="btn btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+      <button class="btn btn-pdf" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
+    </div>
     <h2>Test Submission Report</h2>
     <div class="meta">
       <p><strong>Student Name:</strong> ${escapeHtml(sub.studentName)}</p>
@@ -2919,6 +2930,19 @@ function viewSubmissionDetails(index) {
       ${reportItems}
     </div>
   </div>
+  <script>
+    function downloadPDF() {
+      const element = document.getElementById('report-content');
+      const opt = {
+        margin:       10,
+        filename:     'Submission_${escapeHtml(sub.studentName).replace(/\\s+/g, '_')}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+  <\/script>
 </body>
 </html>`;
 
