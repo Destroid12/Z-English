@@ -2105,13 +2105,10 @@ async function publishTempSession() {
     if (result.expired) { setStatus('Your session expired.', 'error'); return; }
     if (!result.success) { setStatus(result.message || 'Failed to publish.', 'error'); return; }
     
-    // Copy the link
-    const path = window.location.pathname.replace('editor.html', 'player.html');
-    const link = `${window.location.origin}${path}?tempId=${encodeURIComponent(result.tempId)}`;
-    
-    navigator.clipboard.writeText(link).catch(()=>{});
-    setStatus('Temp Session Published! Link copied to clipboard.', 'success');
-    alert('Temporary Session Link (copied to clipboard):\n\n' + link);
+    // Copy the code (not a link)
+    navigator.clipboard.writeText(result.tempId).catch(()=>{});
+    setStatus('Temp Session Published! Code copied to clipboard.', 'success');
+    alert('Temporary Session Code (copied to clipboard):\n\n' + result.tempId + '\n\nStudents with access can enter this code on the dashboard.');
 
   } catch (err) {
     console.error(err);

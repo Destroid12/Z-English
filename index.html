@@ -604,7 +604,7 @@
                 <h3 style="margin-top:0; color:var(--ink);">Got a Temporary Session Key?</h3>
                 <p style="color:var(--ink-soft); font-size:14px; margin-bottom:16px;">Enter it below to join the session immediately.</p>
                 <div style="display:flex; gap:10px; justify-content:center; max-width: 400px; margin: 0 auto;">
-                    <input type="text" id="tempSessionKeyInput" class="input-control" placeholder="e.g. temp-12345" style="flex:1;">
+                    <input type="text" id="tempSessionKeyInput" class="input-control" placeholder="e.g. T-X4K9M2" style="flex:1; text-transform:uppercase; letter-spacing:2px; font-weight:700;">
                     <button class="btn btn-primary" onclick="joinTempSessionByKey()">Join</button>
                 </div>
             </div>
@@ -821,7 +821,10 @@
 
                 <!-- Submissions Section -->
                 <div style="background: var(--bg-soft); padding: 15px; border-radius: 12px;">
-                    <h4 style="margin-top:0; margin-bottom:10px;">Submissions</h4>
+                    <div class="flex justify-between items-center" style="margin-bottom:10px;">
+                        <h4 style="margin:0;">Submissions</h4>
+                        <input type="text" id="submission-search" class="form-input" placeholder="Search by name or code..." oninput="filterSubmissions()" style="width:220px; padding:6px 12px; font-size:13px;">
+                    </div>
                     <div id="test-submissions-list">Loading submissions...</div>
                 </div>
             </div>
@@ -2830,32 +2833,45 @@ async function deleteTestCode(code) {
 
 async function loadTestSubmissions(testId) {
     document.getElementById('test-submissions-list').innerHTML = 'Loading...';
+    document.getElementById('submission-search').value = '';
     try {
         const res = await callBackendGet(new URLSearchParams({ action: 'listTestSubmissions', token: sessionToken, testId }));
         if (res.success) {
             const subs = res.submissions || [];
-            if (subs.length === 0) {
-                document.getElementById('test-submissions-list').innerHTML = '<p>No submissions yet.</p>';
-            } else {
-                let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
-                subs.forEach((sub, idx) => {
-                    const date = new Date(sub.submittedAt).toLocaleString();
-                    html += `
-                        <div style="background:#fff; border: 1px solid var(--line); padding: 15px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <h4 style="margin:0 0 5px 0;">${sub.studentName} <span style="font-weight:normal; color:var(--text-light); font-size:12px;">(Code: ${sub.code})</span></h4>
-                                <div style="font-size: 12px; color:var(--text-light);">${date}</div>
-                            </div>
-                            <button class="btn btn-outline btn-sm" onclick='viewSubmissionDetails(${idx})'><i class="fas fa-eye"></i> View</button>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                document.getElementById('test-submissions-list').innerHTML = html;
-                window._cachedSubmissions = subs;
-            }
+            window._cachedSubmissions = subs;
+            renderSubmissionsList(subs);
         }
     } catch(e) {}
+}
+
+function filterSubmissions() {
+    const q = (document.getElementById('submission-search').value || '').trim().toLowerCase();
+    const subs = window._cachedSubmissions || [];
+    if (!q) { renderSubmissionsList(subs); return; }
+    renderSubmissionsList(subs.filter(s => (s.studentName || '').toLowerCase().includes(q) || (s.code || '').toLowerCase().includes(q)));
+}
+
+function renderSubmissionsList(subs) {
+    if (!subs || subs.length === 0) {
+        document.getElementById('test-submissions-list').innerHTML = '<p>No submissions found.</p>';
+        return;
+    }
+    let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+    subs.forEach((sub, idx) => {
+        const realIdx = (window._cachedSubmissions || []).indexOf(sub);
+        const date = new Date(sub.submittedAt).toLocaleString();
+        html += `
+            <div style="background:#fff; border: 1px solid var(--line); padding: 15px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h4 style="margin:0 0 5px 0;">${escapeHtml(sub.studentName)} <span style="font-weight:normal; color:var(--text-light); font-size:12px;">(Code: ${escapeHtml(sub.code)})</span></h4>
+                    <div style="font-size: 12px; color:var(--text-light);">${date}</div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick='viewSubmissionDetails(${realIdx})'><i class="fas fa-eye"></i> View</button>
+            </div>
+        `;
+    });
+    html += '</div>';
+    document.getElementById('test-submissions-list').innerHTML = html;
 }
 
 function viewSubmissionDetails(index) {
@@ -2865,49 +2881,31 @@ function viewSubmissionDetails(index) {
     let answers = [];
     try { answers = JSON.parse(sub.answersJson); } catch(e) {}
     
-    let detailsHtml = `<div style="padding: 20px;">
-        <h3 style="margin-top:0;">Test Submission</h3>
-        <p><strong>Name:</strong> ${sub.studentName}</p>
-        <p><strong>Code:</strong> ${sub.code}</p>
-        <p><strong>Date:</strong> ${new Date(sub.submittedAt).toLocaleString()}</p>
-        <hr style="margin:20px 0;">
-        <h4>Answers</h4>
-        <div style="display:flex; flex-direction:column; gap:15px;">
-    `;
-    
+    // Build modal HTML
+    let answersHtml = '';
     answers.forEach((ans, i) => {
-        detailsHtml += `
+        answersHtml += `
             <div style="background:#f0f4f8; padding:12px; border-radius:8px;">
-                <div style="font-weight:bold; font-size:12px; color:#64748b; margin-bottom:5px;">${ans.type || ('Slide ' + (i+1))}</div>
-                <div style="white-space:pre-wrap;">${ans.answer || '<em>No answer</em>'}</div>
+                <div style="font-weight:bold; font-size:12px; color:#64748b; margin-bottom:5px;">${escapeHtml(ans.type || ('Slide ' + (i+1)))}</div>
+                <div style="white-space:pre-wrap;">${escapeHtml(ans.answer || '') || '<em>No answer</em>'}</div>
             </div>
         `;
     });
     
-    detailsHtml += `
+    const modal = document.getElementById('submissionModal');
+    document.getElementById('submissionModalBody').innerHTML = `
+        <h3 style="margin-top:0;">Test Submission</h3>
+        <p><strong>Name:</strong> ${escapeHtml(sub.studentName)}</p>
+        <p><strong>Code:</strong> ${escapeHtml(sub.code)}</p>
+        <p><strong>Date:</strong> ${new Date(sub.submittedAt).toLocaleString()}</p>
+        <hr style="margin:20px 0;">
+        <h4>Answers</h4>
+        <div style="display:flex; flex-direction:column; gap:15px;">
+            ${answersHtml}
         </div>
-        <div style="margin-top:20px; display:flex; gap:10px;">
-            <button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
-            <button class="btn btn-outline" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
-        </div>
-    </div>`;
-    
-    const subJson = JSON.stringify(sub).replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
-    const ansJson = JSON.stringify(answers).replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
-    
-    const w = window.open('', '_blank');
-    w.document.write(`<html><head>
-        <title>${sub.studentName} - Test Submission</title>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
-        <style>
-            body { font-family: 'Outfit', sans-serif; padding: 20px; background: #fff; color: #1e293b; }
-            .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; border:none; transition:all .2s; font-family:inherit; }
-            .btn-primary { background:#4ca8dd; color:#fff; }
-            .btn-primary:hover { background:#1e6fa6; }
-            .btn-outline { background:#fff; color:#4ca8dd; border:2px solid #4ca8dd; }
-            .btn-outline:hover { background:#f0f8ff; }
+    `;
+    modal.classList.add('active');
+}
             @media print { .btn { display:none !important; } }
         </style>
         </head><body>${detailsHtml}
@@ -2968,20 +2966,18 @@ async function loadTempSessions() {
     const html = data.sessions.map(s => {
       const sName = escapeHtml(s.name || 'Untitled Temporary Session');
       return `<div style="border:1px solid var(--border-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; background:#fff; box-shadow: var(--shadow-soft);">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
           <div>
-            <h4 style="margin:0; font-size:1.05rem; color:var(--z-blue-dark);"><i class="fas fa-link" style="margin-right:6px;"></i> ${sName}</h4>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">ID: <code>${s.id}</code></span>
+            <h4 style="margin:0; font-size:1.05rem; color:var(--z-blue-dark);"><i class="fas fa-lock" style="margin-right:6px;"></i> ${sName}</h4>
           </div>
-          <span style="font-size: 0.8rem; padding:3px 8px; border-radius:6px; font-weight:700; ${s.expired ? 'background:var(--danger-light); color:var(--danger);' : 'background:var(--success-light); color:var(--success);'}">
-            ${s.expired ? 'Expired' : 'Active'}
-          </span>
+          <span class="badge" style="background:${s.expired ? 'var(--danger)' : 'var(--success)'}; color:white;">${s.expired ? 'Expired' : 'Active'}</span>
         </div>
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom:12px;">
-          <strong>Expires At:</strong> ${new Date(s.expiresAt).toLocaleString()}
+        <div style="font-size:0.85rem; color:var(--ink-soft); margin-bottom: 12px; display:flex; flex-direction:column; gap:4px;">
+          <div><i class="fas fa-clock"></i> Expires: ${new Date(s.expiresAt).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
+          <div><i class="fas fa-key"></i> Code: <strong>${s.id}</strong></div>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap:wrap;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="copyTempLink('${s.id}')"><i class="fas fa-copy"></i> Copy Link</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyTempCode('${s.id}')"><i class="fas fa-copy"></i> Copy Code</button>
           <a href="editor.html?editTempId=${s.id}" class="btn btn-outline btn-sm" target="_blank"><i class="fas fa-edit"></i> Edit Slides</a>
           <button type="button" class="btn btn-outline btn-sm" onclick="openTempAccessModal('${s.id}')"><i class="fas fa-users"></i> Manage Access</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="updateTempSession('${s.id}')"><i class="fas fa-clock"></i> Extend Time</button>
@@ -3026,6 +3022,7 @@ async function loadPublicSessions() {
         <div style="display:flex; gap: 8px; flex-wrap: wrap;">
           <button type="button" class="btn btn-outline btn-sm" onclick="copyPublicLink('${s.publicId}')"><i class="fas fa-copy"></i> Copy Code</button>
           <a href="editor.html?mode=public&editId=${s.publicId}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit Slides</a>
+          <button type="button" class="btn btn-outline btn-sm" onclick="updatePublicSession('${s.publicId}')"><i class="fas fa-clock"></i> Extend Time</button>
           <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deletePublicSessionAdmin('${s.publicId}')">Close / Delete</button>
         </div>
       </div>`;
@@ -3039,6 +3036,25 @@ async function loadPublicSessions() {
 
 function copyPublicLink(publicId) {
   navigator.clipboard.writeText(publicId).then(() => alert('Code copied!'));
+}
+
+async function updatePublicSession(id) {
+  const hoursStr = prompt('Enter the number of hours to add to this public session (e.g. 1, 24, 72):', '24');
+  if (hoursStr === null) return;
+  const hours = parseFloat(hoursStr);
+  if (isNaN(hours) || hours <= 0) {
+      alert('Please enter a valid positive number of hours.');
+      return;
+  }
+  try {
+    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'updatePublicSession', token: sessionToken, publicId: id, expiresInHours: hours })
+    });
+    const data = await res.json();
+    if (data.success) loadPublicSessions();
+  } catch(e){}
 }
 
 async function deletePublicSessionAdmin(publicId) {
@@ -3059,20 +3075,11 @@ async function deletePublicSessionAdmin(publicId) {
   }
 }
 
-function copyTempLink(tempId) {
-  let path = window.location.pathname;
-  if (path.endsWith('index.html')) {
-      path = path.replace('index.html', 'player.html');
-  } else if (path.endsWith('/')) {
-      path += 'player.html';
-  } else {
-      path += '/player.html';
-  }
-  const link = `${window.location.origin}${path}?tempId=${encodeURIComponent(tempId)}`;
-  navigator.clipboard.writeText(link).then(() => {
-      alert('Temporary Session Link copied to clipboard!\n\n' + link);
+function copyTempCode(tempId) {
+  navigator.clipboard.writeText(tempId).then(() => {
+      alert('Temporary Session Code copied!\n\n' + tempId);
   }).catch(() => {
-      prompt('Copy this link:', link);
+      prompt('Copy this code:', tempId);
   });
 }
 
@@ -3229,5 +3236,26 @@ async function deleteTestSessionAdmin() {
     }
 }
 </script>
+
+<!-- Modals -->
+<div class="modal-overlay" id="tempAccessModal">
+  <div class="modal">
+    <h3>Manage Temporary Session Access</h3>
+    <div id="tempAccessStudentList" style="margin-top: 15px;"></div>
+    <div style="margin-top:20px; text-align:right;">
+      <button class="btn btn-outline" onclick="document.getElementById('tempAccessModal').classList.remove('active')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="submissionModal">
+  <div class="modal" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div id="submissionModalBody"></div>
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content: flex-end;">
+      <button class="btn btn-outline" onclick="document.getElementById('submissionModal').classList.remove('active')">Close</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
