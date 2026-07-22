@@ -662,8 +662,8 @@
 
         <div class="card" style="margin-top: 24px;">
             <div class="flex justify-between items-center">
-                <h3 data-i18n="existingStudentsTitle">Existing Students</h3>
-                <button class="btn btn-outline btn-sm" onclick="loadStudentsList()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+                <h3 style="margin-bottom: 20px;" data-i18n="existingStudentsTitle">Existing Students</h3>
+                <button id="refresh-students-btn" class="btn btn-outline btn-sm" onclick="loadStudentsList()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
             </div>
             <div id="students-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
         </div>
@@ -723,8 +723,8 @@
         </div>
         <div class="card" style="margin-top: 24px;">
             <div class="flex justify-between items-center">
-                <h3 data-i18n="configuredSessionsTitle">Configured Sessions</h3>
-                <button class="btn btn-outline btn-sm" onclick="loadSessionsOverview()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+                <h3 style="margin-bottom: 20px;" data-i18n="adminTabSessions">Session Content</h3>
+                <button id="refresh-overview-btn" class="btn btn-outline btn-sm" onclick="loadSessionsOverview()" data-i18n="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
             </div>
             <div id="sessions-table-wrap"><p data-i18n="loadingText" style="margin-top:16px;">Loading...</p></div>
         </div>
@@ -778,7 +778,7 @@
         <div class="card">
             <div class="flex justify-between items-center">
                 <h3 style="margin-bottom: 20px;">Public Sessions</h3>
-                <button class="btn btn-outline btn-sm" onclick="loadPublicSessions()"><i class="fas fa-rotate"></i> Refresh</button>
+                <button id="refresh-public-btn" class="btn btn-outline btn-sm" onclick="loadPublicSessions()"><i class="fas fa-rotate"></i> Refresh</button>
             </div>
             <div id="public-sessions-list">
                <p style="margin-top:16px;">Click Refresh to load public sessions.</p>
@@ -792,7 +792,7 @@
             <div class="flex justify-between items-center">
                 <h3 style="margin-bottom: 20px;">Test Sessions & Codes</h3>
                 <div>
-                    <button class="btn btn-outline btn-sm" onclick="loadTestSessionsAdmin()"><i class="fas fa-rotate"></i> Refresh</button>
+                    <button id="refresh-test-btn" class="btn btn-outline btn-sm" onclick="loadTestSessionsAdmin()"><i class="fas fa-rotate"></i> Refresh</button>
                     <a href="editor.html" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Create New Test</a>
                 </div>
             </div>
@@ -833,7 +833,7 @@
         <div class="card">
             <div class="flex justify-between items-center">
                 <h3 style="margin-bottom: 20px;">Temporary Sessions</h3>
-                <button class="btn btn-outline btn-sm" onclick="loadTempSessions()"><i class="fas fa-rotate"></i> Refresh</button>
+                <button id="refresh-temp-btn" class="btn btn-outline btn-sm" onclick="loadTempSessions()"><i class="fas fa-rotate"></i> Refresh</button>
             </div>
             <div id="temp-sessions-list">
                <p style="margin-top:16px;">Click Refresh to load temporary sessions.</p>
@@ -1743,19 +1743,21 @@
         }
 
         async function loadSessionsOverview() {
-            const wrap = document.getElementById('sessions-table-wrap');
-            if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noSessionsYet}</p>`; return; }
-            try {
-                const result = await callBackendGet(new URLSearchParams({ action: 'listSessions', token: sessionToken }));
-                if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
-                const sessions = result.sessions || [];
-                if (sessions.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noSessionsYet}</p>`; return; }
-                let rows = sessions.map(s => `<tr><td>${s.track}</td><td>${s.level}</td><td>${s.sessionNumber}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;">${s.link}</td></tr>`).join('');
-                wrap.innerHTML = `<table class="data-table"><thead><tr><th>${translations[currentLang].sectionLabel}</th><th>${translations[currentLang].levelLabel}</th><th>${translations[currentLang].sessionLabel}</th><th>${translations[currentLang].sessionLinkLabel}</th></tr></thead><tbody>${rows}</tbody></table>`;
-            } catch (err) {
-                wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
-            }
-        }
+    const btn = document.getElementById('refresh-overview-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLang === 'ar' ? 'جاري التحديث...' : 'Refreshing...'); }
+    try {
+        const res = await callBackendGet(new URLSearchParams({ action: 'listSessions', token: sessionToken }));
+        if (res.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        const sessions = res.sessions || [];
+        const wrap = document.getElementById('sessions-table-wrap');
+        if (sessions.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noSessionsYet}</p>`; return; }
+        let rows = sessions.map(s => `<tr><td>${s.track}</td><td>${s.level}</td><td>${s.sessionNumber}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;">${s.link}</td></tr>`).join('');
+        wrap.innerHTML = `<table class="data-table"><thead><tr><th>${translations[currentLang].sectionLabel}</th><th>${translations[currentLang].levelLabel}</th><th>${translations[currentLang].sessionLabel}</th><th>${translations[currentLang].sessionLinkLabel}</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } catch (err) {
+        document.getElementById('sessions-table-wrap').innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); }
+}
 
         function showElAlert(id, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(id).classList.add('show'); }
         function hideElAlert(id) { document.getElementById(id).classList.remove('show'); }
@@ -1818,14 +1820,16 @@
         }
 
         async function loadStudentsList() {
+    const btn = document.getElementById('refresh-students-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLang === 'ar' ? 'جاري التحديث...' : 'Refreshing...'); }
     const wrap = document.getElementById('students-table-wrap');
-    if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+    if (!backendConfigured() || !sessionToken) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); } return; }
     try {
         const result = await callBackendGet(new URLSearchParams({ action: 'listStudents', token: sessionToken }));
-        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); } return; }
         const students = result.students || [];
         window.allStudentsCache = students;
-        if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; return; }
+        if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); } return; }
         let rows = students.map(s => {
             const hasLevel = (t, l) => s.unlockedLevels && s.unlockedLevels.some(ul => String(ul.track) === String(t) && String(ul.level) === String(l));
             return `
@@ -1876,6 +1880,8 @@
     } catch (err) {
         wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
     }
+    const btn = document.getElementById('refresh-students-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); }
 }
 
         async function freeSlot(studentId, slot) {
@@ -2730,6 +2736,8 @@ let adminTestSessions = [];
 
 async function loadTestSessionsAdmin() {
     if (!currentUser || currentUser.role !== 'admin') return;
+    const btn = document.getElementById('refresh-test-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...'; }
     try {
         const res = await callBackendGet(new URLSearchParams({ action: 'listTestSessions', token: sessionToken }));
         if (res.success) {
@@ -2741,6 +2749,7 @@ async function loadTestSessionsAdmin() {
             document.getElementById('test-session-admin-content').style.display = 'none';
         }
     } catch(e) {}
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
 }
 
 async function onTestSessionSelectedAdmin() {
@@ -2946,12 +2955,15 @@ function viewSubmissionDetails(index) {
 
 
 async function loadTempSessions() {
+  const btn = document.getElementById('refresh-temp-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...'; }
   document.getElementById('temp-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listTempSessions&token=' + encodeURIComponent(sessionToken));
     const data = await res.json();
     if (!data.success) {
       document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
       return;
     }
     const html = data.sessions.map(s => {
@@ -2982,43 +2994,48 @@ async function loadTempSessions() {
   } catch (err) {
     document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Error loading sessions.</p>';
   }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
 }
 
 async function loadPublicSessions() {
+  const btn = document.getElementById('refresh-public-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...'; }
   document.getElementById('public-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listPublicSessions&token=' + encodeURIComponent(sessionToken));
     const data = await res.json();
     if (!data.success) {
       document.getElementById('public-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
       return;
     }
     const html = data.sessions.map(s => {
       const sName = escapeHtml(s.name || 'Untitled Public Session');
       let authObj = {};
       try { authObj = JSON.parse(s.authData); } catch(e){}
-      const maxStr = (authObj.max && authObj.max > 0) ? \`(\${(authObj.joined || []).length}/\${authObj.max} joined)\` : '(No limit)';
-      return \`<div style="border:1px solid var(--border-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; background:#fff; box-shadow: var(--shadow-soft);">
+      const maxStr = (authObj.max && authObj.max > 0) ? `(${(authObj.joined || []).length}/${authObj.max} joined)` : '(No limit)';
+      return `<div style="border:1px solid var(--border-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; background:#fff; box-shadow: var(--shadow-soft);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-          <h4 style="margin:0; font-size:1.05rem;">\${sName}</h4>
-          <span class="badge" style="background:\${s.expired ? 'var(--danger)' : 'var(--success)'}; color:white;">\${s.expired ? 'Expired' : 'Active'}</span>
+          <h4 style="margin:0; font-size:1.05rem;">${sName}</h4>
+          <span class="badge" style="background:${s.expired ? 'var(--danger)' : 'var(--success)'}; color:white;">${s.expired ? 'Expired' : 'Active'}</span>
         </div>
         <div style="font-size:0.85rem; color:var(--ink-soft); margin-bottom: 12px; display:flex; flex-direction:column; gap:4px;">
-          <div><i class="fas fa-clock"></i> Expires: \${new Date(s.expiresAt).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
-          <div><i class="fas fa-key"></i> Code: <strong>\${s.publicId}</strong></div>
-          <div><i class="fas fa-users"></i> Room Limit: \${maxStr}</div>
+          <div><i class="fas fa-clock"></i> Expires: ${new Date(s.expiresAt).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
+          <div><i class="fas fa-key"></i> Code: <strong>${s.publicId}</strong></div>
+          <div><i class="fas fa-users"></i> Room Limit: ${maxStr}</div>
         </div>
         <div style="display:flex; gap: 8px; flex-wrap: wrap;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="copyPublicLink('\${s.publicId}')"><i class="fas fa-copy"></i> Copy Code</button>
-          <a href="editor.html?mode=public&editId=\${s.publicId}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit Slides</a>
-          <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deletePublicSessionAdmin('\${s.publicId}')">Close / Delete</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyPublicLink('${s.publicId}')"><i class="fas fa-copy"></i> Copy Code</button>
+          <a href="editor.html?mode=public&editId=${s.publicId}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit Slides</a>
+          <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deletePublicSessionAdmin('${s.publicId}')">Close / Delete</button>
         </div>
-      </div>\`;
+      </div>`;
     }).join('');
     document.getElementById('public-sessions-list').innerHTML = html || '<p style="margin-top:16px;">No public sessions.</p>';
   } catch (err) {
     document.getElementById('public-sessions-list').innerHTML = '<p class="error">Error loading sessions.</p>';
   }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
 }
 
 function copyPublicLink(publicId) {
