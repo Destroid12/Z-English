@@ -1880,7 +1880,6 @@
     } catch (err) {
         wrap.innerHTML = `<p>${translations[currentLang].errNetwork}</p>`;
     }
-    const btn = document.getElementById('refresh-students-btn');
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); }
 }
 
