@@ -1432,7 +1432,11 @@ function elemCardHTML(el, i, total) {
               <div class="field"><label>Left %</label><input type="text" value="${escAttr(b.pos.left)}" oninput="updateElBlankPos('${el.id}', ${i}, 'left', this.value)"></div>
             </div>
             <div class="hint">Turn on "Reposition mode" to drag this answer box freely over the slide.</div>
-          `   } else if (el.kind === 'list') {
+          ` : ''}
+        </div>
+      `;
+    }
+  } else if (el.kind === 'list') {
     const itemsText = (el.items || []).map(it => it.time ? `${it.text} | ${it.time}` : it.text).join('\n');
     fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>
       <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>`;
