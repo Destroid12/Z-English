@@ -1398,9 +1398,20 @@ document.getElementById('tutorInput').addEventListener('input', function () {
 });
 
 function clearClipboard() {
+  const msg = 'Content on Z-English is protected. Screenshots disabled.';
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText('Content on Z-English is protected. Screenshots disabled.').catch(() => {});
+    navigator.clipboard.writeText(msg).catch(() => {});
   }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = msg;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (e) {}
 }
 
 document.addEventListener('contextmenu', event => event.preventDefault());
