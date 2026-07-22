@@ -448,10 +448,18 @@ async function loadLesson(){
     if (testCode) {
       isTestMode = true;
       url = `${GOOGLE_APP_SCRIPT_URL}?action=validateTestCode&code=${encodeURIComponent(testCode)}`;
-    } else if (tempId) {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}`;
     } else {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}`;
+    let guestId = localStorage.getItem('zenglish_guest_id');
+    if (!guestId) {
+      guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('zenglish_guest_id', guestId);
+    }
+
+    if (tempId) {
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+    } else {
+      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+    }
     }
     console.log('Fetching lesson from:', url);
     const res = await fetch(url);
