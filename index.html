@@ -2881,30 +2881,55 @@ function viewSubmissionDetails(index) {
     let answers = [];
     try { answers = JSON.parse(sub.answersJson); } catch(e) {}
     
-    // Build modal HTML
-    let answersHtml = '';
+    // Build stylized HTML
+    let reportItems = '';
     answers.forEach((ans, i) => {
-        answersHtml += `
-            <div style="background:#f0f4f8; padding:12px; border-radius:8px;">
-                <div style="font-weight:bold; font-size:12px; color:#64748b; margin-bottom:5px;">${escapeHtml(ans.type || ('Slide ' + (i+1)))}</div>
-                <div style="white-space:pre-wrap;">${escapeHtml(ans.answer || '') || '<em>No answer</em>'}</div>
-            </div>
-        `;
+        reportItems += `<div style="margin-top: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;"><h3 style="color: #1E6FA6; margin-top:0;">${escapeHtml(ans.type || ('Slide ' + (i+1)))}</h3><pre style="font-family: inherit; white-space: pre-wrap; margin:0; font-size:14px; color: #334155;">${escapeHtml(ans.answer || '') || '<em>No answer</em>'}</pre></div>`;
     });
     
-    const modal = document.getElementById('submissionModal');
-    document.getElementById('submissionModalBody').innerHTML = `
-        <h3 style="margin-top:0;">Test Submission</h3>
-        <p><strong>Name:</strong> ${escapeHtml(sub.studentName)}</p>
-        <p><strong>Code:</strong> ${escapeHtml(sub.code)}</p>
-        <p><strong>Date:</strong> ${new Date(sub.submittedAt).toLocaleString()}</p>
-        <hr style="margin:20px 0;">
-        <h4>Answers</h4>
-        <div style="display:flex; flex-direction:column; gap:15px;">
-            ${answersHtml}
-        </div>
-    `;
-    modal.classList.add('active');
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Submission Report: ${escapeHtml(sub.studentName)}</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 20px; display: flex; justify-content: center; }
+    .container { background: #fff; border-radius: 12px; max-width: 800px; width: 100%; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    h2 { color: #1E6FA6; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 0; }
+    .meta { color: #64748b; font-size: 14px; margin-bottom: 30px; }
+    .meta p { margin: 5px 0; }
+    .meta strong { color: #0f172a; }
+    .btn { padding: 10px 20px; background: #1E6FA6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; float: right; margin-top: -50px; }
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; max-width: 100%; }
+      .btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="btn" onclick="window.print()">Print / Save PDF</button>
+    <h2>Test Submission Report</h2>
+    <div class="meta">
+      <p><strong>Student Name:</strong> ${escapeHtml(sub.studentName)}</p>
+      <p><strong>Code / Session ID:</strong> ${escapeHtml(sub.code)}</p>
+      <p><strong>Date:</strong> ${new Date(sub.submittedAt).toLocaleString()}</p>
+    </div>
+    <div class="answers">
+      ${reportItems}
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const reportWin = window.open('', '_blank');
+    if (reportWin) {
+        reportWin.document.open();
+        reportWin.document.write(htmlContent);
+        reportWin.document.close();
+    } else {
+        alert('Please allow popups to view the submission report.');
+    }
 }
 
 async function loadTempSessions() {
