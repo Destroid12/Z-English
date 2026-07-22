@@ -876,7 +876,8 @@ function initDeck(slides){
     
     const submitBtn = document.getElementById('submitTestBtn');
     if (submitBtn) {
-      submitBtn.style.display = (isTestMode && current === total - 1) ? 'inline-block' : 'none';
+      submitBtn.style.display = (current === total - 1) ? 'inline-block' : 'none';
+      submitBtn.textContent = isTestMode ? 'Submit Test' : 'Submit Answers';
     }
     
     window.currentSlideIndex = current;
@@ -1162,12 +1163,15 @@ async function submitTest() {
   btn.disabled = true;
   btn.textContent = 'Submitting...';
 
+  const sessionId = testId || tempId || `${track}-${level}-${sessionNumber}`;
+
   try {
     const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
       method: 'POST',
       body: new URLSearchParams({
         action: 'submitTest',
-        code: testCode,
+        code: testCode || '',
+        sessionId: sessionId,
         studentName: studentName,
         answersJson: JSON.stringify(answers)
       })

@@ -259,7 +259,11 @@ async function loadTestSessionContent(testId) {
     });
     
     setStatus('Test session loaded.', 'success');
-    if (slides.length > 0) renderSlide(0);
+    if (slides.length > 0) {
+      selectedSlideId = slides[0].id;
+      renderSlideList();
+      renderElemCards(slides[0]);
+    }
   } catch (err) {
     setStatus('Error loading test session: ' + err.message, 'error');
   }
