@@ -1276,6 +1276,7 @@
         }
         async function callBackendGet(params) {
             if (!backendConfigured()) throw new Error('Backend not configured');
+            params.append('_ts', Date.now());
             const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
@@ -3285,3 +3286,4 @@ async function deleteTestSessionAdmin() {
 
 </body>
 </html>
+
