@@ -608,6 +608,13 @@ function compileSlide(slide) {
       const gap = el.lineGap ? `${escAttr(el.lineGap)}px` : '0px';
       const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
       chunk = `<div style="${pStyle} display:flex; flex-direction:column; gap:${gap};">${lines}</div>\n`;
+    } else if (el.kind === 'speaking') {
+      let pStyle = 'font-size:16px;line-height:1.6;margin:0 0 16px;padding:16px;border-radius:12px;display:flex;align-items:center;gap:12px;';
+      if (el.color) pStyle += `color:${escAttr(el.color)};`; else pStyle += `color:#1E6FA6;`;
+      if (el.bgColor) pStyle += `background-color:${escAttr(el.bgColor)};`; else pStyle += `background-color:#EAF4FC;`;
+      if (el.bold !== false) pStyle += 'font-weight:800;';
+      const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
+      chunk = `<div class="content-text" style="${pStyle}"><div style="font-size:32px;">🗣️</div><div style="flex:1;display:flex;flex-direction:column;">${lines}</div></div>\n`;
     } else if (el.kind === 'image') {
       if (el.url) {
         chunk += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
@@ -773,8 +780,6 @@ function compileSlide(slide) {
       let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
       const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
       chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
-    } else if (el.kind === 'codeblock') {
-      chunk = `<pre class="code-block" style="background:#1e293b; color:#f8fafc; padding:16px; border-radius:12px; overflow-x:auto; font-family:monospace; font-size:14px; margin:16px 0;"><code>${esc(el.code)}</code></pre>\n`;
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
       if (chunk.includes('interactive-input') || chunk.includes('interactive-select') || chunk.includes('interactive-radio') || chunk.includes('interactive-checkbox') || chunk.includes('interactive-match') || chunk.includes('interactive-schedule') || chunk.includes('interactive-wordbank')) {
@@ -1024,8 +1029,6 @@ function parseLegacySlideHTML(html) {
         return { text: text.trim(), time };
       });
       slide.elements.push({ id: uid(), kind: 'list', pos: null, items, font: node.style.fontFamily || '' });
-    } else if (tag === 'PRE' && node.classList.contains('code-block')) {
-      slide.elements.push({ id: uid(), kind: 'codeblock', pos: null, code: node.textContent });
     } else {
       // Anything unrecognized (custom markup, tables, embeds, etc.) stays fully intact
       // and still editable — just as a raw HTML block instead of structured fields.
@@ -1122,8 +1125,8 @@ const ELEM_LABELS = {
   audio: { icon: 'fa-volume-high', label: 'Audio (URL)' },
   question: { icon: 'fa-circle-question', label: 'Question' },
   list: { icon: 'fa-list', label: 'List / Agenda' },
-  codeblock: { icon: 'fa-laptop-code', label: 'Code Snippet Display' },
-  raw: { icon: 'fa-code', label: 'Raw HTML' }
+  raw: { icon: 'fa-code', label: 'Raw HTML' },
+  link: { icon: 'fa-link', label: 'Hyperlink' }
 };
 
 function renderElements() {
@@ -1190,7 +1193,6 @@ function renderElements() {
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
-          <button onclick="addElement('codeblock')"><i class="fas fa-laptop-code"></i> Code Snippet Display</button>
           <button onclick="addElement('raw')"><i class="fas fa-code"></i> Raw HTML</button>
           <button onclick="addElement('link')"><i class="fas fa-link"></i> Hyperlink</button>
         </div>
@@ -1247,12 +1249,12 @@ function addElement(kind) {
   document.getElementById('addElemDropdown').classList.remove('open');
   let el = { id: uid(), kind, pos: null };
   if (kind === 'paragraph') el = { ...el, text: '', bold: false, color: '', size: '', align: '' };
+  if (kind === 'speaking') el = { ...el, text: 'Speaking Assessment: Please notify your instructor that you are ready for your one-on-one speaking test.', bold: true, color: '#1E6FA6', bgColor: '#EAF4FC' };
   if (kind === 'image') el = { ...el, url: '', caption: '' };
   if (kind === 'video') el = { ...el, url: '', caption: '' };
   if (kind === 'audio') el = { ...el, url: '', caption: '' };
   if (kind === 'question') el = { ...el, blanks: [{ qtype: 'text', answer: '', altAnswers: [], options: [] }], prompt: '' };
   if (kind === 'list') el = { ...el, items: [{ text: '', time: '' }] };
-  if (kind === 'codeblock') el = { ...el, code: '' };
   if (kind === 'raw') el = { ...el, html: '' };
   if (kind === 'link') el = { ...el, url: '', text: '', bgColor: '#007BFF', color: '#FFFFFF' };
   slide.elements.push(el);
@@ -1321,6 +1323,22 @@ function elemCardHTML(el, i, total) {
         <div class="field" style="display:flex; align-items:flex-end;">
           <label class="checkbox-field" style="margin-bottom:9px;">
             <input type="checkbox" ${el.bold ? 'checked' : ''} onchange="updateElField('${el.id}','bold',this.checked)">
+            Bold
+          </label>
+        </div>
+      </div>
+    `;
+  } else if (el.kind === 'speaking') {
+    fields = `
+      <div class="field"><label>Instructions Text</label><textarea style="min-height: 80px;" oninput="updateElField('${el.id}','text',this.value)">${esc(el.text)}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Text Color</label><input type="color" value="${escAttr(el.color || '#1E6FA6')}" oninput="updateElField('${el.id}','color',this.value)"></div>
+        <div class="field"><label>Bg Color</label><input type="color" value="${escAttr(el.bgColor || '#EAF4FC')}" oninput="updateElField('${el.id}','bgColor',this.value)"></div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="display:flex; align-items:flex-end;">
+          <label class="checkbox-field" style="margin-bottom:9px;">
+            <input type="checkbox" ${el.bold !== false ? 'checked' : ''} onchange="updateElField('${el.id}','bold',this.checked)">
             Bold
           </label>
         </div>
@@ -1414,16 +1432,10 @@ function elemCardHTML(el, i, total) {
               <div class="field"><label>Left %</label><input type="text" value="${escAttr(b.pos.left)}" oninput="updateElBlankPos('${el.id}', ${i}, 'left', this.value)"></div>
             </div>
             <div class="hint">Turn on "Reposition mode" to drag this answer box freely over the slide.</div>
-          ` : ''}
-        </div>
-      `;
-    }
-  } else if (el.kind === 'list') {
+          `   } else if (el.kind === 'list') {
     const itemsText = (el.items || []).map(it => it.time ? `${it.text} | ${it.time}` : it.text).join('\n');
     fields = `<div class="field"><label>Items (one per line — "text | time" for a time badge)</label><textarea oninput="updateElItems('${el.id}',this.value)">${esc(itemsText)}</textarea></div>
       <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>`;
-  } else if (el.kind === 'codeblock') {
-    fields = `<div class="field"><label>Code Content</label><textarea style="min-height:140px; font-family:monospace; font-size:0.85rem;" oninput="updateElField('${el.id}','code',this.value)" placeholder="Type HTML or code here...">${esc(el.code)}</textarea></div>`;
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
   } else if (el.kind === 'link') {

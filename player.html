@@ -1076,129 +1076,175 @@ async function submitTest() {
   const studentName = prompt('Please enter your full name to submit the test:');
   if (!studentName) return;
 
+  const btn = document.getElementById('submitTestBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+  }
+
   const answers = [];
-  const slideEls = Array.from(document.querySelectorAll('.slide'));
+  try {
+    const slideEls = Array.from(document.querySelectorAll('.slide'));
 
-  const getQuestionText = (el) => {
-    let parent = el.closest('.content-text') || el.closest('.editor-pos-blank') || el.parentElement;
-    if (!parent) return 'Question';
-    let clone = parent.cloneNode(true);
-    clone.querySelectorAll('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule').forEach(interactiveEl => {
-      let span = document.createElement('span');
-      span.textContent = ' _____ ';
-      interactiveEl.replaceWith(span);
-    });
-    return clone.textContent.trim().replace(/\s+/g, ' ').substring(0, 150);
-  };
+    const getQuestionText = (el) => {
+      let parent = el ? (el.closest('.content-text') || el.closest('.editor-pos-blank') || el.parentElement) : null;
+      if (!parent) return 'Question';
+      let clone = parent.cloneNode(true);
+      clone.querySelectorAll('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule').forEach(interactiveEl => {
+        let span = document.createElement('span');
+        span.textContent = ' _____ ';
+        interactiveEl.replaceWith(span);
+      });
+      return clone.textContent.trim().replace(/\s+/g, ' ').substring(0, 150);
+    };
 
-  slideEls.forEach((slide, i) => {
-    let slideAnswers = [];
-    
-    // Non-interactive text blocks (like Reading Comprehension texts or Instructions)
-    const infos = slide.querySelectorAll('.content-text, .content-html');
-    infos.forEach(txt => {
-      if (!txt.querySelector('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) {
-        let textContent = txt.textContent.trim().replace(/\s+/g, ' ');
-        if (textContent.length > 0) {
-          slideAnswers.push({ node: txt, type: 'info', question: textContent, answer: null });
-        }
-      }
-    });
-
-    // Inputs/Selects
-    const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
-    inputs.forEach(input => {
-      slideAnswers.push({ node: input, type: 'input', question: getQuestionText(input), answer: input.value.trim() });
-    });
-
-    // Radios
-    const radios = slide.querySelectorAll('.interactive-radio-group');
-    radios.forEach(group => {
-      const selected = group.querySelector('.interactive-radio.selected');
-      slideAnswers.push({ node: group, type: 'radio', question: getQuestionText(group), answer: selected ? selected.dataset.value : '' });
-    });
-
-    // Wordbanks
-    const wordbanks = slide.querySelectorAll('.interactive-wordbank');
-    wordbanks.forEach(bank => {
-      const dropzone = bank.querySelector('.wordbank-dropzone');
-      const words = Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ');
-      slideAnswers.push({ node: bank, type: 'wordbank', question: getQuestionText(bank), answer: words });
-    });
-
-    // Checkboxes
-    const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
-    checkboxes.forEach(group => {
-      const selected = Array.from(group.querySelectorAll('.interactive-checkbox.selected')).map(b => b.dataset.value).join(', ');
-      slideAnswers.push({ node: group, type: 'checkbox', question: getQuestionText(group), answer: selected });
-    });
-    
-    // Matches
-    const matches = slide.querySelectorAll('.interactive-match');
-    matches.forEach(container => {
-      const mappings = [];
-      const lefts = container.querySelectorAll('.match-left');
-      lefts.forEach(left => {
-        if (left.dataset.matched) {
-          const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
-          if (right) mappings.push(`${left.textContent.trim()} -> ${right.textContent.trim()}`);
+    slideEls.forEach((slide, i) => {
+      let slideAnswers = [];
+      
+      // Non-interactive text blocks
+      const infos = slide.querySelectorAll('.content-text, .content-html');
+      infos.forEach(txt => {
+        if (!txt.querySelector('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) {
+          let textContent = txt.textContent.trim().replace(/\s+/g, ' ');
+          if (textContent.length > 0) {
+            slideAnswers.push({ node: txt, type: 'info', question: textContent, answer: null });
+          }
         }
       });
-      slideAnswers.push({ node: container, type: 'match', question: getQuestionText(container), answer: mappings.join(' | ') });
+
+      // Inputs/Selects
+      const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
+      inputs.forEach(input => {
+        slideAnswers.push({ node: input, type: 'input', question: getQuestionText(input), answer: input.value ? input.value.trim() : '' });
+      });
+
+      // Radios
+      const radios = slide.querySelectorAll('.interactive-radio-group');
+      radios.forEach(group => {
+        const selected = group.querySelector('.interactive-radio.selected');
+        slideAnswers.push({ node: group, type: 'radio', question: getQuestionText(group), answer: selected ? selected.dataset.value : '' });
+      });
+
+      // Wordbanks
+      const wordbanks = slide.querySelectorAll('.interactive-wordbank');
+      wordbanks.forEach(bank => {
+        const dropzone = bank.querySelector('.wordbank-dropzone');
+        const words = dropzone ? Array.from(dropzone.querySelectorAll('.interactive-word')).map(w => w.dataset.value).join(' ') : '';
+        slideAnswers.push({ node: bank, type: 'wordbank', question: getQuestionText(bank), answer: words });
+      });
+
+      // Checkboxes
+      const checkboxes = slide.querySelectorAll('.interactive-checkbox-group');
+      checkboxes.forEach(group => {
+        const selected = Array.from(group.querySelectorAll('.interactive-checkbox.selected')).map(b => b.dataset.value).join(', ');
+        slideAnswers.push({ node: group, type: 'checkbox', question: getQuestionText(group), answer: selected });
+      });
+      
+      // Matches
+      const matches = slide.querySelectorAll('.interactive-match');
+      matches.forEach(container => {
+        const mappings = [];
+        const lefts = container.querySelectorAll('.match-left');
+        lefts.forEach(left => {
+          if (left.dataset.matched) {
+            const right = container.querySelector(`.match-right[data-index="${left.dataset.matched}"]`);
+            if (right) mappings.push(`${left.textContent.trim()} -> ${right.textContent.trim()}`);
+          }
+        });
+        slideAnswers.push({ node: container, type: 'match', question: getQuestionText(container), answer: mappings.join(' | ') });
+      });
+
+      // Arrange/Schedules
+      const schedules = slide.querySelectorAll('.interactive-schedule');
+      schedules.forEach(container => {
+        const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value).join(', ');
+        slideAnswers.push({ node: container, type: 'arrange', question: getQuestionText(container), answer: currentOrder });
+      });
+
+      // Sort by actual DOM position
+      slideAnswers.sort((a, b) => {
+        if (!a.node || !b.node || a.node === b.node) return 0;
+        return (a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+      });
+
+      // Formatting for display
+      let formattedAnswer = slideAnswers.map(a => {
+        if (a.type === 'info') return `[Context]: ${a.question}`;
+        return `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`;
+      }).join('\n\n');
+      answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
     });
+  } catch (err) {
+    console.error('Error parsing slide data:', err);
+  }
 
-    // Arrange/Schedules
-    const schedules = slide.querySelectorAll('.interactive-schedule');
-    schedules.forEach(container => {
-      const currentOrder = Array.from(container.querySelectorAll('.schedule-item')).map(item => item.dataset.value).join(', ');
-      slideAnswers.push({ node: container, type: 'arrange', question: getQuestionText(container), answer: currentOrder });
-    });
+  const sessionId = tempId || `${track || 't'}-${level || 'l'}-${sessionNumber || 's'}`;
 
-    // Sort by actual DOM position
-    slideAnswers.sort((a, b) => {
-      if (a.node === b.node) return 0;
-      return a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
-    });
-
-    // Formatting for display
-    let formattedAnswer = slideAnswers.map(a => {
-      if (a.type === 'info') return `[Context]: ${a.question}`;
-      return `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`;
-    }).join('\n\n');
-    answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
-  });
-
-  const btn = document.getElementById('submitTestBtn');
-  btn.disabled = true;
-  btn.textContent = 'Submitting...';
-
-  const sessionId = testId || tempId || `${track}-${level}-${sessionNumber}`;
-
+  // Attempt backend save asynchronously without blocking UI report modal
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
-      method: 'POST',
-      body: new URLSearchParams({
-        action: 'submitTest',
-        code: testCode || '',
-        sessionId: sessionId,
-        studentName: studentName,
-        answersJson: JSON.stringify(answers)
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert('Test submitted successfully! You will now be redirected to the home page.');
-      window.location.href = 'index.html';
-    } else {
-      alert('Failed to submit test: ' + data.message);
-      btn.disabled = false;
-      btn.textContent = 'Submit Test';
+    if (typeof GOOGLE_APP_SCRIPT_URL !== 'undefined' && GOOGLE_APP_SCRIPT_URL) {
+      fetch(GOOGLE_APP_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'submitTest',
+          code: testCode || '',
+          sessionId: sessionId,
+          studentName: studentName,
+          answersJson: JSON.stringify(answers)
+        })
+      }).catch(err => console.warn('Backend submission fetch error:', err));
     }
   } catch (err) {
-    alert('Error submitting test: ' + err.message);
-    btn.disabled = false;
-    btn.textContent = 'Submit Test';
+    console.warn('Backend error:', err);
   }
+
+  // Instantly show submission report modal
+  showSubmissionReportModal(studentName, sessionId, answers);
+}
+
+function showSubmissionReportModal(studentName, sessionId, answers) {
+  let reportItems = '';
+  answers.forEach(ans => {
+    reportItems += `<div style="margin-top: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;"><h3 style="color: #1E6FA6; margin-top:0;">${ans.type}</h3><pre style="font-family: inherit; white-space: pre-wrap; margin:0; font-size:14px; color: #334155;">${ans.answer}</pre></div>`;
+  });
+
+  const modalHtml = `
+    <div id="subReportModal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); z-index:999999; display:flex; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+      <div style="background:#fff; border-radius:12px; max-width:800px; width:100%; max-height:90vh; display:flex; flex-direction:column; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1E6FA6; padding-bottom:12px;">
+          <h2 style="margin:0; color:#1E6FA6;">Test Submission Report</h2>
+          <div class="no-print" style="display:flex; gap:10px;">
+            <button onclick="window.print()" style="padding:8px 16px; background:#1E6FA6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">🖨️ Print / Save PDF</button>
+            <button onclick="window.location.href='index.html'" style="padding:8px 16px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Done & Exit</button>
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:14px; color:#475569;">
+          <p style="margin:4px 0;"><strong>Student Name:</strong> ${studentName}</p>
+          <p style="margin:4px 0;"><strong>Session ID:</strong> ${sessionId}</p>
+          <p style="margin:4px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+        <div style="flex:1; overflow-y:auto; margin-top:16px; padding-right:8px;">
+          ${reportItems}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    @media print {
+      body * { visibility: hidden !important; }
+      #subReportModal, #subReportModal * { visibility: visible !important; }
+      #subReportModal { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: white !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  const container = document.createElement('div');
+  container.innerHTML = modalHtml;
+  document.body.appendChild(container.firstElementChild);
 }
 
 
@@ -1415,6 +1461,57 @@ function clearClipboard() {
 }
 
 document.addEventListener('contextmenu', event => event.preventDefault());
+
+// Aggressive Screenshot / Recording Protection via Focus & Mouse Events
+const protectOverlay = document.createElement('div');
+protectOverlay.id = 'screenProtectOverlay';
+protectOverlay.innerHTML = '<div style="background:#000; color:#fff; padding:20px; border-radius:10px; font-family:sans-serif; text-align:center;"><h2>Content Protected</h2><p>Screenshots and screen recording are not allowed.</p></div>';
+Object.assign(protectOverlay.style, {
+  position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.95)', zIndex: '999999', display: 'none',
+  alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(20px)'
+});
+document.body.appendChild(protectOverlay);
+
+let protectTimeout;
+function toggleProtect(state) {
+  if (state) {
+    protectOverlay.style.display = 'flex';
+    if(deckWrap) deckWrap.style.filter = 'blur(15px) contrast(0.5)';
+  } else {
+    protectOverlay.style.display = 'none';
+    if(deckWrap) deckWrap.style.filter = 'none';
+  }
+}
+
+window.addEventListener('blur', () => toggleProtect(true));
+window.addEventListener('focus', () => toggleProtect(false));
+document.addEventListener('mouseleave', (e) => {
+  if (e.clientY <= 0 || e.clientX <= 0 || (e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
+    toggleProtect(true);
+  }
+});
+document.addEventListener('mouseenter', () => toggleProtect(false));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) toggleProtect(true);
+});
+
+function clearClipboard() {
+  const msg = 'Content on Z-English is protected. Screenshots disabled.';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).catch(() => {});
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = msg;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (e) {}
+}
+
 document.addEventListener('keydown', (e) => {
   const isPrtScr = e.key === 'PrintScreen' || e.keyCode === 44;
   const isWinShiftS = e.key === 'S' && e.shiftKey && (e.metaKey || e.key === 'Meta');
@@ -1427,8 +1524,10 @@ document.addEventListener('keydown', (e) => {
     (e.metaKey && e.shiftKey && (e.keyCode === 83 || e.keyCode === 52 || e.keyCode === 51))
   ) {
     e.preventDefault();
+    toggleProtect(true);
     if (isPrtScr || isWinShiftS) {
       clearClipboard();
+      setTimeout(() => toggleProtect(false), 3000); // Keep blurred for 3 seconds if they try to screenshot
     }
   }
 });
@@ -1436,6 +1535,8 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
   if (e.key === 'PrintScreen' || e.keyCode === 44) {
     clearClipboard();
+    toggleProtect(true);
+    setTimeout(() => toggleProtect(false), 3000);
   }
 });
 
