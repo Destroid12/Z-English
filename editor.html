@@ -366,6 +366,23 @@ if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
     loadPublicSessionContent(editPublicId);
   } else {
     initSelects();
+    const draft = sessionStorage.getItem('editorDraft');
+    if (draft) {
+      try {
+        slides = JSON.parse(draft);
+        sessionStorage.removeItem('editorDraft');
+        if (slides.length > 0) {
+          selectedSlideId = slides[0].id;
+          setStatus('Loaded preview from importer.', 'success');
+        } else {
+          slides = [blankSlide('content')];
+          selectedSlideId = slides[0].id;
+        }
+        renderSlideList(); renderElements(); updatePreview();
+      } catch(e) {
+        console.error(e);
+      }
+    }
   }
 }
 

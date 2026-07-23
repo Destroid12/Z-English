@@ -3521,7 +3521,12 @@ async function processPPTXFile(file) {
         }
         
         updateImporterProgress(90, 'Generating JSON...');
-        importedSessionJson = { elements: elements };
+        importedSessionJson = [{
+            id: 'imported-slide-' + Date.now(),
+            type: 'content',
+            title: 'Imported Presentation',
+            elements: elements
+        }];
         
         updateImporterProgress(100, 'Done!');
         document.getElementById('importer-progress').style.display = 'none';
@@ -3576,7 +3581,7 @@ async function saveImportedSession() {
 function previewImportedSession() {
     if (!importedSessionJson) return;
     // Save to sessionStorage for editor.html to pick it up
-    sessionStorage.setItem('editorDraft', JSON.stringify(importedSessionJson.elements));
+    sessionStorage.setItem('editorDraft', JSON.stringify(importedSessionJson));
     // Open editor in a new tab
     window.open('editor.html', '_blank');
 }
