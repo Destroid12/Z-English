@@ -3470,26 +3470,37 @@ async function processPPTXFile(file) {
                             })
                         });
                         
-                        let isText = false;
+                        let aiType = 'image';
                         let extractedText = '';
                         try {
                             const aiData = await aiRes.json();
-                            if (aiData.success && aiData.result && aiData.result.type === 'text') {
-                                isText = true;
+                            if (aiData.success && aiData.result && (aiData.result.type === 'text' || aiData.result.type === 'question')) {
+                                aiType = aiData.result.type;
                                 extractedText = aiData.result.content || '';
                             }
                         } catch(err) {
                             console.error('AI Analysis failed, defaulting to image upload', err);
                         }
                         
-                        if (isText && extractedText) {
-                            updateImporterLog(`Z-AI identified text inside image!`);
-                            elements.push({
-                                type: "title",
-                                content: extractedText,
-                                color: "var(--z-blue)",
-                                anim: "fade"
-                            });
+                        if ((aiType === 'text' || aiType === 'question') && extractedText) {
+                            updateImporterLog(`Z-AI identified ${aiType} inside image!`);
+                            
+                            if (aiType === 'question') {
+                                elements.push({
+                                    type: "question",
+                                    questionText: extractedText,
+                                    options: ["Option 1", "Option 2", "Option 3"],
+                                    correctAnswer: "Option 1",
+                                    anim: "fade"
+                                });
+                            } else {
+                                elements.push({
+                                    type: "title",
+                                    content: extractedText,
+                                    color: "var(--z-blue)",
+                                    anim: "fade"
+                                });
+                            }
                         } else {
                             updateImporterLog(`Z-AI says it's a picture. Uploading to Drive...`);
                             // Upload image
