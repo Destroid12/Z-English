@@ -1,0 +1,90 @@
+--- Slide 1 ---
+TEXT: Level 1 Advanced | Session 1
+IMAGES: 
+--- Slide 2 ---
+TEXT: Agenda: | </a:ln></p:spPr></p:cxnSp><p:sp><p:nvSpPr><p:cNvPr id="772" name="Google Shape;772;p2"/><p:cNvSpPr txBox="1"><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="subTitle" idx="1"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="1227759" y="1322870"/><a:ext cx="5215082" cy="714300"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="t" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="115000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buSzPts val="1400"/><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="2600"/><a:t>Today we will take: | Word order in questions  | Common verb phrases, spelling and numbers 
+IMAGES: image1.png
+--- Slide 3 ---
+TEXT: Rules:
+IMAGES: image7.png, image2.jpg, image6.png, image5.png, image4.png, image3.png
+--- Slide 4 ---
+TEXT: </a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="ctr" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:srgbClr val="000000"/></a:buClr><a:buSzPts val="1400"/><a:buFont typeface="Arial"/><a:buNone/></a:pPr><a:endParaRPr sz="1400" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/><a:sym typeface="Arial"/></a:endParaRPr></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="792" name="Google Shape;792;p4"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1735300" y="886765"/><a:ext cx="2350730" cy="3115776"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="134002" h="173605" extrusionOk="0"><a:moveTo><a:pt x="1" y="1"/></a:moveTo><a:lnTo><a:pt x="1" y="53821"/></a:lnTo><a:lnTo><a:pt x="1" y="127599"/></a:lnTo><a:lnTo><a:pt x="1" y="173605"/></a:lnTo><a:lnTo><a:pt x="134001" y="173605"/></a:lnTo><a:lnTo><a:pt x="134001" y="34615"/></a:lnTo><a:lnTo><a:pt x="134001" y="1"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:ln w="9525" cap="flat" cmpd="sng"><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:prstDash val="solid"/><a:round/><a:headEnd type="none" w="sm" len="sm"/><a:tailEnd type="none" w="sm" len="sm"/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="ctr" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:srgbClr val="000000"/></a:buClr><a:buSzPts val="1400"/><a:buFont typeface="Arial"/><a:buNone/></a:pPr><a:endParaRPr sz="1400" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/><a:sym typeface="Arial"/></a:endParaRPr></a:p></p:txBody></p:sp></p:grpSp><p:sp><p:nvSpPr><p:cNvPr id="794" name="Google Shape;794;p4"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1043352" y="3044007"/><a:ext cx="2560516" cy="800400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="b" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:schemeClr val="dk1"/></a:buClr><a:buSzPts val="3600"/><a:buFont typeface="Alegreya Sans"/><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="4500" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="242222"/></a:solidFill><a:latin typeface="Alegreya Sans"/><a:ea typeface="Alegreya Sans"/><a:cs typeface="Alegreya Sans"/><a:sym typeface="Alegreya Sans"/></a:rPr><a:t>Let’s watch this video together 
+IMAGES: image8.jpg
+--- Slide 5 ---
+TEXT: Let’s answer some questions together 
+IMAGES: image9.gif
+--- Slide 6 ---
+TEXT: 
+IMAGES: image10.png
+--- Slide 7 ---
+TEXT: 
+IMAGES: image11.png
+--- Slide 8 ---
+TEXT: 
+IMAGES: image12.png
+--- Slide 9 ---
+TEXT: 
+IMAGES: image13.png
+--- Slide 10 ---
+TEXT: 
+IMAGES: image14.jpg
+--- Slide 11 ---
+TEXT: 
+IMAGES: image15.png
+--- Slide 12 ---
+TEXT: 
+IMAGES: image16.png
+--- Slide 13 ---
+TEXT: 
+IMAGES: image17.gif, image18.png
+--- Slide 14 ---
+TEXT: 
+IMAGES: image19.png
+--- Slide 15 ---
+TEXT: 
+IMAGES: image17.gif, image20.png
+--- Slide 16 ---
+TEXT: Speaking time 
+IMAGES: image21.gif
+--- Slide 17 ---
+TEXT: 
+IMAGES: image22.png
+--- Slide 18 ---
+TEXT: Pronunciation time 
+IMAGES: image9.gif
+--- Slide 19 ---
+TEXT: 
+IMAGES: image23.png, image24.png
+--- Slide 20 ---
+TEXT: 
+IMAGES: image17.gif, image25.png
+--- Slide 21 ---
+TEXT: 
+IMAGES: image26.png, image24.png
+--- Slide 22 ---
+TEXT: 
+IMAGES: image17.gif, image27.png
+--- Slide 23 ---
+TEXT: 
+IMAGES: image28.png
+--- Slide 24 ---
+TEXT: </a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="ctr" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:srgbClr val="000000"/></a:buClr><a:buSzPts val="1400"/><a:buFont typeface="Arial"/><a:buNone/></a:pPr><a:endParaRPr sz="1400" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/><a:sym typeface="Arial"/></a:endParaRPr></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="925" name="Google Shape;925;p24"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1735300" y="886765"/><a:ext cx="2350730" cy="3115776"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="134002" h="173605" extrusionOk="0"><a:moveTo><a:pt x="1" y="1"/></a:moveTo><a:lnTo><a:pt x="1" y="53821"/></a:lnTo><a:lnTo><a:pt x="1" y="127599"/></a:lnTo><a:lnTo><a:pt x="1" y="173605"/></a:lnTo><a:lnTo><a:pt x="134001" y="173605"/></a:lnTo><a:lnTo><a:pt x="134001" y="34615"/></a:lnTo><a:lnTo><a:pt x="134001" y="1"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:ln w="9525" cap="flat" cmpd="sng"><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:prstDash val="solid"/><a:round/><a:headEnd type="none" w="sm" len="sm"/><a:tailEnd type="none" w="sm" len="sm"/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="ctr" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:srgbClr val="000000"/></a:buClr><a:buSzPts val="1400"/><a:buFont typeface="Arial"/><a:buNone/></a:pPr><a:endParaRPr sz="1400" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/><a:sym typeface="Arial"/></a:endParaRPr></a:p></p:txBody></p:sp></p:grpSp><p:sp><p:nvSpPr><p:cNvPr id="927" name="Google Shape;927;p24"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1043352" y="3044007"/><a:ext cx="2560516" cy="800400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="b" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:schemeClr val="dk1"/></a:buClr><a:buSzPts val="3600"/><a:buFont typeface="Alegreya Sans"/><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="4500" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:srgbClr val="242222"/></a:solidFill><a:latin typeface="Alegreya Sans"/><a:ea typeface="Alegreya Sans"/><a:cs typeface="Alegreya Sans"/><a:sym typeface="Alegreya Sans"/></a:rPr><a:t>Let’s watch this video together 
+IMAGES: image29.jpg
+--- Slide 25 ---
+TEXT: 
+IMAGES: image30.png, image24.png
+--- Slide 26 ---
+TEXT: 
+IMAGES: image31.png, image24.png, image32.png
+--- Slide 27 ---
+TEXT: 
+IMAGES: image33.png
+--- Slide 28 ---
+TEXT: Recap: | </a:ln></p:spPr></p:cxnSp><p:sp><p:nvSpPr><p:cNvPr id="958" name="Google Shape;958;p28"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="660399" y="1883375"/><a:ext cx="4479159" cy="714300"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="t" anchorCtr="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr marL="0" marR="0" lvl="0" indent="0" algn="l" rtl="0"><a:lnSpc><a:spcPct val="115000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buClr><a:schemeClr val="dk1"/></a:buClr><a:buSzPts val="1200"/><a:buFont typeface="Fira Sans Light"/><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="2600" b="0" i="0" u="none" strike="noStrike" cap="none"><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:latin typeface="Fira Sans"/><a:ea typeface="Fira Sans"/><a:cs typeface="Fira Sans"/><a:sym typeface="Fira Sans"/></a:rPr><a:t>Today we will take: | Word order in questions  | Common verb phrases, spelling and numbers 
+IMAGES: image34.gif
+--- Slide 29 ---
+TEXT: Assignments: | Workbook p. 4 , 5. 📖📚 (Answer this page and send it to the admin) 💪🏻💪🏻🥳 | Quiz on the grammar. | Practice your language.  | (Watch a movie – listen to a song – practice                                   conversations from the student book)  |  
+IMAGES: 
+--- Slide 30 ---
+TEXT: 
+IMAGES: image35.gif

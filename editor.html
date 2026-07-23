@@ -1797,6 +1797,14 @@ function updatePreview() {
 // ---------- load / save ----------
 document.getElementById('loadBtn').onclick = loadSession;
 document.getElementById('saveBtn').onclick = saveSession;
+  document.getElementById('previewSessionBtn').onclick = () => {
+      if (slides.length === 0) {
+          setStatus('Add at least one slide to preview.', 'error');
+          return;
+      }
+      localStorage.setItem('zenglish_preview_session', JSON.stringify(slides));
+      window.open('player.html?preview=1', '_blank');
+  };
 refreshCustomTypeButtons();
 
 async function loadSession() {
@@ -2238,4 +2246,5 @@ function openPublicSessionModal() {
 </script>
 </body>
 </html>
+
 
