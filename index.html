@@ -594,7 +594,7 @@
 
             <div class="track-tabs">
                 <button type="button" class="track-tab active" id="track-tab-basic" onclick="switchTrack('basic')" data-i18n="basicTrack">Basic</button>
-                <button type="button" class="track-tab locked" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced<span class="soon-badge" data-i18n="comingSoonBadge">Coming soon</span></button>
+                <button type="button" class="track-tab" id="track-tab-advanced" onclick="switchTrack('advanced')" data-i18n="advancedTrack">Advanced</button>
             </div>
 
             <div class="level-list" id="level-list"></div>
@@ -1522,7 +1522,7 @@
         }
 
         function switchTrack(track) {
-            if (track === 'advanced') return; // locked — coming soon
+            
             currentTrack = track;
             document.getElementById('track-tab-basic').classList.toggle('active', track === 'basic');
             document.getElementById('track-tab-advanced').classList.toggle('active', track === 'advanced');
@@ -3373,6 +3373,8 @@ async function processPPTXFile(file) {
     
     updateImporterProgress(10, 'Loading file into JSZip...');
     
+    const getUid = () => 'e_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    
     try {
         const zip = new JSZip();
         await zip.loadAsync(file);
@@ -3431,10 +3433,12 @@ async function processPPTXFile(file) {
             if (slideText) {
                 updateImporterLog(`Extracted Text: ${slideText.substring(0, 30)}...`);
                 elements.push({
-                    type: "title",
-                    content: slideText,
-                    color: "var(--z-blue)",
-                    anim: "fade"
+                    id: getUid(),
+                    kind: "paragraph",
+                    text: slideText,
+                    color: "#2D3748",
+                    size: "24",
+                    anim: "none"
                 });
             }
             
@@ -3487,18 +3491,21 @@ async function processPPTXFile(file) {
                             
                             if (aiType === 'question') {
                                 elements.push({
-                                    type: "question",
-                                    questionText: extractedText,
-                                    options: ["Option 1", "Option 2", "Option 3"],
-                                    correctAnswer: "Option 1",
-                                    anim: "fade"
+                                    id: getUid(),
+                                    kind: "question",
+                                    qtext: extractedText,
+                                    opts: ["Option A", "Option B", "Option C"],
+                                    answer: "Option A",
+                                    showAns: false
                                 });
                             } else {
                                 elements.push({
-                                    type: "title",
-                                    content: extractedText,
-                                    color: "var(--z-blue)",
-                                    anim: "fade"
+                                    id: getUid(),
+                                    kind: "paragraph",
+                                    text: extractedText,
+                                    color: "#2D3748",
+                                    size: "24",
+                                    anim: "none"
                                 });
                             }
                         } else {
@@ -3518,9 +3525,12 @@ async function processPPTXFile(file) {
                             if (data.success && data.url) {
                                 updateImporterLog(`Upload Success: ${data.url}`);
                                 elements.push({
-                                    type: "image",
-                                    src: data.url,
-                                    anim: "scale"
+                                    id: getUid(),
+                                    kind: "image",
+                                    url: data.url,
+                                    caption: "",
+                                    captionFont: "Default",
+                                    anim: "none"
                                 });
                             } else {
                                 updateImporterLog(`Upload Failed: ${data.message}`);
