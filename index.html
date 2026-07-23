@@ -882,8 +882,11 @@
                         </select>
                     </div>
                 </div>
-                <button class="btn btn-primary" id="importer-save-btn" onclick="saveImportedSession()">Save Session to Database</button>
-                <button class="btn btn-outline" style="margin-left:10px;" onclick="downloadImportedJSON()">Download JSON</button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="importer-save-btn" onclick="saveImportedSession()">Save Session to Database</button>
+                    <button class="btn btn-outline" onclick="previewImportedSession()"><i class="fas fa-eye"></i> Preview / Edit in Slide Editor</button>
+                    <button class="btn btn-outline" onclick="downloadImportedJSON()"><i class="fas fa-download"></i> Download JSON</button>
+                </div>
             </div>
         </div>
     </div>
@@ -3447,6 +3450,7 @@ async function processPPTXFile(file) {
                     
                     if (zip.file(imgPath)) {
                         const imgBlob = await zip.file(imgPath).async('blob');
+                        const imgMime = imgBlob.type || 'image/png';
                         // Convert to base64
                         const base64 = await new Promise((res, rej) => {
                             const reader = new FileReader();
@@ -3455,28 +3459,61 @@ async function processPPTXFile(file) {
                             reader.readAsDataURL(imgBlob);
                         });
                         
-                        updateImporterLog(`Uploading Image (${Math.round(base64.length/1024)} KB)...`);
-                        // Upload image
-                        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                        updateImporterLog(`Analyzing Image with Z-AI (${Math.round(base64.length/1024)} KB)...`);
+                        const aiRes = await fetch(GOOGLE_APP_SCRIPT_URL, {
                             method: 'POST',
                             body: new URLSearchParams({
-                                action: 'uploadMedia',
+                                action: 'analyzePPTXImage',
                                 token: sessionToken,
-                                filename: imgPath.split('/').pop(),
-                                mimeType: imgBlob.type || 'image/png',
-                                dataBase64: base64
+                                mimeType: imgMime,
+                                imageBase64: base64
                             })
                         });
-                        const data = await res.json();
-                        if (data.success && data.url) {
-                            updateImporterLog(`Upload Success: ${data.url}`);
+                        
+                        let isText = false;
+                        let extractedText = '';
+                        try {
+                            const aiData = await aiRes.json();
+                            if (aiData.success && aiData.result && aiData.result.type === 'text') {
+                                isText = true;
+                                extractedText = aiData.result.content || '';
+                            }
+                        } catch(err) {
+                            console.error('AI Analysis failed, defaulting to image upload', err);
+                        }
+                        
+                        if (isText && extractedText) {
+                            updateImporterLog(`Z-AI identified text inside image!`);
                             elements.push({
-                                type: "image",
-                                src: data.url,
-                                anim: "scale"
+                                type: "title",
+                                content: extractedText,
+                                color: "var(--z-blue)",
+                                anim: "fade"
                             });
                         } else {
-                            updateImporterLog(`Upload Failed: ${data.message}`);
+                            updateImporterLog(`Z-AI says it's a picture. Uploading to Drive...`);
+                            // Upload image
+                            const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                                method: 'POST',
+                                body: new URLSearchParams({
+                                    action: 'uploadMedia',
+                                    token: sessionToken,
+                                    filename: imgPath.split('/').pop(),
+                                    mimeType: imgMime,
+                                    dataBase64: base64
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success && data.url) {
+                                updateImporterLog(`Upload Success: ${data.url}`);
+                                elements.push({
+                                    type: "image",
+                                    src: data.url,
+                                    anim: "scale"
+                                });
+                            } else {
+                                updateImporterLog(`Upload Failed: ${data.message}`);
+                            }
                         }
                     }
                 }
@@ -3512,12 +3549,12 @@ async function saveImportedSession() {
         const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
             method: 'POST',
             body: new URLSearchParams({
-                action: 'publishLessonContentSession',
+                action: 'setLessonContent',
                 token: sessionToken,
                 track: track,
                 level: lvl,
-                session: sess,
-                data: JSON.stringify(importedSessionJson)
+                sessionNumber: sess,
+                slidesJson: JSON.stringify(importedSessionJson)
             })
         });
         const data = await res.json();
@@ -3534,6 +3571,14 @@ async function saveImportedSession() {
     }
     document.getElementById('importer-save-btn').disabled = false;
     document.getElementById('importer-save-btn').innerText = 'Save Session to Database';
+}
+
+function previewImportedSession() {
+    if (!importedSessionJson) return;
+    // Save to sessionStorage for editor.html to pick it up
+    sessionStorage.setItem('editorDraft', JSON.stringify(importedSessionJson.elements));
+    // Open editor in a new tab
+    window.open('editor.html', '_blank');
 }
 
 function downloadImportedJSON() {
