@@ -402,6 +402,7 @@
         .lang-toggle.ar { background: var(--z-blue); color: #fff; border-color: var(--z-blue); }
     </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -626,6 +627,7 @@
         <button type="button" class="admin-tab" onclick="switchAdminPanel('tempsessions')">Temp Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('publicsessions')">Public Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('importer')"><i class="fas fa-file-powerpoint" style="margin-right:8px;"></i> PPTX Importer</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
 
@@ -831,6 +833,60 @@
         </div>
     </div>
 
+    <div class="admin-panel" id="admin-panel-importer">
+        <div class="card">
+            <h3 style="margin-bottom: 20px;">PPTX Importer <span class="badge" style="font-size:12px; background:var(--z-blue); color:#fff; padding:3px 8px; border-radius:12px;">Beta</span></h3>
+            <p style="color:var(--text-muted); margin-bottom: 20px;">Upload a PowerPoint (.pptx) file to extract text and images, and convert it into a Z-English Session automatically.</p>
+            
+            <div id="importer-dropzone" class="dropzone" onclick="document.getElementById('importer-file').click()" ondragover="event.preventDefault(); this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault(); this.classList.remove('dragover'); handlePPTXDrop(event)">
+                <i class="fas fa-file-powerpoint dropzone-icon"></i>
+                <div class="dropzone-text">Click or drag a .pptx file here</div>
+            </div>
+            <input type="file" id="importer-file" accept=".pptx" style="display:none" onchange="handlePPTXSelect(event)">
+            
+            <div id="importer-progress" style="display:none; margin-top:20px;">
+                <div style="font-weight:bold; margin-bottom:10px;" id="importer-status">Analyzing file...</div>
+                <div style="width:100%; background:var(--border-color); border-radius:8px; overflow:hidden; height:10px;">
+                    <div id="importer-progress-bar" style="width:0%; height:100%; background:var(--z-blue); transition:width 0.3s;"></div>
+                </div>
+                <div id="importer-log" style="margin-top:10px; font-size:12px; color:var(--text-muted); max-height:100px; overflow-y:auto; font-family:monospace;"></div>
+            </div>
+
+            <div id="importer-result" style="display:none; margin-top:20px; padding:15px; border:2px solid var(--success); border-radius:8px; background:var(--success-light);">
+                <h4 style="color:var(--success); margin:0 0 10px 0;"><i class="fas fa-check-circle"></i> Extraction Complete!</h4>
+                <p style="font-size:14px; margin-bottom:15px;">The PowerPoint has been converted to JSON format.</p>
+                
+                <div class="form-grid" style="margin-bottom:15px;">
+                    <div class="input-group">
+                        <label>Save as Track</label>
+                        <select id="importer-track" class="input-control">
+                            <option value="advanced">Advanced</option>
+                            <option value="basic">Basic</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Level</label>
+                        <select id="importer-level" class="input-control">
+                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Session (1-7)</label>
+                        <select id="importer-session" class="input-control">
+                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                            <option value="7">7</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="importer-save-btn" onclick="saveImportedSession()">Save Session to Database</button>
+                <button class="btn btn-outline" style="margin-left:10px;" onclick="downloadImportedJSON()">Download JSON</button>
+            </div>
+        </div>
+    </div>
 
     <div class="admin-panel" id="admin-panel-tempsessions">
         <div class="card">
@@ -3279,6 +3335,221 @@ async function deleteTestSessionAdmin() {
     } catch(e) {
         alert('Request failed.');
     }
+}
+let importerJSZip = null;
+let importedSessionJson = null;
+
+function handlePPTXDrop(e) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processPPTXFile(e.dataTransfer.files[0]);
+    }
+}
+function handlePPTXSelect(e) {
+    if (e.target.files && e.target.files.length > 0) {
+        processPPTXFile(e.target.files[0]);
+    }
+}
+
+function updateImporterLog(msg) {
+    const logEl = document.getElementById('importer-log');
+    logEl.innerHTML += `<div>${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+}
+function updateImporterProgress(percent, msg) {
+    document.getElementById('importer-status').innerText = msg;
+    document.getElementById('importer-progress-bar').style.width = percent + '%';
+}
+
+async function processPPTXFile(file) {
+    if (!file.name.endsWith('.pptx')) { alert('Please upload a .pptx file.'); return; }
+    
+    document.getElementById('importer-dropzone').style.display = 'none';
+    document.getElementById('importer-progress').style.display = 'block';
+    document.getElementById('importer-result').style.display = 'none';
+    document.getElementById('importer-log').innerHTML = '';
+    
+    updateImporterProgress(10, 'Loading file into JSZip...');
+    
+    try {
+        const zip = new JSZip();
+        await zip.loadAsync(file);
+        
+        // 1. Get slide list
+        updateImporterProgress(20, 'Reading presentation.xml...');
+        const presXmlString = await zip.file('ppt/presentation.xml').async('string');
+        const parser = new DOMParser();
+        const presDoc = parser.parseFromString(presXmlString, 'application/xml');
+        const sldIdLst = presDoc.getElementsByTagName('p:sldId');
+        
+        // Map relationships
+        const relsXmlString = await zip.file('ppt/_rels/presentation.xml.rels').async('string');
+        const relsDoc = parser.parseFromString(relsXmlString, 'application/xml');
+        const presRels = {};
+        Array.from(relsDoc.getElementsByTagName('Relationship')).forEach(r => {
+            presRels[r.getAttribute('Id')] = r.getAttribute('Target');
+        });
+        
+        let elements = [];
+        let totalSlides = sldIdLst.length;
+        
+        for (let i = 0; i < totalSlides; i++) {
+            updateImporterProgress(20 + Math.round((i/totalSlides)*50), `Processing Slide ${i+1}/${totalSlides}...`);
+            const sldId = sldIdLst[i];
+            const rId = sldId.getAttribute('r:id');
+            const targetPath = presRels[rId]; // e.g. slides/slide1.xml
+            
+            if(!targetPath) continue;
+            
+            const slidePath = `ppt/${targetPath.replace('../', '')}`;
+            const relsPath = `ppt/slides/_rels/${targetPath.split('/').pop()}.rels`;
+            
+            // Read slide xml
+            if(!zip.file(slidePath)) continue;
+            const slideXmlStr = await zip.file(slidePath).async('string');
+            const slideDoc = parser.parseFromString(slideXmlStr, 'application/xml');
+            
+            // Read slide relationships (images)
+            let slideRels = {};
+            if (zip.file(relsPath)) {
+                const sRelsXmlStr = await zip.file(relsPath).async('string');
+                const sRelsDoc = parser.parseFromString(sRelsXmlStr, 'application/xml');
+                Array.from(sRelsDoc.getElementsByTagName('Relationship')).forEach(r => {
+                    slideRels[r.getAttribute('Id')] = r.getAttribute('Target');
+                });
+            }
+            
+            // Extract text
+            const texts = slideDoc.getElementsByTagName('a:t');
+            let slideText = '';
+            for (let t = 0; t < texts.length; t++) {
+                slideText += texts[t].textContent + ' ';
+            }
+            slideText = slideText.trim();
+            if (slideText) {
+                updateImporterLog(`Extracted Text: ${slideText.substring(0, 30)}...`);
+                elements.push({
+                    type: "title",
+                    content: slideText,
+                    color: "var(--z-blue)",
+                    anim: "fade"
+                });
+            }
+            
+            // Extract images
+            const blips = slideDoc.getElementsByTagName('a:blip');
+            for (let b = 0; b < blips.length; b++) {
+                const embedId = blips[b].getAttribute('r:embed');
+                if (embedId && slideRels[embedId]) {
+                    const imgTarget = slideRels[embedId]; // e.g. ../media/image1.png
+                    const imgPath = `ppt/${imgTarget.replace('../', '')}`;
+                    
+                    updateImporterLog(`Found Image: ${imgPath}`);
+                    
+                    if (zip.file(imgPath)) {
+                        const imgBlob = await zip.file(imgPath).async('blob');
+                        // Convert to base64
+                        const base64 = await new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload = e => res(e.target.result.split(',')[1]);
+                            reader.onerror = e => rej(e);
+                            reader.readAsDataURL(imgBlob);
+                        });
+                        
+                        updateImporterLog(`Uploading Image (${Math.round(base64.length/1024)} KB)...`);
+                        // Upload image
+                        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                            method: 'POST',
+                            body: new URLSearchParams({
+                                action: 'uploadMedia',
+                                token: sessionToken,
+                                filename: imgPath.split('/').pop(),
+                                mimeType: imgBlob.type || 'image/png',
+                                dataBase64: base64
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.url) {
+                            updateImporterLog(`Upload Success: ${data.url}`);
+                            elements.push({
+                                type: "image",
+                                src: data.url,
+                                anim: "scale"
+                            });
+                        } else {
+                            updateImporterLog(`Upload Failed: ${data.message}`);
+                        }
+                    }
+                }
+            }
+        }
+        
+        updateImporterProgress(90, 'Generating JSON...');
+        importedSessionJson = { elements: elements };
+        
+        updateImporterProgress(100, 'Done!');
+        document.getElementById('importer-progress').style.display = 'none';
+        document.getElementById('importer-result').style.display = 'block';
+        updateImporterLog('Session JSON generated successfully.');
+        
+    } catch(err) {
+        console.error(err);
+        alert('Error parsing PPTX: ' + err.message);
+        document.getElementById('importer-progress').style.display = 'none';
+        document.getElementById('importer-dropzone').style.display = 'block';
+    }
+}
+
+async function saveImportedSession() {
+    if (!importedSessionJson) return;
+    const track = document.getElementById('importer-track').value;
+    const lvl = parseInt(document.getElementById('importer-level').value);
+    const sess = parseInt(document.getElementById('importer-session').value);
+    
+    document.getElementById('importer-save-btn').disabled = true;
+    document.getElementById('importer-save-btn').innerText = 'Saving...';
+    
+    try {
+        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'publishLessonContentSession',
+                token: sessionToken,
+                track: track,
+                level: lvl,
+                session: sess,
+                data: JSON.stringify(importedSessionJson)
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Session saved to ${track} Level ${lvl} Session ${sess}!`);
+            // Reset importer
+            document.getElementById('importer-result').style.display = 'none';
+            document.getElementById('importer-dropzone').style.display = 'block';
+        } else {
+            alert('Failed to save session: ' + data.message);
+        }
+    } catch(e) {
+        alert('Error saving session: ' + e.message);
+    }
+    document.getElementById('importer-save-btn').disabled = false;
+    document.getElementById('importer-save-btn').innerText = 'Save Session to Database';
+}
+
+function downloadImportedJSON() {
+    if (!importedSessionJson) return;
+    const track = document.getElementById('importer-track').value;
+    const lvl = document.getElementById('importer-level').value;
+    const sess = document.getElementById('importer-session').value;
+    
+    const blob = new Blob([JSON.stringify(importedSessionJson, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zenglish_${track}_L${lvl}_S${sess}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 </script>
 
