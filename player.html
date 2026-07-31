@@ -1530,6 +1530,238 @@ function initCustomAudio(container) {
 }
 </script>
 
+<!-- DIRECT VOICE MODAL -->
+<style>
+#voiceModal {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+  z-index: 10000; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  color: white; font-family: 'Inter', sans-serif;
+}
+#voiceModal.open {
+  opacity: 1; pointer-events: auto;
+}
+#voiceOrb {
+  width: 150px; height: 150px; border-radius: 50%;
+  background: radial-gradient(circle, var(--z-orange) 0%, #e65c00 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 60px; box-shadow: 0 0 30px rgba(255, 115, 0, 0.5);
+  transition: all 0.2s; margin-bottom: 40px;
+}
+#voiceOrb.listening {
+  animation: pulse-listen 1.5s infinite alternate;
+  background: radial-gradient(circle, var(--blue-mid) 0%, var(--blue-ink) 100%);
+  box-shadow: 0 0 30px rgba(30, 111, 166, 0.5);
+}
+#voiceOrb.thinking {
+  animation: pulse-think 1s infinite alternate;
+  background: radial-gradient(circle, #888 0%, #555 100%);
+  box-shadow: 0 0 30px rgba(136, 136, 136, 0.5);
+}
+#voiceOrb.speaking {
+  animation: pulse-speak 0.4s infinite alternate;
+}
+@keyframes pulse-listen {
+  0% { transform: scale(1); box-shadow: 0 0 20px rgba(30, 111, 166, 0.4); }
+  100% { transform: scale(1.1); box-shadow: 0 0 50px rgba(30, 111, 166, 0.8); }
+}
+@keyframes pulse-think {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.05); opacity: 1; }
+}
+@keyframes pulse-speak {
+  0% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 115, 0, 0.5); }
+  100% { transform: scale(1.15); box-shadow: 0 0 60px rgba(255, 115, 0, 0.9); }
+}
+#voiceStatus {
+  font-size: 24px; font-weight: 600; margin-bottom: 20px;
+}
+#voiceTranscript {
+  font-size: 18px; color: #ccc; max-width: 600px; text-align: center;
+  min-height: 60px;
+}
+#voiceClose {
+  position: absolute; top: 30px; right: 40px;
+  background: none; border: none; color: white;
+  font-size: 40px; cursor: pointer;
+  opacity: 0.7; transition: opacity 0.2s;
+}
+#voiceClose:hover { opacity: 1; }
+</style>
+
+<div id="voiceModal">
+  <button id="voiceClose" onclick="stopDirectVoice()">&times;</button>
+  <div id="voiceOrb">
+    <i class="fas fa-microphone" id="voiceOrbIcon"></i>
+  </div>
+  <div id="voiceStatus">Ready</div>
+  <div id="voiceTranscript"></div>
+</div>
+
+<script>
+let directVoiceRecognizer = null;
+let directVoiceActive = false;
+let directVoiceState = 'idle'; // idle, listening, thinking, speaking
+
+if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  directVoiceRecognizer = new Ctor();
+  directVoiceRecognizer.continuous = false;
+  directVoiceRecognizer.interimResults = true;
+  
+  directVoiceRecognizer.onresult = (e) => {
+    if (!directVoiceActive) return;
+    let finalTranscript = '';
+    let interimTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; ++i) {
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+      else interimTranscript += e.results[i][0].transcript;
+    }
+    document.getElementById('voiceTranscript').innerText = finalTranscript || interimTranscript;
+    
+    if (finalTranscript) {
+      setVoiceState('thinking');
+      sendDirectVoice(finalTranscript);
+    }
+  };
+  
+  directVoiceRecognizer.onend = () => {
+    if (directVoiceActive && directVoiceState === 'listening') {
+      // Restart if still listening (timeout)
+      try { directVoiceRecognizer.start(); } catch(e){}
+    }
+  };
+}
+
+function setVoiceState(state) {
+  directVoiceState = state;
+  const orb = document.getElementById('voiceOrb');
+  const status = document.getElementById('voiceStatus');
+  const icon = document.getElementById('voiceOrbIcon');
+  orb.className = '';
+  if (state === 'listening') {
+    orb.classList.add('listening');
+    status.innerText = 'Listening...';
+    icon.className = 'fas fa-microphone';
+    document.getElementById('voiceTranscript').innerText = '';
+  } else if (state === 'thinking') {
+    orb.classList.add('thinking');
+    status.innerText = 'Thinking...';
+    icon.className = 'fas fa-circle-notch fa-spin';
+  } else if (state === 'speaking') {
+    orb.classList.add('speaking');
+    status.innerText = 'AI is speaking...';
+    icon.className = 'fas fa-volume-up';
+  }
+}
+
+window.startDirectVoice = function() {
+  if (!directVoiceRecognizer) {
+    alert("Voice recognition not supported in this browser. Use Chrome or Edge.");
+    return;
+  }
+  // Initialize tutorToken if needed
+  if (!tutorToken) {
+     if (typeof initiateTutor === 'function') initiateTutor(); // existing fallback
+  }
+  
+  directVoiceActive = true;
+  document.getElementById('voiceModal').classList.add('open');
+  setVoiceState('listening');
+  directVoiceRecognizer.lang = typeof tutorMicLang !== 'undefined' ? tutorMicLang : 'en-US';
+  try { directVoiceRecognizer.start(); } catch(e){}
+};
+
+window.stopDirectVoice = function() {
+  directVoiceActive = false;
+  document.getElementById('voiceModal').classList.remove('open');
+  try { directVoiceRecognizer.stop(); } catch(e){}
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+};
+
+function sendDirectVoice(text) {
+  if (!tutorToken) {
+    directVoiceSpeak("Tutor not connected.");
+    return;
+  }
+  
+  tutorHistory.push({ role: 'user', content: text });
+  
+  let slideContext = '';
+  if (typeof slides !== 'undefined' && slides[currentSlideIndex]) {
+    slideContext = JSON.stringify(slides[currentSlideIndex]).substring(0, 1500);
+  }
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!directVoiceActive) return;
+      const data = JSON.parse(res);
+      if (data.success) {
+        tutorHistory.push({ role: 'assistant', content: data.reply });
+        directVoiceSpeak(data.reply);
+      } else {
+        directVoiceSpeak("Error: " + data.message);
+      }
+    })
+    .withFailureHandler(err => {
+      if (!directVoiceActive) return;
+      directVoiceSpeak("Connection failed.");
+    })
+    .runAction({
+      action: 'askTutor',
+      tutorToken: tutorToken,
+      question: text,
+      history: JSON.stringify(tutorHistory.slice(-6)),
+      slideContext: slideContext
+    });
+}
+
+function directVoiceSpeak(text) {
+  setVoiceState('speaking');
+  document.getElementById('voiceTranscript').innerText = text;
+  
+  if (!('speechSynthesis' in window)) {
+    setTimeout(() => { if (directVoiceActive) setVoiceState('listening'); }, 3000);
+    return;
+  }
+  
+  window.speechSynthesis.cancel();
+  
+  // Use existing text stripper if available, else basic strip
+  let cleanText = text;
+  if (typeof stripFormattingForSpeech === 'function') cleanText = stripFormattingForSpeech(text);
+  else cleanText = text.replace(/[*_~]/g, '');
+  
+  const utter = new SpeechSynthesisUtterance(cleanText);
+  let lang = typeof tutorMicLang !== 'undefined' ? tutorMicLang : 'en-US';
+  utter.lang = lang;
+  
+  // Try to find a good voice
+  if (typeof getPreferredVoice === 'function') {
+      const voice = getPreferredVoice(lang);
+      if (voice) utter.voice = voice;
+  }
+  
+  utter.rate = 0.97;
+  utter.onend = () => {
+    if (directVoiceActive) {
+      setVoiceState('listening');
+      try { directVoiceRecognizer.start(); } catch(e){}
+    }
+  };
+  utter.onerror = () => {
+    if (directVoiceActive) {
+      setVoiceState('listening');
+      try { directVoiceRecognizer.start(); } catch(e){}
+    }
+  };
+  
+  window.speechSynthesis.speak(utter);
+}
+</script>
 </body>
 </html>
+
 

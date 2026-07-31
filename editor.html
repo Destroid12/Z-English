@@ -636,7 +636,7 @@ function compileSlide(slide) {
             <div style="flex:1;">
                 ${lines}
                 <div style="margin-top:12px;">
-                    <button class="btn" style="background-color: var(--z-orange); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="document.getElementById('tutorPanel').classList.add('open'); document.getElementById('tutorToggle').classList.add('open'); setTimeout(()=>document.getElementById('tutorMic').click(), 300);">
+                    <button class="btn" style="background-color: var(--z-orange); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="if(typeof window.startDirectVoice === 'function') { window.startDirectVoice(); } else { alert('Please refresh the page to use this feature.'); }">
                         <i class="fas fa-microphone"></i> Practice with Tutor
                     </button>
                 </div>
