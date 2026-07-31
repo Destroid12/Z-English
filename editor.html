@@ -631,7 +631,17 @@ function compileSlide(slide) {
       if (el.bgColor) pStyle += `background-color:${escAttr(el.bgColor)};`; else pStyle += `background-color:#EAF4FC;`;
       if (el.bold !== false) pStyle += 'font-weight:800;';
       const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
-      chunk = `<div class="content-text" style="${pStyle}"><div style="font-size:32px;">🗣️</div><div style="flex:1;display:flex;flex-direction:column;">${lines}</div></div>\n`;
+      chunk = `<div class="content-text" style="${pStyle}">
+            <div style="font-size:32px;line-height:1;">🗣️</div>
+            <div style="flex:1;">
+                ${lines}
+                <div style="margin-top:12px;">
+                    <button class="btn" style="background-color: var(--z-orange); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="document.getElementById('tutorPanel').classList.add('open'); document.getElementById('tutorToggle').classList.add('open'); setTimeout(()=>document.getElementById('tutorMic').click(), 300);">
+                        <i class="fas fa-microphone"></i> Practice with Tutor
+                    </button>
+                </div>
+            </div>
+        </div>\n`;
     } else if (el.kind === 'image') {
       if (el.url) {
         chunk += `<img src="${escAttr(el.url)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
@@ -1137,6 +1147,7 @@ function fontSelectHTML(currentValue, onChangeJs) {
 // ---------- element list rendering ----------
 const ELEM_LABELS = {
   paragraph: { icon: 'fa-paragraph', label: 'Paragraph' },
+  speaking: { icon: 'fa-comments', label: 'Speaking Prompt' },
   image: { icon: 'fa-image', label: 'Image' },
   video: { icon: 'fa-video', label: 'Video (URL)' },
   audio: { icon: 'fa-volume-high', label: 'Audio (URL)' },
@@ -1210,6 +1221,7 @@ function renderElements() {
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
+          <button onclick="addElement('speaking')"><i class="fas fa-comments"></i> Speaking Prompt</button>
           <button onclick="addElement('raw')"><i class="fas fa-code"></i> Raw HTML</button>
           <button onclick="addElement('link')"><i class="fas fa-link"></i> Hyperlink</button>
         </div>
@@ -1266,7 +1278,7 @@ function addElement(kind) {
   document.getElementById('addElemDropdown').classList.remove('open');
   let el = { id: uid(), kind, pos: null };
   if (kind === 'paragraph') el = { ...el, text: '', bold: false, color: '', size: '', align: '' };
-  if (kind === 'speaking') el = { ...el, text: 'Speaking Assessment: Please notify your instructor that you are ready for your one-on-one speaking test.', bold: true, color: '#1E6FA6', bgColor: '#EAF4FC' };
+  if (kind === 'speaking') el = { ...el, text: 'Practice with your instructor or tutor about: (topic)', bold: true, color: '#1E6FA6', bgColor: '#EAF4FC' };
   if (kind === 'image') el = { ...el, url: '', caption: '' };
   if (kind === 'video') el = { ...el, url: '', caption: '' };
   if (kind === 'audio') el = { ...el, url: '', caption: '' };
