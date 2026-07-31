@@ -1362,6 +1362,7 @@
         btn.disabled = false; setLoading(false);
     }
 }
+        let googleInitRetries = 0;
         function initGoogleButton() {
             if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
                 document.getElementById('google-fallback-btn').style.display = 'flex';
@@ -1370,7 +1371,13 @@
 
             // Check if Google API loaded and if we're in an iframe (Google Sites)
             if (!window.google || !google.accounts) {
+                if (googleInitRetries > 10) {
+                    console.error('Google Sign-In failed to load after 5 seconds (likely blocked by adblocker or browser settings). Falling back.');
+                    document.getElementById('google-fallback-btn').style.display = 'flex';
+                    return;
+                }
                 console.warn('Google Sign-In not available, trying again in 500ms...');
+                googleInitRetries++;
                 setTimeout(initGoogleButton, 500);
                 return;
             }
