@@ -627,7 +627,6 @@
         <button type="button" class="admin-tab" onclick="switchAdminPanel('tempsessions')">Temp Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('publicsessions')">Public Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
-        <button type="button" class="admin-tab" onclick="switchAdminPanel('importer')"><i class="fas fa-file-powerpoint" style="margin-right:8px;"></i> PPTX Importer</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
 
@@ -715,6 +714,27 @@
                         <button type="button" class="btn btn-outline btn-sm" id="clear-lesson-btn" onclick="clearLessonContent()" style="display: none;">
                             <i class="fas fa-trash"></i> Clear JSON
                         </button>
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                    <legend style="padding: 0 8px; font-weight: 700; color: var(--text-main);">Or Build From a PowerPoint (.pptx) <span class="badge" style="font-size:11px; background:var(--z-blue); color:#fff; padding:2px 7px; border-radius:10px;">Beta</span></legend>
+                    <p style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">Z-AI will extract each slide's text and images, automatically telling question images apart from decorative ones, and fill in the Lesson Content above for you to save.</p>
+                    <div id="pptx-dropzone" class="dropzone" onclick="document.getElementById('pptx-file-input').click()" ondragover="event.preventDefault(); this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault(); this.classList.remove('dragover'); handlePPTXDrop(event)">
+                        <input type="file" id="pptx-file-input" accept=".pptx" style="display:none;" onchange="handlePPTXSelect(event)">
+                        <div class="dropzone-icon"><i class="fas fa-file-powerpoint"></i></div>
+                        <div class="dropzone-text">Click or drag a .pptx file here</div>
+                        <div class="dropzone-subtext">Images will be classified as question / text / picture automatically</div>
+                    </div>
+                    <div id="pptx-progress" style="display:none; margin-top:16px;">
+                        <div style="font-weight:bold; margin-bottom:8px;" id="pptx-status">Analyzing file...</div>
+                        <div style="width:100%; background:var(--border-color); border-radius:8px; overflow:hidden; height:10px;">
+                            <div id="pptx-progress-bar" style="width:0%; height:100%; background:var(--z-blue); transition:width 0.3s;"></div>
+                        </div>
+                        <div id="pptx-log" style="margin-top:10px; font-size:12px; color:var(--text-muted); max-height:100px; overflow-y:auto; font-family:monospace;"></div>
+                    </div>
+                    <div id="pptx-result" style="display:none; margin-top:14px; padding:12px 15px; border:2px solid var(--success); border-radius:8px; background:var(--success-light); font-size:14px; color:var(--success); font-weight:700;">
+                        <i class="fas fa-check-circle"></i> PPTX converted — loaded into "Lesson Content" above. Review, then click "Save Session & Content" below.
                     </div>
                 </fieldset>
 
@@ -828,64 +848,6 @@
                         <input type="text" id="submission-search" class="form-input" placeholder="Search by name or code..." oninput="filterSubmissions()" style="width:220px; padding:6px 12px; font-size:13px;">
                     </div>
                     <div id="test-submissions-list">Loading submissions...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="admin-panel" id="admin-panel-importer">
-        <div class="card">
-            <h3 style="margin-bottom: 20px;">PPTX Importer <span class="badge" style="font-size:12px; background:var(--z-blue); color:#fff; padding:3px 8px; border-radius:12px;">Beta</span></h3>
-            <p style="color:var(--text-muted); margin-bottom: 20px;">Upload a PowerPoint (.pptx) file to extract text and images, and convert it into a Z-English Session automatically.</p>
-            
-            <div id="importer-dropzone" class="dropzone" onclick="document.getElementById('importer-file').click()" ondragover="event.preventDefault(); this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault(); this.classList.remove('dragover'); handlePPTXDrop(event)">
-                <i class="fas fa-file-powerpoint dropzone-icon"></i>
-                <div class="dropzone-text">Click or drag a .pptx file here</div>
-            </div>
-            <input type="file" id="importer-file" accept=".pptx" style="display:none" onchange="handlePPTXSelect(event)">
-            
-            <div id="importer-progress" style="display:none; margin-top:20px;">
-                <div style="font-weight:bold; margin-bottom:10px;" id="importer-status">Analyzing file...</div>
-                <div style="width:100%; background:var(--border-color); border-radius:8px; overflow:hidden; height:10px;">
-                    <div id="importer-progress-bar" style="width:0%; height:100%; background:var(--z-blue); transition:width 0.3s;"></div>
-                </div>
-                <div id="importer-log" style="margin-top:10px; font-size:12px; color:var(--text-muted); max-height:100px; overflow-y:auto; font-family:monospace;"></div>
-            </div>
-
-            <div id="importer-result" style="display:none; margin-top:20px; padding:15px; border:2px solid var(--success); border-radius:8px; background:var(--success-light);">
-                <h4 style="color:var(--success); margin:0 0 10px 0;"><i class="fas fa-check-circle"></i> Extraction Complete!</h4>
-                <p style="font-size:14px; margin-bottom:15px;">The PowerPoint has been converted to JSON format.</p>
-                
-                <div class="form-grid" style="margin-bottom:15px;">
-                    <div class="input-group">
-                        <label>Save as Track</label>
-                        <select id="importer-track" class="input-control">
-                            <option value="advanced">Advanced</option>
-                            <option value="basic">Basic</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Level</label>
-                        <select id="importer-level" class="input-control">
-                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-                            <option value="10">10</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Session (1-7)</label>
-                        <select id="importer-session" class="input-control">
-                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                            <option value="7">7</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button class="btn btn-primary" id="importer-save-btn" onclick="saveImportedSession()">Save Session to Database</button>
-                    <button class="btn btn-outline" onclick="previewImportedSession()"><i class="fas fa-eye"></i> Preview / Edit in Slide Editor</button>
-                    <button class="btn btn-outline" onclick="downloadImportedJSON()"><i class="fas fa-download"></i> Download JSON</button>
                 </div>
             </div>
         </div>
@@ -1740,6 +1702,9 @@
             cachedLessonContent = null;
             cachedLessonFileName = null;
             document.getElementById('lesson-file-input').value = '';
+            document.getElementById('pptx-file-input').value = '';
+            const pptxResult = document.getElementById('pptx-result');
+            if (pptxResult) pptxResult.style.display = 'none';
             setLessonStatus('', '');
         }
 
@@ -3346,7 +3311,6 @@ async function deleteTestSessionAdmin() {
         alert('Request failed.');
     }
 }
-let importerJSZip = null;
 let importedSessionJson = null;
 
 function handlePPTXDrop(e) {
@@ -3361,22 +3325,22 @@ function handlePPTXSelect(e) {
 }
 
 function updateImporterLog(msg) {
-    const logEl = document.getElementById('importer-log');
+    const logEl = document.getElementById('pptx-log');
     logEl.innerHTML += `<div>${msg}</div>`;
     logEl.scrollTop = logEl.scrollHeight;
 }
 function updateImporterProgress(percent, msg) {
-    document.getElementById('importer-status').innerText = msg;
-    document.getElementById('importer-progress-bar').style.width = percent + '%';
+    document.getElementById('pptx-status').innerText = msg;
+    document.getElementById('pptx-progress-bar').style.width = percent + '%';
 }
 
 async function processPPTXFile(file) {
     if (!file.name.endsWith('.pptx')) { alert('Please upload a .pptx file.'); return; }
     
-    document.getElementById('importer-dropzone').style.display = 'none';
-    document.getElementById('importer-progress').style.display = 'block';
-    document.getElementById('importer-result').style.display = 'none';
-    document.getElementById('importer-log').innerHTML = '';
+    document.getElementById('pptx-dropzone').style.display = 'none';
+    document.getElementById('pptx-progress').style.display = 'block';
+    document.getElementById('pptx-result').style.display = 'none';
+    document.getElementById('pptx-log').innerHTML = '';
     
     updateImporterProgress(10, 'Loading file into JSZip...');
     
@@ -3497,13 +3461,16 @@ async function processPPTXFile(file) {
                             updateImporterLog(`Z-AI identified ${aiType} inside image!`);
                             
                             if (aiType === 'question') {
+                                // Editor/player question schema: prompt + blanks[] (see editor.html compileSlide).
+                                // We don't have a real extracted answer from a slide screenshot, so this comes
+                                // in as an editable text-answer blank the admin fills in via the Slide Editor.
                                 elements.push({
                                     id: getUid(),
                                     kind: "question",
-                                    qtext: extractedText,
-                                    opts: ["Option A", "Option B", "Option C"],
-                                    answer: "Option A",
-                                    showAns: false
+                                    pos: null,
+                                    prompt: extractedText + " [blank]",
+                                    font: "",
+                                    blanks: [{ qtype: "text", answer: "", altAnswers: [], options: [] }]
                                 });
                             } else {
                                 elements.push({
@@ -3552,82 +3519,28 @@ async function processPPTXFile(file) {
         importedSessionJson = [{
             id: 'imported-slide-' + Date.now(),
             type: 'content',
-            title: 'Imported Presentation',
+            title: file.name.replace(/\.pptx$/i, ''),
             elements: elements
         }];
-        
+
+        // Feed straight into the same "Lesson Content" state the JSON dropzone above
+        // uses, so it's included whenever the admin clicks "Save Session & Content".
+        cachedLessonContent = JSON.stringify(importedSessionJson);
+        cachedLessonFileName = file.name;
+        setLessonStatus(`Ready: "${file.name}" (from PPTX, ${importedSessionJson[0].elements.length} elements)`, 'ok');
+
         updateImporterProgress(100, 'Done!');
-        document.getElementById('importer-progress').style.display = 'none';
-        document.getElementById('importer-result').style.display = 'block';
-        updateImporterLog('Session JSON generated successfully.');
-        
+        document.getElementById('pptx-progress').style.display = 'none';
+        document.getElementById('pptx-result').style.display = 'block';
+        document.getElementById('pptx-dropzone').style.display = 'block';
+        updateImporterLog('Session JSON generated and loaded into Lesson Content above.');
+
     } catch(err) {
         console.error(err);
         alert('Error parsing PPTX: ' + err.message);
-        document.getElementById('importer-progress').style.display = 'none';
-        document.getElementById('importer-dropzone').style.display = 'block';
+        document.getElementById('pptx-progress').style.display = 'none';
+        document.getElementById('pptx-dropzone').style.display = 'block';
     }
-}
-
-async function saveImportedSession() {
-    if (!importedSessionJson) return;
-    const track = document.getElementById('importer-track').value;
-    const lvl = parseInt(document.getElementById('importer-level').value);
-    const sess = parseInt(document.getElementById('importer-session').value);
-    
-    document.getElementById('importer-save-btn').disabled = true;
-    document.getElementById('importer-save-btn').innerText = 'Saving...';
-    
-    try {
-        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
-            method: 'POST',
-            body: new URLSearchParams({
-                action: 'setLessonContent',
-                token: sessionToken,
-                track: track,
-                level: lvl,
-                sessionNumber: sess,
-                slidesJson: JSON.stringify(importedSessionJson)
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            alert(`Session saved to ${track} Level ${lvl} Session ${sess}!`);
-            // Reset importer
-            document.getElementById('importer-result').style.display = 'none';
-            document.getElementById('importer-dropzone').style.display = 'block';
-        } else {
-            alert('Failed to save session: ' + data.message);
-        }
-    } catch(e) {
-        alert('Error saving session: ' + e.message);
-    }
-    document.getElementById('importer-save-btn').disabled = false;
-    document.getElementById('importer-save-btn').innerText = 'Save Session to Database';
-}
-
-function previewImportedSession() {
-    if (!importedSessionJson) return;
-    // Save to sessionStorage for editor.html to pick it up
-    sessionStorage.setItem('editorDraft', JSON.stringify(importedSessionJson));
-    // Open editor in a new tab
-    window.open('editor.html', '_blank');
-}
-
-function downloadImportedJSON() {
-    if (!importedSessionJson) return;
-    const track = document.getElementById('importer-track').value;
-    const lvl = document.getElementById('importer-level').value;
-    const sess = document.getElementById('importer-session').value;
-    
-    const blob = new Blob([JSON.stringify(importedSessionJson, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `zenglish_${track}_L${lvl}_S${sess}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 }
 </script>
 
@@ -3653,5 +3566,3 @@ function downloadImportedJSON() {
 
 </body>
 </html>
-
-
