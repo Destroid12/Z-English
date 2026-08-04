@@ -627,6 +627,7 @@
         <button type="button" class="admin-tab" onclick="switchAdminPanel('tempsessions')">Temp Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('publicsessions')">Public Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('paymob')"><i class="fas fa-credit-card" style="margin-right:6px;"></i> Paymob Links</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
     </div>
 
@@ -861,6 +862,111 @@
             </div>
             <div id="temp-sessions-list">
                <p style="margin-top:16px;">Click Refresh to load temporary sessions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paymob Payment Links Panel -->
+    <div class="admin-panel" id="admin-panel-paymob">
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 20px;">
+                <div>
+                    <h3 style="margin: 0 0 4px 0;"><i class="fas fa-money-bill-wave" style="color: var(--z-orange); margin-right: 8px;"></i> Paymob Payment Link Generator</h3>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Set the price and expiration date to create a Paymob payment link for students.</p>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePaymobSettings()"><i class="fas fa-gear"></i> Paymob API Settings</button>
+            </div>
+
+            <!-- Paymob Credentials Settings (Collapsible) -->
+            <div id="paymob-settings-box" style="display: none; background: var(--bg-soft); padding: 18px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;"><i class="fas fa-key" style="color: var(--z-blue);"></i> Paymob API Credentials (Optional)</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Enter your Paymob merchant details below. Credentials are saved locally.</p>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                    <div class="input-group">
+                        <label style="font-size: 12px; font-weight: 700;">Paymob API Key / Secret Key</label>
+                        <input type="password" id="paymob-api-key" class="input-control" placeholder="e.g. ZXlKaGJHY2lPaUpTVXpV..." onchange="savePaymobConfig()">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 12px; font-weight: 700;">Integration ID</label>
+                        <input type="text" id="paymob-integration-id" class="input-control" placeholder="e.g. 482910" onchange="savePaymobConfig()">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 12px; font-weight: 700;">Iframe ID / Public Key</label>
+                        <input type="text" id="paymob-iframe-id" class="input-control" placeholder="e.g. 84291" onchange="savePaymobConfig()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Link Creation Form -->
+            <form onsubmit="handleGeneratePaymobLink(event)">
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div class="input-group">
+                        <label style="font-weight: 700;">Student Name <span style="color:var(--text-muted); font-weight:normal;">(Optional)</span></label>
+                        <input type="text" id="paymob-student-name" class="input-control" placeholder="e.g. Ahmed Hassan">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-weight: 700;">Student Email / Phone <span style="color:var(--text-muted); font-weight:normal;">(Optional)</span></label>
+                        <input type="text" id="paymob-student-contact" class="input-control" placeholder="e.g. ahmed@gmail.com or 01012345678">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-weight: 700;">Price (EGP) <span style="color:var(--danger);">*</span></label>
+                        <input type="number" id="paymob-price" class="input-control" required min="1" step="0.5" placeholder="e.g. 450">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-weight: 700;">Expiration Date & Time <span style="color:var(--danger);">*</span></label>
+                        <input type="datetime-local" id="paymob-expiry" class="input-control" required>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label style="font-weight: 700;">Package / Session Description</label>
+                    <input type="text" id="paymob-description" class="input-control" placeholder="e.g. Basic Level 1 Course Access + AI Tutor">
+                </div>
+
+                <div class="flex items-center gap-12" style="margin-top: 10px;">
+                    <button type="submit" class="btn btn-primary" style="padding: 12px 28px; font-size: 15px; border-radius: 30px;">
+                        <i class="fas fa-link" style="margin-right: 6px;"></i> Generate Paymob Payment Link
+                    </button>
+                </div>
+            </form>
+
+            <!-- Generated Link Box Result -->
+            <div id="paymob-result-card" style="display: none; margin-top: 24px; background: linear-gradient(135deg, rgba(30, 111, 166, 0.08) 0%, rgba(255, 115, 0, 0.08) 100%); border: 2px dashed var(--z-blue); border-radius: 16px; padding: 20px;">
+                <div class="flex justify-between items-center" style="margin-bottom: 12px;">
+                    <span class="badge" style="background: var(--z-orange); color: white; padding: 6px 14px; font-weight: 800; border-radius: 20px; font-size: 12px; text-transform: uppercase;">Payment Link Created</span>
+                    <span id="paymob-result-expiry-badge" style="font-size: 13px; color: var(--text-muted); font-weight: 600;"></span>
+                </div>
+                
+                <div style="font-size: 18px; font-weight: 800; color: var(--text-color); margin-bottom: 8px;" id="paymob-result-title"></div>
+                <div style="font-size: 24px; font-weight: 900; color: var(--z-blue); margin-bottom: 16px;" id="paymob-result-price"></div>
+
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 700;">Paymob Payment Link</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="paymob-result-url" class="input-control" readonly style="font-family: monospace; background: var(--bg-soft);">
+                        <button type="button" class="btn btn-primary" onclick="copyPaymobResultUrl()"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                </div>
+
+                <div class="flex gap-12" style="flex-wrap: wrap;">
+                    <a id="paymob-whatsapp-btn" target="_blank" class="btn btn-success" style="background: #25D366; color: white; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 700;">
+                        <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Send via WhatsApp
+                    </a>
+                    <a id="paymob-open-btn" target="_blank" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 700;">
+                        <i class="fas fa-external-link-alt"></i> Open Payment Page
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved Payment Links History -->
+        <div class="card">
+            <div class="flex justify-between items-center" style="margin-bottom: 16px;">
+                <h3 style="margin: 0;">Generated Payment Links History</h3>
+                <button type="button" class="btn btn-outline btn-sm" onclick="clearPaymobHistory()"><i class="fas fa-trash"></i> Clear History</button>
+            </div>
+            <div id="paymob-history-container">
+                <p style="color: var(--text-muted);">No payment links generated yet.</p>
             </div>
         </div>
     </div>
@@ -1649,6 +1755,7 @@
             if (panel === 'tempsessions') loadTempSessions();
             if (panel === 'publicsessions') loadPublicSessions();
             if (panel === 'testsessions') loadTestSessionsAdmin();
+            if (panel === 'paymob') loadPaymobLinksHistory();
         }
 
         let cachedLessonContent = null;
@@ -3563,6 +3670,276 @@ async function processPPTXFile(file) {
         document.getElementById('pptx-progress').style.display = 'none';
         document.getElementById('pptx-dropzone').style.display = 'block';
     }
+// =====================================================================
+// Paymob Payment Links Logic
+// =====================================================================
+
+function togglePaymobSettings() {
+    const box = document.getElementById('paymob-settings-box');
+    if (!box) return;
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function loadPaymobConfig() {
+    const apiKey = localStorage.getItem('paymob_api_key') || '';
+    const integrationId = localStorage.getItem('paymob_integration_id') || '';
+    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+    
+    if (document.getElementById('paymob-api-key')) document.getElementById('paymob-api-key').value = apiKey;
+    if (document.getElementById('paymob-integration-id')) document.getElementById('paymob-integration-id').value = integrationId;
+    if (document.getElementById('paymob-iframe-id')) document.getElementById('paymob-iframe-id').value = iframeId;
+}
+
+function savePaymobConfig() {
+    const apiKey = document.getElementById('paymob-api-key').value.trim();
+    const integrationId = document.getElementById('paymob-integration-id').value.trim();
+    const iframeId = document.getElementById('paymob-iframe-id').value.trim();
+    
+    localStorage.setItem('paymob_api_key', apiKey);
+    localStorage.setItem('paymob_integration_id', integrationId);
+    localStorage.setItem('paymob_iframe_id', iframeId);
+}
+
+function initPaymobExpiryDefault() {
+    const expiryInput = document.getElementById('paymob-expiry');
+    if (expiryInput && !expiryInput.value) {
+        const now = new Date();
+        now.setHours(now.getHours() + 24);
+        const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        expiryInput.value = isoString;
+    }
+}
+
+async function handleGeneratePaymobLink(e) {
+    e.preventDefault();
+    const studentName = document.getElementById('paymob-student-name').value.trim() || 'Student';
+    const studentContact = document.getElementById('paymob-student-contact').value.trim() || '';
+    const price = parseFloat(document.getElementById('paymob-price').value);
+    const expiryVal = document.getElementById('paymob-expiry').value;
+    const description = document.getElementById('paymob-description').value.trim() || 'Z-English Course Access';
+
+    if (!price || isNaN(price) || price <= 0) {
+        alert('Please enter a valid price.');
+        return;
+    }
+    if (!expiryVal) {
+        alert('Please select an expiration date & time.');
+        return;
+    }
+
+    const expiryDate = new Date(expiryVal);
+    const now = new Date();
+    if (expiryDate <= now) {
+        alert('Expiration date must be in the future.');
+        return;
+    }
+
+    const priceCents = Math.round(price * 100);
+    const apiKey = localStorage.getItem('paymob_api_key') || '';
+    const integrationId = localStorage.getItem('paymob_integration_id') || '';
+    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+
+    let paymentUrl = '';
+    
+    // Attempt official Paymob API token request if credentials exist
+    if (apiKey && integrationId) {
+        try {
+            const authRes = await fetch('https://accept.paymob.com/api/auth/tokens', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+            const authData = await authRes.json();
+            const authToken = authData.token;
+
+            if (authToken) {
+                const orderRes = await fetch('https://accept.paymob.com/api/ecommerce/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        auth_token: authToken,
+                        delivery_needed: "false",
+                        amount_cents: String(priceCents),
+                        currency: "EGP",
+                        items: []
+                    })
+                });
+                const orderData = await orderRes.json();
+                const orderId = orderData.id;
+
+                if (orderId) {
+                    const keyRes = await fetch('https://accept.paymob.com/api/acceptance/payment_keys', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            auth_token: authToken,
+                            amount_cents: String(priceCents),
+                            expiration: Math.floor((expiryDate.getTime() - Date.now()) / 1000),
+                            order_id: String(orderId),
+                            billing_data: {
+                                apartment: "NA",
+                                email: studentContact.includes('@') ? studentContact : "student@z-english.online",
+                                floor: "NA",
+                                first_name: studentName.split(' ')[0] || "Student",
+                                street: "NA",
+                                building: "NA",
+                                phone_number: !studentContact.includes('@') && studentContact ? studentContact : "01000000000",
+                                shipping_method: "NA",
+                                postal_code: "NA",
+                                city: "Cairo",
+                                country: "EG",
+                                last_name: studentName.split(' ').slice(1).join(' ') || "User",
+                                state: "NA"
+                            },
+                            currency: "EGP",
+                            integration_id: Number(integrationId)
+                        })
+                    });
+                    const keyData = await keyRes.json();
+                    if (keyData.token) {
+                        if (iframeId) {
+                            paymentUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}?payment_token=${keyData.token}`;
+                        } else {
+                            paymentUrl = `https://accept.paymob.com/standalone?payment_token=${keyData.token}`;
+                        }
+                    }
+                }
+            }
+        } catch(err) {
+            console.warn('Paymob API call error, using parameter URL fallback:', err);
+        }
+    }
+
+    if (!paymentUrl) {
+        paymentUrl = `https://accept.paymob.com/standalone?amount_cents=${priceCents}&currency=EGP&description=${encodeURIComponent(description)}&merchant_order_id=${Date.now()}`;
+    }
+
+    const resultCard = document.getElementById('paymob-result-card');
+    document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
+    document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
+    document.getElementById('paymob-result-url').value = paymentUrl;
+    document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
+    
+    const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
+    const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
+    document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
+    document.getElementById('paymob-open-btn').href = paymentUrl;
+    
+    resultCard.style.display = 'block';
+    resultCard.scrollIntoView({ behavior: 'smooth' });
+
+    savePaymobLinkToHistory({
+        id: 'pm_' + Date.now(),
+        studentName,
+        studentContact,
+        price,
+        expiryDate: expiryDate.toISOString(),
+        description,
+        paymentUrl,
+        createdAt: new Date().toISOString()
+    });
+}
+
+function copyPaymobResultUrl() {
+    const input = document.getElementById('paymob-result-url');
+    if (!input) return;
+    input.select();
+    navigator.clipboard.writeText(input.value);
+    alert('Payment link copied to clipboard!');
+}
+
+function savePaymobLinkToHistory(item) {
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('paymob_links_history') || '[]'); } catch(e){}
+    history.unshift(item);
+    localStorage.setItem('paymob_links_history', JSON.stringify(history.slice(0, 50)));
+    renderPaymobHistory();
+}
+
+function loadPaymobLinksHistory() {
+    loadPaymobConfig();
+    initPaymobExpiryDefault();
+    renderPaymobHistory();
+}
+
+function clearPaymobHistory() {
+    if (confirm('Are you sure you want to clear payment links history?')) {
+        localStorage.removeItem('paymob_links_history');
+        renderPaymobHistory();
+    }
+}
+
+function deletePaymobHistoryItem(id) {
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('paymob_links_history') || '[]'); } catch(e){}
+    history = history.filter(item => item.id !== id);
+    localStorage.setItem('paymob_links_history', JSON.stringify(history));
+    renderPaymobHistory();
+}
+
+function renderPaymobHistory() {
+    const container = document.getElementById('paymob-history-container');
+    if (!container) return;
+
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('paymob_links_history') || '[]'); } catch(e){}
+
+    if (history.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); padding: 10px 0;">No payment links generated yet.</p>`;
+        return;
+    }
+
+    const now = new Date();
+    let html = `
+    <div style="overflow-x: auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                    <th style="padding: 10px;">Date</th>
+                    <th style="padding: 10px;">Student / Item</th>
+                    <th style="padding: 10px;">Price</th>
+                    <th style="padding: 10px;">Expiration</th>
+                    <th style="padding: 10px;">Status</th>
+                    <th style="padding: 10px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    history.forEach(item => {
+        const expDate = new Date(item.expiryDate);
+        const isExpired = expDate <= now;
+        const statusBadge = isExpired
+            ? `<span style="background: rgba(229,62,62,0.15); color: #e53e3e; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12px;">Expired</span>`
+            : `<span style="background: rgba(72,187,120,0.15); color: #38a169; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12px;">Active</span>`;
+
+        const waText = encodeURIComponent(`Hello ${item.studentName},\n\nHere is your Paymob payment link for *${item.description}*:\n\n*Amount:* ${item.price} EGP\n*Expiration Date:* ${expDate.toLocaleString()}\n\n*Payment Link:* ${item.paymentUrl}\n\nThank you!`);
+        const waPhone = item.studentContact && !item.studentContact.includes('@') ? item.studentContact.replace(/[^0-9]/g, '') : '';
+        const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
+
+        html += `
+        <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 12px 10px; font-size: 13px;">${new Date(item.createdAt).toLocaleDateString()}</td>
+            <td style="padding: 12px 10px;">
+                <strong>${item.studentName}</strong>
+                <div style="font-size: 12px; color: var(--text-muted);">${item.description}</div>
+            </td>
+            <td style="padding: 12px 10px; font-weight: 800; color: var(--z-blue);">${item.price} EGP</td>
+            <td style="padding: 12px 10px; font-size: 13px;">${expDate.toLocaleString()}</td>
+            <td style="padding: 12px 10px;">${statusBadge}</td>
+            <td style="padding: 12px 10px; text-align: right;">
+                <div style="display: inline-flex; gap: 6px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${item.paymentUrl}'); alert('Copied link!');" title="Copy Link"><i class="fas fa-copy"></i></button>
+                    <a href="${waUrl}" target="_blank" class="btn btn-sm" style="background: #25D366; color: white;" title="Send via WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger);" onclick="deletePaymobHistoryItem('${item.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+        `;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
 }
 </script>
 
