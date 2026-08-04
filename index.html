@@ -880,25 +880,33 @@
             <!-- Paymob Credentials Settings (Collapsible) -->
             <div id="paymob-settings-box" style="display: none; background: var(--bg-soft); padding: 18px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border-color);">
                 <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;"><i class="fas fa-key" style="color: var(--z-blue);"></i> Paymob API Credentials (Optional)</h4>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Enter your Paymob merchant details below. Credentials are saved locally.</p>
-                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Enter your Paymob merchant details below. Credentials are saved in your browser.</p>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px;">
                     <div class="input-group">
                         <label style="font-size: 12px; font-weight: 700;">Paymob API Key / Secret Key</label>
-                        <input type="password" id="paymob-api-key" class="input-control" placeholder="e.g. ZXlKaGJHY2lPaUpTVXpV..." onchange="savePaymobConfig()">
+                        <input type="password" id="paymob-api-key" class="input-control" placeholder="e.g. ZXlKaGJHY2lPaUpTVXpV...">
                     </div>
                     <div class="input-group">
                         <label style="font-size: 12px; font-weight: 700;">Integration ID</label>
-                        <input type="text" id="paymob-integration-id" class="input-control" placeholder="e.g. 482910" onchange="savePaymobConfig()">
+                        <input type="text" id="paymob-integration-id" class="input-control" placeholder="e.g. 5818041">
                     </div>
                     <div class="input-group">
                         <label style="font-size: 12px; font-weight: 700;">Iframe ID / Public Key</label>
-                        <input type="text" id="paymob-iframe-id" class="input-control" placeholder="e.g. 84291" onchange="savePaymobConfig()">
+                        <input type="text" id="paymob-iframe-id" class="input-control" placeholder="e.g. 1066378">
                     </div>
+                </div>
+                <div class="flex items-center gap-12">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="savePaymobConfig(true)" style="padding: 8px 20px; font-weight: 700;">
+                        <i class="fas fa-save" style="margin-right: 6px;"></i> Save API Settings
+                    </button>
+                    <span id="paymob-save-status" style="font-size: 13px; color: #22C55E; font-weight: 700; display: none;">
+                        <i class="fas fa-check-circle"></i> Settings Saved!
+                    </span>
                 </div>
             </div>
 
             <!-- Link Creation Form -->
-            <form onsubmit="handleGeneratePaymobLink(event)">
+            <form onsubmit="handleGeneratePaymobLink(event); return false;">
                 <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div class="input-group">
                         <label style="font-weight: 700;">Student Name <span style="color:var(--text-muted); font-weight:normal;">(Optional)</span></label>
@@ -924,7 +932,7 @@
                 </div>
 
                 <div class="flex items-center gap-12" style="margin-top: 10px;">
-                    <button type="submit" class="btn btn-primary" style="padding: 12px 28px; font-size: 15px; border-radius: 30px;">
+                    <button type="button" id="paymob-generate-btn" onclick="handleGeneratePaymobLink(event)" class="btn btn-primary" style="padding: 12px 28px; font-size: 15px; border-radius: 30px;">
                         <i class="fas fa-link" style="margin-right: 6px;"></i> Generate Paymob Payment Link
                     </button>
                 </div>
@@ -3637,67 +3645,22 @@ async function processPPTXFile(file) {
                                 }
                             } catch(uploadErr) {
                                 updateImporterLog(`Upload Error: ${uploadErr.message}`);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        updateImporterProgress(90, 'Generating JSON...');
-        importedSessionJson = [{
-            id: 'imported-slide-' + Date.now(),
-            type: 'content',
-            title: file.name.replace(/\.pptx$/i, ''),
-            elements: elements
-        }];
-
-        // Feed straight into the same "Lesson Content" state the JSON dropzone above
-        // uses, so it's included whenever the admin clicks "Save Session & Content".
-        cachedLessonContent = JSON.stringify(importedSessionJson);
-        cachedLessonFileName = file.name;
-        setLessonStatus(`Ready: "${file.name}" (from PPTX, ${importedSessionJson[0].elements.length} elements)`, 'ok');
-
-        updateImporterProgress(100, 'Done!');
-        document.getElementById('pptx-progress').style.display = 'none';
-        document.getElementById('pptx-result').style.display = 'block';
-        document.getElementById('pptx-dropzone').style.display = 'block';
-        updateImporterLog('Session JSON generated and loaded into Lesson Content above.');
-
-    } catch(err) {
-        console.error(err);
-        alert('Error parsing PPTX: ' + err.message);
-        document.getElementById('pptx-progress').style.display = 'none';
-        document.getElementById('pptx-dropzone').style.display = 'block';
-    }
-// =====================================================================
-// Paymob Payment Links Logic
-// =====================================================================
-
-function togglePaymobSettings() {
-    const box = document.getElementById('paymob-settings-box');
-    if (!box) return;
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
-}
-
-function loadPaymobConfig() {
-    const apiKey = localStorage.getItem('paymob_api_key') || '';
-    const integrationId = localStorage.getItem('paymob_integration_id') || '';
-    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
-    
-    if (document.getElementById('paymob-api-key')) document.getElementById('paymob-api-key').value = apiKey;
-    if (document.getElementById('paymob-integration-id')) document.getElementById('paymob-integration-id').value = integrationId;
-    if (document.getElementById('paymob-iframe-id')) document.getElementById('paymob-iframe-id').value = iframeId;
-}
-
-function savePaymobConfig() {
-    const apiKey = document.getElementById('paymob-api-key').value.trim();
-    const integrationId = document.getElementById('paymob-integration-id').value.trim();
-    const iframeId = document.getElementById('paymob-iframe-id').value.trim();
+                      function savePaymobConfig(showToast = false) {
+    const apiKey = (document.getElementById('paymob-api-key')?.value || '').trim();
+    const integrationId = (document.getElementById('paymob-integration-id')?.value || '').trim();
+    const iframeId = (document.getElementById('paymob-iframe-id')?.value || '').trim();
     
     localStorage.setItem('paymob_api_key', apiKey);
     localStorage.setItem('paymob_integration_id', integrationId);
     localStorage.setItem('paymob_iframe_id', iframeId);
+
+    if (showToast) {
+        const statusEl = document.getElementById('paymob-save-status');
+        if (statusEl) {
+            statusEl.style.display = 'inline-block';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        }
+    }
 }
 
 function initPaymobExpiryDefault() {
@@ -3711,8 +3674,12 @@ function initPaymobExpiryDefault() {
 }
 
 async function handleGeneratePaymobLink(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
+    if (e && e.preventDefault) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    const btn = document.getElementById('paymob-generate-btn');
     const origBtnHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
@@ -3749,11 +3716,11 @@ async function handleGeneratePaymobLink(e) {
         let paymentUrl = '';
 
         // Server-side backend call (bypasses browser CORS!)
-        if (backendConfigured()) {
+        if (typeof backendConfigured === 'function' && backendConfigured()) {
             try {
                 const params = new URLSearchParams({
                     action: 'createPaymobLink',
-                    token: sessionToken || '',
+                    token: typeof sessionToken !== 'undefined' ? sessionToken : '',
                     price: price,
                     expirationDate: expiryDate.toISOString(),
                     studentName: studentName,
@@ -3794,7 +3761,7 @@ async function handleGeneratePaymobLink(e) {
         document.getElementById('paymob-open-btn').href = paymentUrl;
         
         resultCard.style.display = 'block';
-        resultCard.scrollIntoView({ behavior: 'smooth' });
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         savePaymobLinkToHistory({
             id: 'pm_' + Date.now(),
@@ -3812,7 +3779,6 @@ async function handleGeneratePaymobLink(e) {
             btn.innerHTML = origBtnHtml;
         }
     }
-}
 }
 
 function copyPaymobResultUrl() {
