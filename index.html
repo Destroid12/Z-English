@@ -1293,14 +1293,30 @@
                 body: payload 
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.json();
+            const text = await res.text();
+            if (text.trim().startsWith('<')) {
+                throw new Error('Google Apps Script returned an HTML page instead of JSON. Check your web app deployment.');
+            }
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                throw new Error('Invalid JSON from server: ' + err.message);
+            }
         }
         async function callBackendGet(params) {
             if (!backendConfigured()) throw new Error('Backend not configured');
             params.append('_ts', Date.now());
             const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
             if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.json();
+            const text = await res.text();
+            if (text.trim().startsWith('<')) {
+                throw new Error('Google Apps Script returned an HTML page instead of JSON. Check your web app deployment.');
+            }
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                throw new Error('Invalid JSON from server: ' + err.message);
+            }
         }
 
         async function handleAuthSubmit(e) {
@@ -3435,23 +3451,25 @@ async function processPPTXFile(file) {
                         });
                         
                         updateImporterLog(`Analyzing Image with Z-AI (${Math.round(base64.length/1024)} KB)...`);
-                        const aiRes = await fetch(GOOGLE_APP_SCRIPT_URL, {
-                            method: 'POST',
-                            body: new URLSearchParams({
-                                action: 'analyzePPTXImage',
-                                token: sessionToken,
-                                mimeType: imgMime,
-                                imageBase64: base64
-                            })
-                        });
-                        
                         let aiType = 'image';
                         let extractedText = '';
                         try {
-                            const aiData = await aiRes.json();
-                            if (aiData.success && aiData.result && (aiData.result.type === 'text' || aiData.result.type === 'question')) {
-                                aiType = aiData.result.type;
-                                extractedText = aiData.result.content || '';
+                            const aiRes = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                                method: 'POST',
+                                body: new URLSearchParams({
+                                    action: 'analyzePPTXImage',
+                                    token: sessionToken,
+                                    mimeType: imgMime,
+                                    imageBase64: base64
+                                })
+                            });
+                            const aiText = await aiRes.text();
+                            if (!aiText.trim().startsWith('<')) {
+                                const aiData = JSON.parse(aiText);
+                                if (aiData.success && aiData.result && (aiData.result.type === 'text' || aiData.result.type === 'question')) {
+                                    aiType = aiData.result.type;
+                                    extractedText = aiData.result.content || '';
+                                }
                             }
                         } catch(err) {
                             console.error('AI Analysis failed, defaulting to image upload', err);
@@ -3461,9 +3479,6 @@ async function processPPTXFile(file) {
                             updateImporterLog(`Z-AI identified ${aiType} inside image!`);
                             
                             if (aiType === 'question') {
-                                // Editor/player question schema: prompt + blanks[] (see editor.html compileSlide).
-                                // We don't have a real extracted answer from a slide screenshot, so this comes
-                                // in as an editable text-answer blank the admin fills in via the Slide Editor.
                                 elements.push({
                                     id: getUid(),
                                     kind: "question",
@@ -3484,30 +3499,37 @@ async function processPPTXFile(file) {
                             }
                         } else {
                             updateImporterLog(`Z-AI says it's a picture. Uploading to Drive...`);
-                            // Upload image
-                            const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
-                                method: 'POST',
-                                body: new URLSearchParams({
-                                    action: 'uploadMedia',
-                                    token: sessionToken,
-                                    filename: imgPath.split('/').pop(),
-                                    mimeType: imgMime,
-                                    dataBase64: base64
-                                })
-                            });
-                            const data = await res.json();
-                            if (data.success && data.url) {
-                                updateImporterLog(`Upload Success: ${data.url}`);
-                                elements.push({
-                                    id: getUid(),
-                                    kind: "image",
-                                    url: data.url,
-                                    caption: "",
-                                    captionFont: "Default",
-                                    anim: "none"
+                            try {
+                                const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                                    method: 'POST',
+                                    body: new URLSearchParams({
+                                        action: 'uploadMedia',
+                                        token: sessionToken,
+                                        filename: imgPath.split('/').pop(),
+                                        mimeType: imgMime,
+                                        dataBase64: base64
+                                    })
                                 });
-                            } else {
-                                updateImporterLog(`Upload Failed: ${data.message}`);
+                                const rawText = await res.text();
+                                let data = {};
+                                if (!rawText.trim().startsWith('<')) {
+                                    data = JSON.parse(rawText);
+                                }
+                                if (data.success && data.url) {
+                                    updateImporterLog(`Upload Success: ${data.url}`);
+                                    elements.push({
+                                        id: getUid(),
+                                        kind: "image",
+                                        url: data.url,
+                                        caption: "",
+                                        captionFont: "Default",
+                                        anim: "none"
+                                    });
+                                } else {
+                                    updateImporterLog(`Upload Failed: ${data.message || 'Server returned HTML error page'}`);
+                                }
+                            } catch(uploadErr) {
+                                updateImporterLog(`Upload Error: ${uploadErr.message}`);
                             }
                         }
                     }
