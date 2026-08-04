@@ -941,10 +941,18 @@
                 <div style="font-size: 24px; font-weight: 900; color: var(--z-blue); margin-bottom: 16px;" id="paymob-result-price"></div>
 
                 <div class="input-group" style="margin-bottom: 16px;">
-                    <label style="font-size: 12px; font-weight: 700;">Paymob Payment Link</label>
+                    <label style="font-size: 12px; font-weight: 700;">Z-English Branded Checkout Link (Recommended)</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" id="paymob-result-url" class="input-control" readonly style="font-family: monospace; background: var(--bg-soft);">
-                        <button type="button" class="btn btn-primary" onclick="copyPaymobResultUrl()"><i class="fas fa-copy"></i> Copy</button>
+                        <input type="text" id="paymob-result-styled-url" class="input-control" readonly style="font-family: monospace; background: var(--bg-soft);">
+                        <button type="button" class="btn btn-primary" onclick="copyPaymobStyledUrl()"><i class="fas fa-copy"></i> Copy Branded Link</button>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Direct Paymob Link</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="paymob-result-url" class="input-control" readonly style="font-family: monospace; background: var(--bg-soft); opacity: 0.8;">
+                        <button type="button" class="btn btn-outline" onclick="copyPaymobResultUrl()"><i class="fas fa-copy"></i> Copy Direct</button>
                     </div>
                 </div>
 
@@ -953,7 +961,7 @@
                         <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Send via WhatsApp
                     </a>
                     <a id="paymob-open-btn" target="_blank" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 700;">
-                        <i class="fas fa-external-link-alt"></i> Open Payment Page
+                        <i class="fas fa-external-link-alt"></i> Open Branded Checkout
                     </a>
                 </div>
             </div>
@@ -3814,16 +3822,19 @@ async function handleGeneratePaymobLink(e) {
         paymentUrl = `https://accept.paymob.com/standalone?amount_cents=${priceCents}&currency=EGP&description=${encodeURIComponent(description)}&merchant_order_id=${Date.now()}`;
     }
 
+    const styledCheckoutUrl = `${window.location.origin}/checkout.html?iframe_url=${encodeURIComponent(paymentUrl)}&amount=${price}&desc=${encodeURIComponent(description)}&student=${encodeURIComponent(studentName)}&expiry=${encodeURIComponent(expiryDate.toISOString())}`;
+
     const resultCard = document.getElementById('paymob-result-card');
     document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
     document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
+    document.getElementById('paymob-result-styled-url').value = styledCheckoutUrl;
     document.getElementById('paymob-result-url').value = paymentUrl;
     document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
     
-    const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
+    const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${styledCheckoutUrl}\n\nThank you!`);
     const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
     document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
-    document.getElementById('paymob-open-btn').href = paymentUrl;
+    document.getElementById('paymob-open-btn').href = styledCheckoutUrl;
     
     resultCard.style.display = 'block';
     resultCard.scrollIntoView({ behavior: 'smooth' });
@@ -3840,12 +3851,20 @@ async function handleGeneratePaymobLink(e) {
     });
 }
 
+function copyPaymobStyledUrl() {
+    const input = document.getElementById('paymob-result-styled-url');
+    if (!input) return;
+    input.select();
+    navigator.clipboard.writeText(input.value);
+    alert('Z-English Branded Checkout link copied to clipboard!');
+}
+
 function copyPaymobResultUrl() {
     const input = document.getElementById('paymob-result-url');
     if (!input) return;
     input.select();
     navigator.clipboard.writeText(input.value);
-    alert('Payment link copied to clipboard!');
+    alert('Direct Paymob link copied to clipboard!');
 }
 
 function savePaymobLinkToHistory(item) {
