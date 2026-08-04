@@ -3666,8 +3666,34 @@ async function handleGeneratePaymobLink(e) {
 
         let paymentUrl = '';
 
-        // Server-side backend call (bypasses browser CORS!)
-        if (typeof backendConfigured === 'function' && backendConfigured()) {
+        // 1. Try Vercel Serverless API first if deployed (/api/paymob)
+        try {
+            const vercelRes = await fetch('/api/paymob', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    price: price,
+                    expirationDate: expiryDate.toISOString(),
+                    studentName: studentName,
+                    studentContact: studentContact,
+                    description: description,
+                    apiKey: apiKey,
+                    integrationId: integrationId,
+                    iframeId: iframeId
+                })
+            });
+            if (vercelRes.ok) {
+                const vData = await vercelRes.json();
+                if (vData && vData.success && vData.paymentUrl) {
+                    paymentUrl = vData.paymentUrl;
+                }
+            }
+        } catch(vErr) {
+            console.warn('Vercel API call skipped/unavailable:', vErr);
+        }
+
+        // 2. Try Google Apps Script Backend call if Vercel endpoint didn't respond
+        if (!paymentUrl && typeof backendConfigured === 'function' && backendConfigured()) {
             try {
                 const params = new URLSearchParams({
                     action: 'createPaymobLink',
