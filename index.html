@@ -2339,7 +2339,7 @@ document.getElementById('siteTutorLangToggle').addEventListener('click', functio
   } else {
     document.getElementById('editTestSessionLink').style.display = 'inline-flex';
     document.getElementById('deleteTestSessionBtn').style.display = 'inline-flex';
-    document.getElementById('editTestSessionLink').href = 'editor.html?mode=test&editId=' + encodeURIComponent(tid);
+    document.getElementById('editTestSessionLink').href = 'editor.html?editTestId=' + encodeURIComponent(tid);
     this.textContent = 'EN';
     this.classList.remove('ar');
     siteTutorMicLang = 'en-US';
@@ -3097,7 +3097,7 @@ async function loadPublicSessions() {
         </div>
         <div style="display:flex; gap: 8px; flex-wrap: wrap;">
           <button type="button" class="btn btn-outline btn-sm" onclick="copyPublicLink('${s.publicId}')"><i class="fas fa-copy"></i> Copy Code</button>
-          <a href="editor.html?mode=public&editId=${s.publicId}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit Slides</a>
+          <a href="editor.html?editPublicId=${s.publicId}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-pen"></i> Edit Slides</a>
           <button type="button" class="btn btn-outline btn-sm" onclick="updatePublicSession('${s.publicId}')"><i class="fas fa-clock"></i> Extend Time</button>
           <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deletePublicSessionAdmin('${s.publicId}')">Close / Delete</button>
         </div>

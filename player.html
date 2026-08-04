@@ -1534,76 +1534,240 @@ function initCustomAudio(container) {
 <style>
 #voiceModal {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(10, 15, 30, 0.95) 0%, rgba(20, 30, 60, 0.95) 100%);
+  backdrop-filter: blur(12px);
   z-index: 10000; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
   color: white; font-family: 'Inter', sans-serif;
 }
 #voiceModal.open {
   opacity: 1; pointer-events: auto;
 }
-#voiceOrb {
-  width: 150px; height: 150px; border-radius: 50%;
-  background: radial-gradient(circle, var(--z-orange) 0%, #e65c00 100%);
+
+/* ── Orb container ── */
+#voiceOrbWrap {
+  position: relative; width: 180px; height: 180px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 60px; box-shadow: 0 0 30px rgba(255, 115, 0, 0.5);
-  transition: all 0.2s; margin-bottom: 40px;
+  margin-bottom: 32px;
+}
+
+/* Concentric ring behind orb */
+#voiceOrbWrap::before, #voiceOrbWrap::after {
+  content: ''; position: absolute; border-radius: 50%;
+  pointer-events: none;
+}
+#voiceOrbWrap::before {
+  width: 200px; height: 200px;
+  border: 2px solid rgba(255,255,255,0.08);
+  animation: ring-breathe 3s ease-in-out infinite;
+}
+#voiceOrbWrap::after {
+  width: 230px; height: 230px;
+  border: 1px solid rgba(255,255,255,0.04);
+  animation: ring-breathe 3s ease-in-out infinite 0.5s;
+}
+@keyframes ring-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+#voiceOrb {
+  width: 140px; height: 140px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff9a3c 0%, #e65c00 60%, #cc4400 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; color: white;
+  box-shadow: 0 0 40px rgba(255, 115, 0, 0.4), inset 0 -4px 12px rgba(0,0,0,0.2);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
 }
 #voiceOrb.listening {
-  animation: pulse-listen 1.5s infinite alternate;
-  background: radial-gradient(circle, var(--blue-mid) 0%, var(--blue-ink) 100%);
-  box-shadow: 0 0 30px rgba(30, 111, 166, 0.5);
+  background: radial-gradient(circle at 35% 35%, #4fc3f7 0%, #1E6FA6 60%, #0d4f7a 100%);
+  box-shadow: 0 0 40px rgba(30, 111, 166, 0.5), inset 0 -4px 12px rgba(0,0,0,0.2);
+  animation: pulse-listen 2s ease-in-out infinite;
 }
 #voiceOrb.thinking {
-  animation: pulse-think 1s infinite alternate;
-  background: radial-gradient(circle, #888 0%, #555 100%);
-  box-shadow: 0 0 30px rgba(136, 136, 136, 0.5);
+  background: radial-gradient(circle at 35% 35%, #aaa 0%, #666 60%, #444 100%);
+  box-shadow: 0 0 30px rgba(136, 136, 136, 0.4), inset 0 -4px 12px rgba(0,0,0,0.2);
+  animation: pulse-think 1.2s ease-in-out infinite;
 }
 #voiceOrb.speaking {
-  animation: pulse-speak 0.4s infinite alternate;
+  background: radial-gradient(circle at 35% 35%, #ff9a3c 0%, #e65c00 60%, #cc4400 100%);
+  box-shadow: 0 0 50px rgba(255, 115, 0, 0.6), inset 0 -4px 12px rgba(0,0,0,0.2);
+  animation: pulse-speak 0.5s ease-in-out infinite alternate;
 }
 @keyframes pulse-listen {
-  0% { transform: scale(1); box-shadow: 0 0 20px rgba(30, 111, 166, 0.4); }
-  100% { transform: scale(1.1); box-shadow: 0 0 50px rgba(30, 111, 166, 0.8); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 @keyframes pulse-think {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  100% { transform: scale(1.05); opacity: 1; }
+  0%, 100% { transform: scale(0.96); opacity: 0.75; }
+  50% { transform: scale(1.04); opacity: 1; }
 }
 @keyframes pulse-speak {
-  0% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 115, 0, 0.5); }
-  100% { transform: scale(1.15); box-shadow: 0 0 60px rgba(255, 115, 0, 0.9); }
+  0% { transform: scale(1); box-shadow: 0 0 40px rgba(255, 115, 0, 0.5), inset 0 -4px 12px rgba(0,0,0,0.2); }
+  100% { transform: scale(1.12); box-shadow: 0 0 70px rgba(255, 115, 0, 0.8), inset 0 -4px 12px rgba(0,0,0,0.2); }
 }
+
+/* ── Volume bars (listening) ── */
+#voiceVolumeBars {
+  display: flex; gap: 3px; align-items: flex-end;
+  height: 50px; margin-bottom: 24px;
+  opacity: 0; transition: opacity 0.3s;
+}
+#voiceVolumeBars.active { opacity: 1; }
+.vol-bar {
+  width: 5px; border-radius: 3px;
+  background: linear-gradient(to top, #4fc3f7, #1E6FA6);
+  transition: height 0.08s ease-out;
+  min-height: 4px;
+}
+
+/* ── Sound wave (speaking) ── */
+#voiceSpeakWave {
+  display: flex; gap: 4px; align-items: center;
+  height: 50px; margin-bottom: 24px;
+  opacity: 0; transition: opacity 0.3s;
+}
+#voiceSpeakWave.active { opacity: 1; }
+.speak-bar {
+  width: 4px; border-radius: 3px;
+  background: linear-gradient(to top, #ff9a3c, #e65c00);
+  animation: speak-wave 0.6s ease-in-out infinite alternate;
+}
+.speak-bar:nth-child(1) { animation-delay: 0s; }
+.speak-bar:nth-child(2) { animation-delay: 0.1s; }
+.speak-bar:nth-child(3) { animation-delay: 0.15s; }
+.speak-bar:nth-child(4) { animation-delay: 0.25s; }
+.speak-bar:nth-child(5) { animation-delay: 0.05s; }
+.speak-bar:nth-child(6) { animation-delay: 0.2s; }
+.speak-bar:nth-child(7) { animation-delay: 0.3s; }
+.speak-bar:nth-child(8) { animation-delay: 0.08s; }
+.speak-bar:nth-child(9) { animation-delay: 0.18s; }
+.speak-bar:nth-child(10) { animation-delay: 0.12s; }
+.speak-bar:nth-child(11) { animation-delay: 0.22s; }
+.speak-bar:nth-child(12) { animation-delay: 0.28s; }
+@keyframes speak-wave {
+  0% { height: 8px; }
+  100% { height: 36px; }
+}
+
+/* ── Status & transcript ── */
 #voiceStatus {
-  font-size: 24px; font-weight: 600; margin-bottom: 20px;
+  font-size: 20px; font-weight: 600; margin-bottom: 12px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  opacity: 0.9;
 }
 #voiceTranscript {
-  font-size: 18px; color: #ccc; max-width: 600px; text-align: center;
-  min-height: 60px;
+  font-size: 16px; color: rgba(255,255,255,0.65); max-width: 550px;
+  text-align: center; min-height: 50px; line-height: 1.5;
+  font-style: italic;
 }
+
+/* ── Close button ── */
 #voiceClose {
-  position: absolute; top: 30px; right: 40px;
-  background: none; border: none; color: white;
-  font-size: 40px; cursor: pointer;
-  opacity: 0.7; transition: opacity 0.2s;
+  position: absolute; top: 24px; right: 32px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: white; width: 44px; height: 44px; border-radius: 50%;
+  font-size: 22px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: all 0.2s;
 }
-#voiceClose:hover { opacity: 1; }
+#voiceClose:hover {
+  background: rgba(255,255,255,0.18);
+  transform: scale(1.1);
+}
+
+/* ── Hint ── */
+#voiceHint {
+  position: absolute; bottom: 36px;
+  font-size: 13px; color: rgba(255,255,255,0.35);
+  letter-spacing: 0.3px;
+}
 </style>
 
 <div id="voiceModal">
   <button id="voiceClose" onclick="stopDirectVoice()">&times;</button>
-  <div id="voiceOrb">
-    <i class="fas fa-microphone" id="voiceOrbIcon"></i>
+  <div id="voiceOrbWrap">
+    <div id="voiceOrb">
+      <i class="fas fa-microphone" id="voiceOrbIcon"></i>
+    </div>
   </div>
+
+  <!-- Volume bars (visible during listening) -->
+  <div id="voiceVolumeBars">
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div><div class="vol-bar"></div>
+    <div class="vol-bar"></div><div class="vol-bar"></div>
+  </div>
+
+  <!-- Sound wave (visible during speaking) -->
+  <div id="voiceSpeakWave">
+    <div class="speak-bar"></div><div class="speak-bar"></div><div class="speak-bar"></div>
+    <div class="speak-bar"></div><div class="speak-bar"></div><div class="speak-bar"></div>
+    <div class="speak-bar"></div><div class="speak-bar"></div><div class="speak-bar"></div>
+    <div class="speak-bar"></div><div class="speak-bar"></div><div class="speak-bar"></div>
+  </div>
+
   <div id="voiceStatus">Ready</div>
   <div id="voiceTranscript"></div>
+  <div id="voiceHint">Press &times; or Esc to end the session</div>
 </div>
 
 <script>
 let directVoiceRecognizer = null;
 let directVoiceActive = false;
 let directVoiceState = 'idle'; // idle, listening, thinking, speaking
+
+// ── AudioContext for real-time volume metering ──
+let voiceAudioCtx = null;
+let voiceAnalyser = null;
+let voiceMicStream = null;
+let voiceVolRAF = null; // requestAnimationFrame id
+
+function startVolumeMeter() {
+  if (voiceAudioCtx) return; // already running
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    voiceMicStream = stream;
+    voiceAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = voiceAudioCtx.createMediaStreamSource(stream);
+    voiceAnalyser = voiceAudioCtx.createAnalyser();
+    voiceAnalyser.fftSize = 64; // 32 frequency bins
+    src.connect(voiceAnalyser);
+    drawVolumeBars();
+  }).catch(() => {}); // mic denied — bars just stay flat
+}
+
+function drawVolumeBars() {
+  if (!voiceAnalyser || !directVoiceActive) return;
+  const data = new Uint8Array(voiceAnalyser.frequencyBinCount);
+  voiceAnalyser.getByteFrequencyData(data);
+  const bars = document.querySelectorAll('#voiceVolumeBars .vol-bar');
+  const count = bars.length;
+  for (let i = 0; i < count; i++) {
+    // Map frequency bins to bar heights (center-weighted distribution)
+    const center = count / 2;
+    const dist = Math.abs(i - center) / center; // 0 = center, 1 = edge
+    const binIdx = Math.min(Math.floor(dist * data.length), data.length - 1);
+    const val = data[binIdx] / 255;
+    const h = 4 + val * 44; // 4px min, 48px max
+    bars[i].style.height = h + 'px';
+  }
+  voiceVolRAF = requestAnimationFrame(drawVolumeBars);
+}
+
+function stopVolumeMeter() {
+  if (voiceVolRAF) { cancelAnimationFrame(voiceVolRAF); voiceVolRAF = null; }
+  if (voiceMicStream) { voiceMicStream.getTracks().forEach(t => t.stop()); voiceMicStream = null; }
+  if (voiceAudioCtx) { voiceAudioCtx.close().catch(() => {}); voiceAudioCtx = null; }
+  voiceAnalyser = null;
+  // Reset bars to flat
+  document.querySelectorAll('#voiceVolumeBars .vol-bar').forEach(b => b.style.height = '4px');
+}
 
 if (window.SpeechRecognition || window.webkitSpeechRecognition) {
   const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1640,20 +1804,31 @@ function setVoiceState(state) {
   const orb = document.getElementById('voiceOrb');
   const status = document.getElementById('voiceStatus');
   const icon = document.getElementById('voiceOrbIcon');
+  const volBars = document.getElementById('voiceVolumeBars');
+  const speakWave = document.getElementById('voiceSpeakWave');
   orb.className = '';
+
+  // Hide both visualizers by default
+  volBars.classList.remove('active');
+  speakWave.classList.remove('active');
+
   if (state === 'listening') {
     orb.classList.add('listening');
     status.innerText = 'Listening...';
     icon.className = 'fas fa-microphone';
     document.getElementById('voiceTranscript').innerText = '';
+    volBars.classList.add('active');
+    // Restart volume drawing loop
+    if (voiceAnalyser && !voiceVolRAF) drawVolumeBars();
   } else if (state === 'thinking') {
     orb.classList.add('thinking');
     status.innerText = 'Thinking...';
     icon.className = 'fas fa-circle-notch fa-spin';
   } else if (state === 'speaking') {
     orb.classList.add('speaking');
-    status.innerText = 'AI is speaking...';
+    status.innerText = 'Tutor is speaking...';
     icon.className = 'fas fa-volume-up';
+    speakWave.classList.add('active');
   }
 }
 
@@ -1670,6 +1845,7 @@ window.startDirectVoice = function() {
   directVoiceActive = true;
   document.getElementById('voiceModal').classList.add('open');
   setVoiceState('listening');
+  startVolumeMeter();
   directVoiceRecognizer.lang = typeof tutorMicLang !== 'undefined' ? tutorMicLang : 'en-US';
   try { directVoiceRecognizer.start(); } catch(e){}
 };
@@ -1679,7 +1855,13 @@ window.stopDirectVoice = function() {
   document.getElementById('voiceModal').classList.remove('open');
   try { directVoiceRecognizer.stop(); } catch(e){}
   if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopVolumeMeter();
 };
+
+// Esc key to close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && directVoiceActive) stopDirectVoice();
+});
 
 function sendDirectVoice(text) {
   if (!tutorToken) {

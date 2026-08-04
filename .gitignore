@@ -1,3 +1,15 @@
 # Backend code — kept local only, not pushed to public repo
 backend_Code.gs.local
 backend/
+
+# Temporary / Scratch test files and scripts
+pdf-tests/
+test_ppt/
+*.zip
+*.ps1
+*.bat
+extract.*
+patch*
+generate_*.py
+process_pptx.py
+update_backend.js

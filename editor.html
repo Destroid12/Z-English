@@ -272,6 +272,26 @@ async function loadTestSessionContent(testId) {
   }
 }
 
+async function savePublicSessionContent() {
+  if (slides.length === 0) { setStatus('Add at least one slide before saving.', 'error'); return; }
+  const btn = document.getElementById('savePublicBtn');
+  btn.disabled = true;
+  setStatus('Saving...', 'info');
+  try {
+    const compiledSlides = slides.map(compileSlide);
+    const slidesJson = JSON.stringify(compiledSlides);
+    const body = new URLSearchParams({ action: 'updatePublicSessionContent', token: sessionToken, publicId: editPublicId, slidesJson });
+    const result = await callBackend(body);
+    if (result.expired) { setStatus('Your session expired.', 'error'); return; }
+    if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
+    setStatus('Saved Public Session!', 'success');
+  } catch (err) {
+    setStatus('Could not reach the server: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function saveTestSessionContent() {
   if (slides.length === 0) { setStatus('Add at least one slide before saving.', 'error'); return; }
   const btn = document.getElementById('saveTestBtn');
@@ -657,10 +677,28 @@ function compileSlide(slide) {
             <div style="font-size:32px;line-height:1;">🗣️</div>
             <div style="flex:1;">
                 ${lines}
-                <div style="margin-top:12px;">
-                    <button class="btn" style="background-color: var(--z-orange); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="if(typeof window.startDirectVoice === 'function') { window.startDirectVoice(); } else { alert('Please refresh the page to use this feature.'); }">
-                        <i class="fas fa-microphone"></i> Practice with Tutor
+                <div style="margin-top:16px;">
+                    <button class="btn" style="
+                      background: linear-gradient(135deg, #ff7e29 0%, #e65c00 50%, #ff9a3c 100%);
+                      background-size: 200% 200%;
+                      animation: btn-gradient-shift 3s ease infinite;
+                      color: white; border: none; padding: 12px 28px; border-radius: 50px;
+                      cursor: pointer; font-family: inherit; font-weight: 700; font-size: 15px;
+                      display: inline-flex; align-items: center; gap: 10px;
+                      box-shadow: 0 4px 20px rgba(230, 92, 0, 0.35), 0 1px 3px rgba(0,0,0,0.12);
+                      transition: all 0.3s ease; letter-spacing: 0.3px;
+                      position: relative; overflow: hidden;
+                    " onmouseover="this.style.transform='translateY(-2px) scale(1.03)'; this.style.boxShadow='0 6px 28px rgba(230, 92, 0, 0.5), 0 2px 6px rgba(0,0,0,0.15)';"
+                       onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 20px rgba(230, 92, 0, 0.35), 0 1px 3px rgba(0,0,0,0.12)';"
+                       onclick="if(typeof window.startDirectVoice === 'function') { window.startDirectVoice(); } else { alert('Please refresh the page to use this feature.'); }">
+                        <i class="fas fa-microphone" style="font-size: 17px; animation: mic-pulse 2s ease-in-out infinite;"></i>
+                        Practice with Tutor
+                        <i class="fas fa-chevron-right" style="font-size: 12px; opacity: 0.8;"></i>
                     </button>
+                    <style>
+                      @keyframes btn-gradient-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+                      @keyframes mic-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.15)} }
+                    </style>
                 </div>
             </div>
         </div>\n`;
