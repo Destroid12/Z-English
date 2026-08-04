@@ -3712,132 +3712,107 @@ function initPaymobExpiryDefault() {
 
 async function handleGeneratePaymobLink(e) {
     e.preventDefault();
-    const studentName = document.getElementById('paymob-student-name').value.trim() || 'Student';
-    const studentContact = document.getElementById('paymob-student-contact').value.trim() || '';
-    const price = parseFloat(document.getElementById('paymob-price').value);
-    const expiryVal = document.getElementById('paymob-expiry').value;
-    const description = document.getElementById('paymob-description').value.trim() || 'Z-English Course Access';
-
-    if (!price || isNaN(price) || price <= 0) {
-        alert('Please enter a valid price.');
-        return;
-    }
-    if (!expiryVal) {
-        alert('Please select an expiration date & time.');
-        return;
+    const btn = e.target.querySelector('button[type="submit"]');
+    const origBtnHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 6px;"></i> Generating Paymob Link...';
     }
 
-    const expiryDate = new Date(expiryVal);
-    const now = new Date();
-    if (expiryDate <= now) {
-        alert('Expiration date must be in the future.');
-        return;
-    }
+    try {
+        const studentName = document.getElementById('paymob-student-name').value.trim() || 'Student';
+        const studentContact = document.getElementById('paymob-student-contact').value.trim() || '';
+        const price = parseFloat(document.getElementById('paymob-price').value);
+        const expiryVal = document.getElementById('paymob-expiry').value;
+        const description = document.getElementById('paymob-description').value.trim() || 'Z-English Course Access';
 
-    const priceCents = Math.round(price * 100);
-    const apiKey = localStorage.getItem('paymob_api_key') || '';
-    const integrationId = localStorage.getItem('paymob_integration_id') || '';
-    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+        if (!price || isNaN(price) || price <= 0) {
+            alert('Please enter a valid price.');
+            return;
+        }
+        if (!expiryVal) {
+            alert('Please select an expiration date & time.');
+            return;
+        }
 
-    let paymentUrl = '';
-    
-    // Attempt official Paymob API token request if credentials exist
-    if (apiKey && integrationId) {
-        try {
-            const authRes = await fetch('https://accept.paymob.com/api/auth/tokens', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ api_key: apiKey })
-            });
-            const authData = await authRes.json();
-            const authToken = authData.token;
+        const expiryDate = new Date(expiryVal);
+        const now = new Date();
+        if (expiryDate <= now) {
+            alert('Expiration date must be in the future.');
+            return;
+        }
 
-            if (authToken) {
-                const orderRes = await fetch('https://accept.paymob.com/api/ecommerce/orders', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        auth_token: authToken,
-                        delivery_needed: "false",
-                        amount_cents: String(priceCents),
-                        currency: "EGP",
-                        items: []
-                    })
+        const apiKey = localStorage.getItem('paymob_api_key') || '';
+        const integrationId = localStorage.getItem('paymob_integration_id') || '';
+        const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+
+        let paymentUrl = '';
+
+        // Server-side backend call (bypasses browser CORS!)
+        if (backendConfigured()) {
+            try {
+                const params = new URLSearchParams({
+                    action: 'createPaymobLink',
+                    token: sessionToken || '',
+                    price: price,
+                    expirationDate: expiryDate.toISOString(),
+                    studentName: studentName,
+                    studentContact: studentContact,
+                    description: description,
+                    apiKey: apiKey,
+                    integrationId: integrationId,
+                    iframeId: iframeId
                 });
-                const orderData = await orderRes.json();
-                const orderId = orderData.id;
-
-                if (orderId) {
-                    const keyRes = await fetch('https://accept.paymob.com/api/acceptance/payment_keys', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            auth_token: authToken,
-                            amount_cents: String(priceCents),
-                            expiration: Math.floor((expiryDate.getTime() - Date.now()) / 1000),
-                            order_id: String(orderId),
-                            billing_data: {
-                                apartment: "NA",
-                                email: studentContact.includes('@') ? studentContact : "student@z-english.online",
-                                floor: "NA",
-                                first_name: studentName.split(' ')[0] || "Student",
-                                street: "NA",
-                                building: "NA",
-                                phone_number: !studentContact.includes('@') && studentContact ? studentContact : "01000000000",
-                                shipping_method: "NA",
-                                postal_code: "NA",
-                                city: "Cairo",
-                                country: "EG",
-                                last_name: studentName.split(' ').slice(1).join(' ') || "User",
-                                state: "NA"
-                            },
-                            currency: "EGP",
-                            integration_id: Number(integrationId)
-                        })
-                    });
-                    const keyData = await keyRes.json();
-                    if (keyData.token) {
-                        if (iframeId) {
-                            paymentUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}?payment_token=${keyData.token}`;
-                        } else {
-                            paymentUrl = `https://accept.paymob.com/standalone?payment_token=${keyData.token}`;
-                        }
-                    }
+                const res = await callBackend(params);
+                if (res && res.success && res.paymentUrl) {
+                    paymentUrl = res.paymentUrl;
                 }
+            } catch(err) {
+                console.warn('Backend payment link call error, using client fallback:', err);
             }
-        } catch(err) {
-            console.warn('Paymob API call error, using parameter URL fallback:', err);
+        }
+
+        // Fallback calculation if backend call not available
+        if (!paymentUrl) {
+            const priceCents = Math.round(price * 100);
+            if (iframeId) {
+                paymentUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}`;
+            } else {
+                paymentUrl = `https://accept.paymob.com/standalone?amount_cents=${priceCents}&currency=EGP&description=${encodeURIComponent(description)}&merchant_order_id=${Date.now()}`;
+            }
+        }
+
+        const resultCard = document.getElementById('paymob-result-card');
+        document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
+        document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
+        document.getElementById('paymob-result-url').value = paymentUrl;
+        document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
+        
+        const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
+        const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
+        document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
+        document.getElementById('paymob-open-btn').href = paymentUrl;
+        
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+
+        savePaymobLinkToHistory({
+            id: 'pm_' + Date.now(),
+            studentName,
+            studentContact,
+            price,
+            expiryDate: expiryDate.toISOString(),
+            description,
+            paymentUrl,
+            createdAt: new Date().toISOString()
+        });
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origBtnHtml;
         }
     }
-
-    if (!paymentUrl) {
-        paymentUrl = `https://accept.paymob.com/standalone?amount_cents=${priceCents}&currency=EGP&description=${encodeURIComponent(description)}&merchant_order_id=${Date.now()}`;
-    }
-
-    const resultCard = document.getElementById('paymob-result-card');
-    document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
-    document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
-    document.getElementById('paymob-result-url').value = paymentUrl;
-    document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
-    
-    const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
-    const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
-    document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
-    document.getElementById('paymob-open-btn').href = paymentUrl;
-    
-    resultCard.style.display = 'block';
-    resultCard.scrollIntoView({ behavior: 'smooth' });
-
-    savePaymobLinkToHistory({
-        id: 'pm_' + Date.now(),
-        studentName,
-        studentContact,
-        price,
-        expiryDate: expiryDate.toISOString(),
-        description,
-        paymentUrl,
-        createdAt: new Date().toISOString()
-    });
+}
 }
 
 function copyPaymobResultUrl() {
