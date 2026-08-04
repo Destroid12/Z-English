@@ -3618,58 +3618,17 @@ async function processPPTXFile(file) {
                                 const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
                                     method: 'POST',
                                     body: new URLSearchParams({
-                                        action: 'uploadMedia',
-                                        token: sessionToken,
-                                        filename: imgPath.split('/').pop(),
-                                        mimeType: imgMime,
-                                        dataBase64: base64
-                                    })
-                                });
-                                const rawText = await res.text();
-                                let data = {};
-                                if (!rawText.trim().startsWith('<')) {
-                                    data = JSON.parse(rawText);
-                                }
-                                if (data.success && data.url) {
-                                    updateImporterLog(`Upload Success: ${data.url}`);
-                                    elements.push({
-                                        id: getUid(),
-                                        kind: "image",
-                                        url: data.url,
-                                        caption: "",
-                                        captionFont: "Default",
-                                        anim: "none"
-                                    });
-                                } else {
-                                    updateImporterLog(`Upload Failed: ${data.message || 'Server returned HTML error page'}`);
-                                }
-                            } catch(uploadErr) {
-                                updateImporterLog(`Upload Error: ${uploadErr.message}`);
-                      function savePaymobConfig(showToast = false) {
-    const apiKey = (document.getElementById('paymob-api-key')?.value || '').trim();
-    const integrationId = (document.getElementById('paymob-integration-id')?.value || '').trim();
-    const iframeId = (document.getElementById('paymob-iframe-id')?.value || '').trim();
-    
-    localStorage.setItem('paymob_api_key', apiKey);
-    localStorage.setItem('paymob_integration_id', integrationId);
-    localStorage.setItem('paymob_iframe_id', iframeId);
-
-    if (showToast) {
-        const statusEl = document.getElementById('paymob-save-status');
-        if (statusEl) {
-            statusEl.style.display = 'inline-block';
-            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
-        }
-    }
-}
-
-function initPaymobExpiryDefault() {
+ function initPaymobExpiryDefault() {
     const expiryInput = document.getElementById('paymob-expiry');
     if (expiryInput && !expiryInput.value) {
         const now = new Date();
         now.setHours(now.getHours() + 24);
         const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         expiryInput.value = isoString;
+    }
+    const priceInput = document.getElementById('paymob-price');
+    if (priceInput && !priceInput.value) {
+        priceInput.value = '500';
     }
 }
 
@@ -3687,27 +3646,19 @@ async function handleGeneratePaymobLink(e) {
     }
 
     try {
-        const studentName = document.getElementById('paymob-student-name').value.trim() || 'Student';
-        const studentContact = document.getElementById('paymob-student-contact').value.trim() || '';
-        const price = parseFloat(document.getElementById('paymob-price').value);
-        const expiryVal = document.getElementById('paymob-expiry').value;
-        const description = document.getElementById('paymob-description').value.trim() || 'Z-English Course Access';
+        const studentName = (document.getElementById('paymob-student-name')?.value || '').trim() || 'Student';
+        const studentContact = (document.getElementById('paymob-student-contact')?.value || '').trim() || '';
+        
+        let price = parseFloat(document.getElementById('paymob-price')?.value);
+        if (isNaN(price) || price <= 0) price = 500;
 
-        if (!price || isNaN(price) || price <= 0) {
-            alert('Please enter a valid price.');
-            return;
-        }
-        if (!expiryVal) {
-            alert('Please select an expiration date & time.');
-            return;
+        let expiryVal = document.getElementById('paymob-expiry')?.value;
+        let expiryDate = expiryVal ? new Date(expiryVal) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+        if (isNaN(expiryDate.getTime()) || expiryDate <= new Date()) {
+            expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         }
 
-        const expiryDate = new Date(expiryVal);
-        const now = new Date();
-        if (expiryDate <= now) {
-            alert('Expiration date must be in the future.');
-            return;
-        }
+        const description = (document.getElementById('paymob-description')?.value || '').trim() || 'Z-English Course Access';
 
         const apiKey = localStorage.getItem('paymob_api_key') || '';
         const integrationId = localStorage.getItem('paymob_integration_id') || '';
@@ -3750,18 +3701,20 @@ async function handleGeneratePaymobLink(e) {
         }
 
         const resultCard = document.getElementById('paymob-result-card');
-        document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
-        document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
-        document.getElementById('paymob-result-url').value = paymentUrl;
-        document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
-        
-        const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
-        const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
-        document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
-        document.getElementById('paymob-open-btn').href = paymentUrl;
-        
-        resultCard.style.display = 'block';
-        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (resultCard) {
+            document.getElementById('paymob-result-title').textContent = `${studentName} — ${description}`;
+            document.getElementById('paymob-result-price').textContent = `${price.toLocaleString()} EGP`;
+            document.getElementById('paymob-result-url').value = paymentUrl;
+            document.getElementById('paymob-result-expiry-badge').textContent = `Expires: ${expiryDate.toLocaleString()}`;
+            
+            const waText = encodeURIComponent(`Hello ${studentName},\n\nHere is your Paymob payment link for *${description}*:\n\n*Amount:* ${price} EGP\n*Expiration Date:* ${expiryDate.toLocaleString()}\n\n*Payment Link:* ${paymentUrl}\n\nThank you!`);
+            const waPhone = !studentContact.includes('@') && studentContact ? studentContact.replace(/[^0-9]/g, '') : '';
+            document.getElementById('paymob-whatsapp-btn').href = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://wa.me/?text=${waText}`;
+            document.getElementById('paymob-open-btn').href = paymentUrl;
+            
+            resultCard.style.display = 'block';
+            resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
 
         savePaymobLinkToHistory({
             id: 'pm_' + Date.now(),
@@ -3773,6 +3726,9 @@ async function handleGeneratePaymobLink(e) {
             paymentUrl,
             createdAt: new Date().toISOString()
         });
+    } catch(globalErr) {
+        console.error('Error generating Paymob link:', globalErr);
+        alert('Payment link generation encountered an error: ' + globalErr.message);
     } finally {
         if (btn) {
             btn.disabled = false;
