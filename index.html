@@ -894,6 +894,10 @@
                         <label style="font-size: 12px; font-weight: 700;">Iframe ID / Public Key</label>
                         <input type="text" id="paymob-iframe-id" class="input-control" placeholder="e.g. 1066378">
                     </div>
+                    <div class="input-group">
+                        <label style="font-size: 12px; font-weight: 700;">Vercel Serverless API URL (Optional)</label>
+                        <input type="text" id="paymob-vercel-url" class="input-control" placeholder="e.g. https://z-english.vercel.app/api/paymob">
+                    </div>
                 </div>
                 <div class="flex items-center gap-12">
                     <button type="button" class="btn btn-primary btn-sm" onclick="savePaymobConfig(true)" style="padding: 8px 20px; font-weight: 700;">
@@ -3612,13 +3616,81 @@ async function processPPTXFile(file) {
                                     anim: "none"
                                 });
                             }
-                        } else {
-                            updateImporterLog(`Z-AI says it's a picture. Uploading to Drive...`);
-                            try {
-                                const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
-                                    method: 'POST',
-                                    body: new URLSearchParams({
- function initPaymobExpiryDefault() {
+                        }
+                    }
+                }
+            }
+        }
+
+        updateImporterProgress(90, 'Generating JSON...');
+        importedSessionJson = [{
+            id: 'imported-slide-' + Date.now(),
+            type: 'content',
+            title: file.name.replace(/\.pptx$/i, ''),
+            elements: elements
+        }];
+
+        cachedLessonContent = JSON.stringify(importedSessionJson);
+        cachedLessonFileName = file.name;
+        setLessonStatus(`Ready: "${file.name}" (from PPTX, ${importedSessionJson[0].elements.length} elements)`, 'ok');
+
+        updateImporterProgress(100, 'Done!');
+        document.getElementById('pptx-progress').style.display = 'none';
+        document.getElementById('pptx-result').style.display = 'block';
+        document.getElementById('pptx-dropzone').style.display = 'block';
+        updateImporterLog('Session JSON generated and loaded into Lesson Content above.');
+
+    } catch(err) {
+        console.error(err);
+        alert('Error parsing PPTX: ' + err.message);
+        document.getElementById('pptx-progress').style.display = 'none';
+        document.getElementById('pptx-dropzone').style.display = 'block';
+    }
+}
+
+// =====================================================================
+// Paymob Payment Links Logic
+// =====================================================================
+
+function togglePaymobSettings() {
+    const box = document.getElementById('paymob-settings-box');
+    if (!box) return;
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function loadPaymobConfig() {
+    const apiKey = localStorage.getItem('paymob_api_key') || '';
+    const integrationId = localStorage.getItem('paymob_integration_id') || '';
+    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+    const vercelUrl = localStorage.getItem('paymob_vercel_url') || '';
+    
+    if (document.getElementById('paymob-api-key')) document.getElementById('paymob-api-key').value = apiKey;
+    if (document.getElementById('paymob-integration-id')) document.getElementById('paymob-integration-id').value = integrationId;
+    if (document.getElementById('paymob-iframe-id')) document.getElementById('paymob-iframe-id').value = iframeId;
+    if (document.getElementById('paymob-vercel-url')) document.getElementById('paymob-vercel-url').value = vercelUrl;
+}
+
+function savePaymobConfig(showToast = false) {
+    const apiKey = (document.getElementById('paymob-api-key')?.value || '').trim();
+    const integrationId = (document.getElementById('paymob-integration-id')?.value || '').trim();
+    const iframeId = (document.getElementById('paymob-iframe-id')?.value || '').trim();
+    const vercelUrl = (document.getElementById('paymob-vercel-url')?.value || '').trim();
+    
+    localStorage.setItem('paymob_api_key', apiKey);
+    localStorage.setItem('paymob_integration_id', integrationId);
+    localStorage.setItem('paymob_iframe_id', iframeId);
+    localStorage.setItem('paymob_vercel_url', vercelUrl);
+
+    if (showToast) {
+        const statusEl = document.getElementById('paymob-save-status');
+        if (statusEl) {
+            statusEl.style.display = 'inline-block';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        }
+    }
+}
+
+function initPaymobExpiryDefault() {
     const expiryInput = document.getElementById('paymob-expiry');
     if (expiryInput && !expiryInput.value) {
         const now = new Date();
@@ -3663,12 +3735,14 @@ async function handleGeneratePaymobLink(e) {
         const apiKey = localStorage.getItem('paymob_api_key') || '';
         const integrationId = localStorage.getItem('paymob_integration_id') || '';
         const iframeId = localStorage.getItem('paymob_iframe_id') || '';
+        const vercelUrl = localStorage.getItem('paymob_vercel_url') || '';
 
         let paymentUrl = '';
 
-        // 1. Try Vercel Serverless API first if deployed (/api/paymob)
+        // 1. Try Vercel Serverless API first if deployed (/api/paymob or custom Vercel URL)
+        const targetVercelEndpoint = vercelUrl || '/api/paymob';
         try {
-            const vercelRes = await fetch('/api/paymob', {
+            const vercelRes = await fetch(targetVercelEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
