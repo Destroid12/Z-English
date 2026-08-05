@@ -1,0 +1,18 @@
+{
+  "name": "z-english",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Z-English static site with a Vercel serverless backend backed by Supabase",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "vercel": "^37.0.0"
+  }
+}

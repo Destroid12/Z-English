@@ -29,9 +29,14 @@ module.exports = async (req, res) => {
     const studentContact = (body.studentContact || '').trim();
     const description = (body.description || 'Z-English Course Access').trim();
 
-    const apiKey = body.apiKey || process.env.PAYMOB_API_KEY || 'ZXlKaGJHY2lPaUpJVXpVeE1pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SmpiR0Z6Y3lJNklrMWxjbU5vWVc1MElpd2ljSEp2Wm1sc1pWOXdheUk2TVRJd09UY3hNQ3dpYm1GdFpTSTZJbWx1YVhScFlXd2lmUS56N096Rktoc01jWDZPd2d0NFR3U051Ylg1czRDTGRPWmltYUtNbzNvbERkMm5BSW0yS1JWNEZ0S2U4WnNrczk4MXlaeVY4Qk4zcEV2a21GQlNKYXdvZw==';
+    const apiKey = body.apiKey || process.env.PAYMOB_API_KEY || '';
     const integrationId = body.integrationId || process.env.PAYMOB_INTEGRATION_ID || '5818041';
     const iframeId = body.iframeId || process.env.PAYMOB_IFRAME_ID || '1066378';
+
+    if (!apiKey) {
+      return res.status(400).json({ success: false, message: 'Paymob API key is not configured. Save your Paymob credentials in the Admin panel or set the PAYMOB_API_KEY environment variable.' });
+    }
+
 
     if (isNaN(price) || price <= 0 || !expirationIso) {
       return res.status(400).json({ success: false, message: 'Invalid price or expiration date.' });

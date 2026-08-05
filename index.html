@@ -1042,7 +1042,7 @@
         // =====================================================================
         // CONFIGURATION — fill these in before deploying
         // =====================================================================
-        const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLKsoECjru-XuRHpJkn5xCIf003gG2JmVdG4OolMR2nN-sF8nAFoavT2oPWwI/exec";
+        const BACKEND_URL = "/api/backend";
         const GOOGLE_CLIENT_ID = "952898702818-35ocok77mkno32mfvhkq7bdapqmfoljq.apps.googleusercontent.com";
 
         const LEVELS_PER_TRACK = 10;
@@ -1108,7 +1108,7 @@
                 sessionSecured: "Session secured",
                 errFillFields: "Please fill in all required fields.",
                 errLoginFailed: "Incorrect ID or password.",
-                errNetwork: "Couldn't reach the server. Check the Apps Script URL and try again.",
+                errNetwork: "Couldn't reach the server. Check your internet connection and try again.",
                 errPostEmpty: "Write something before posting.",
                 errPostFailed: "Your message could not be posted. Please try again.",
                 errSessionExpired: "Your session has expired. Please sign in again.",
@@ -1188,7 +1188,7 @@
                 sessionSecured: "الجلسة مؤمّنة",
                 errFillFields: "يرجى تعبئة جميع الحقول المطلوبة.",
                 errLoginFailed: "الرقم التعريفي أو كلمة المرور غير صحيحة.",
-                errNetwork: "تعذر الاتصال بالخادم. تحقق من رابط Apps Script وحاول مرة أخرى.",
+                errNetwork: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
                 errPostEmpty: "اكتب شيئًا قبل النشر.",
                 errPostFailed: "تعذر نشر رسالتك. يرجى المحاولة مرة أخرى.",
                 errSessionExpired: "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
@@ -1224,7 +1224,7 @@
         ];
 
         function backendConfigured() {
-            return GOOGLE_APP_SCRIPT_URL && !GOOGLE_APP_SCRIPT_URL.includes('MY-CODE');
+            return BACKEND_URL && !BACKEND_URL.includes('MY-CODE');
         }
 
         // --- Session token helpers ---
@@ -1405,7 +1405,7 @@
             } else {
                 payload = JSON.stringify(params);
             }
-            const res = await fetch(GOOGLE_APP_SCRIPT_URL, { 
+            const res = await fetch(BACKEND_URL, { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'text/plain' }, 
                 body: payload 
@@ -1413,7 +1413,7 @@
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const text = await res.text();
             if (text.trim().startsWith('<')) {
-                throw new Error('Google Apps Script returned an HTML page instead of JSON. Check your web app deployment.');
+                throw new Error('The backend returned an HTML page instead of JSON. Check the server configuration.');
             }
             try {
                 return JSON.parse(text);
@@ -1424,11 +1424,11 @@
         async function callBackendGet(params) {
             if (!backendConfigured()) throw new Error('Backend not configured');
             params.append('_ts', Date.now());
-            const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?' + params.toString());
+            const res = await fetch(BACKEND_URL + '?' + params.toString());
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const text = await res.text();
             if (text.trim().startsWith('<')) {
-                throw new Error('Google Apps Script returned an HTML page instead of JSON. Check your web app deployment.');
+                throw new Error('The backend returned an HTML page instead of JSON. Check the server configuration.');
             }
             try {
                 return JSON.parse(text);
@@ -2580,7 +2580,7 @@ function toggleSiteTutorMic() {
             let posts = mockPosts;
             if (backendConfigured()) {
                 try {
-                    const url = `${GOOGLE_APP_SCRIPT_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
+                    const url = `${BACKEND_URL}?action=getPosts&token=${encodeURIComponent(sessionToken || '')}`;
                     const res = await fetch(url);
                     const data = await res.json();
                     if (data.success === false && data.expired) { handleAuthOrLogoutOnExpiry(); return; }
@@ -2973,7 +2973,7 @@ async function generateTestCodes() {
     
     document.getElementById('test-codes-list').innerHTML = 'Generating...';
     try {
-        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+        const res = await fetch(BACKEND_URL, {
             method: 'POST',
             body: new URLSearchParams({ action: 'generateTestCodes', token: sessionToken, testId, count })
         });
@@ -2990,7 +2990,7 @@ async function deleteTestCode(code) {
     if (!confirm('Delete this code? If it was used, the submission stays but the code is removed.')) return;
     const testId = document.getElementById('testSessionSelectAdmin').value;
     try {
-        await fetch(GOOGLE_APP_SCRIPT_URL, {
+        await fetch(BACKEND_URL, {
             method: 'POST',
             body: new URLSearchParams({ action: 'deleteTestCode', token: sessionToken, code })
         });
@@ -3167,7 +3167,7 @@ async function loadTempSessions() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...'; }
   document.getElementById('temp-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listTempSessions&token=' + encodeURIComponent(sessionToken));
+    const res = await fetch(BACKEND_URL + '?action=listTempSessions&token=' + encodeURIComponent(sessionToken));
     const data = await res.json();
     if (!data.success) {
       document.getElementById('temp-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
@@ -3208,7 +3208,7 @@ async function loadPublicSessions() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...'; }
   document.getElementById('public-sessions-list').innerHTML = '<p style="margin-top:16px;">Loading...</p>';
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=listPublicSessions&token=' + encodeURIComponent(sessionToken));
+    const res = await fetch(BACKEND_URL + '?action=listPublicSessions&token=' + encodeURIComponent(sessionToken));
     const data = await res.json();
     if (!data.success) {
       document.getElementById('public-sessions-list').innerHTML = '<p class="error">Failed to load.</p>';
@@ -3258,7 +3258,7 @@ async function updatePublicSession(id) {
       return;
   }
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+    const res = await fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'updatePublicSession', token: sessionToken, publicId: id, expiresInHours: hours })
@@ -3271,7 +3271,7 @@ async function updatePublicSession(id) {
 async function deletePublicSessionAdmin(publicId) {
   if(!confirm('Are you sure you want to permanently close and delete this public session?')) return;
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+    const res = await fetch(BACKEND_URL, {
       method: 'POST',
       body: new URLSearchParams({ action: 'deletePublicSession', token: sessionToken, publicId })
     });
@@ -3303,7 +3303,7 @@ async function updateTempSession(id) {
       return;
   }
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+    const res = await fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'updateTempSession', token: sessionToken, tempId: id, expiresInHours: hours })
@@ -3316,7 +3316,7 @@ async function updateTempSession(id) {
 async function deleteTempSession(id) {
   if (!confirm('Delete this session permanently?')) return;
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+    const res = await fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'deleteTempSession', token: sessionToken, tempId: id })
@@ -3350,7 +3350,7 @@ async function openTempAccessModal(tempId) {
   }
   
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
+    const res = await fetch(BACKEND_URL + '?action=getTempSessionAccess&token=' + encodeURIComponent(sessionToken) + '&tempId=' + encodeURIComponent(tempId));
     const data = await res.json();
     if (data.success) {
       currentAuthorizedStudents = data.authorizedStudents || [];
@@ -3400,7 +3400,7 @@ async function toggleTempAccess(btnEl, studentId, hasAccess) {
     btnEl.innerText = 'Updating...';
   }
   try {
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+    const res = await fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'toggleTempSessionAccess', token: sessionToken, tempId: currentTempIdForAccess, studentId: String(studentId), hasAccess: hasAccess ? 'true' : 'false' })
@@ -3431,7 +3431,7 @@ async function deleteTestSessionAdmin() {
     if (!tid) return;
     if (!confirm('Are you sure you want to permanently delete this test session?')) return;
     try {
-        const res = await fetch(GOOGLE_APP_SCRIPT_URL, {
+        const res = await fetch(BACKEND_URL, {
             method: 'POST',
             body: new URLSearchParams({ action: 'deleteTestSession', token: sessionToken, testId: tid })
         });
@@ -3573,7 +3573,7 @@ async function processPPTXFile(file) {
                         let aiType = 'image';
                         let extractedText = '';
                         try {
-                            const aiRes = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                            const aiRes = await fetch(BACKEND_URL, {
                                 method: 'POST',
                                 body: new URLSearchParams({
                                     action: 'analyzePPTXImage',
@@ -3766,7 +3766,7 @@ async function handleGeneratePaymobLink(e) {
             console.warn('Vercel API call skipped/unavailable:', vErr);
         }
 
-        // 2. Try Google Apps Script Backend call if Vercel endpoint didn't respond
+        // 2. Try the backend payment-link call if the Vercel endpoint didn't respond
         if (!paymentUrl && typeof backendConfigured === 'function' && backendConfigured()) {
             try {
                 const params = new URLSearchParams({

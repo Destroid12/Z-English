@@ -401,7 +401,7 @@
 // =====================================================================
 // CONFIGURATION — Must match the URL in your index.html exactly!
 // =====================================================================
-const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbUBusLKsoECjru-XuRHpJkn5xCIf003gG2JmVdG4OolMR2nN-sF8nAFoavT2oPWwI/exec";
+const BACKEND_URL = "/api/backend";
 
 // --- Read the params the dashboard put in the URL ---
 const params = new URLSearchParams(window.location.search);
@@ -448,7 +448,7 @@ async function loadLesson(){
     let url = '';
     if (testCode) {
       isTestMode = true;
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=validateTestCode&code=${encodeURIComponent(testCode)}`;
+      url = `${BACKEND_URL}?action=validateTestCode&code=${encodeURIComponent(testCode)}`;
     } else {
     let guestId = localStorage.getItem('zenglish_guest_id');
     if (!guestId) {
@@ -457,9 +457,9 @@ async function loadLesson(){
     }
 
     if (tempId) {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+      url = `${BACKEND_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
     } else {
-      url = `${GOOGLE_APP_SCRIPT_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+      url = `${BACKEND_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
     }
     }
     console.log('Fetching lesson from:', url);
@@ -1182,8 +1182,8 @@ async function submitTest() {
 
   // Attempt backend save asynchronously without blocking UI report modal
   try {
-    if (typeof GOOGLE_APP_SCRIPT_URL !== 'undefined' && GOOGLE_APP_SCRIPT_URL) {
-      fetch(GOOGLE_APP_SCRIPT_URL, {
+    if (typeof BACKEND_URL !== 'undefined' && BACKEND_URL) {
+      fetch(BACKEND_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
@@ -1354,7 +1354,7 @@ async function tutorSend() {
     }
     const obj = {};
     for (const [k, v] of body.entries()) obj[k] = v;
-    const res = await fetch(GOOGLE_APP_SCRIPT_URL, { 
+    const res = await fetch(BACKEND_URL, { 
       method: 'POST', 
       headers: { 'Content-Type': 'text/plain' }, 
       body: JSON.stringify(obj) 
@@ -1458,7 +1458,7 @@ function initCustomAudio(container) {
     btn.innerHTML = iconSpinner;
     container.classList.add('loading');
     try {
-      const res = await fetch(`${GOOGLE_APP_SCRIPT_URL}?action=getMedia&id=${driveId}`);
+      const res = await fetch(`${BACKEND_URL}?action=getMedia&id=${driveId}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
       
