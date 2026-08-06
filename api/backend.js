@@ -39,7 +39,7 @@ const MAX_MEDIA_UPLOAD_BYTES = 64 * 1024 * 1024;            // audio/video
 const STORAGE_BUCKET = 'zenglish-media';
 const CONTACT_DESTINATION_EMAIL =
   process.env.CONTACT_DESTINATION_EMAIL || 'z.english.academy26@gmail.com';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
 const ADMIN_GOOGLE_EMAILS = String(process.env.ADMIN_GOOGLE_EMAILS || '')
   .split(',')
   .map(function (s) { return String(s).trim().toLowerCase(); })
@@ -1911,7 +1911,7 @@ async function _validateTutorToken(tutorToken, track, level, sessionNumber) {
 async function _callGemini(systemInstruction, contents, opts) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('The tutor is not configured yet. An administrator needs to set GEMINI_API_KEY.');
-  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
     ':generateContent?key=' + encodeURIComponent(apiKey);
 
