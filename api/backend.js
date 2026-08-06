@@ -2236,7 +2236,9 @@ async function _autoFixSession(p) {
     console.error('AutoFixSession failed: ' + err.message);
     return { success: false, message: 'AI returned invalid JSON: ' + err.message };
   }
-  return { success: true, slides: fixedSlides };
+  // Filter out any slides the AI decided to delete ({ delete: true }).
+  const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
+  return { success: true, slides: keptSlides };
 }
 
 async function _analyzePPTXImage(p) {
@@ -2413,6 +2415,44 @@ async function _deletePaymobLink(p) {
 }
 
 // =====================================================================
+// Public session content (mirrors getLessonContent for public sessions)
+// =====================================================================
+async function _getPublicSessionContent(p) {
+  const publicId = String(p.publicId || '').trim();
+  const userToken = String(p.userToken || p.token || '').trim();
+  if (!publicId) return { success: false, message: 'Missing publicId.' };
+
+  // Look up the public session record first.
+  const { data: pub, error: pubErr } = await supabase
+    .from('public_sessions')
+    .select('*')
+    .eq('id', publicId)
+    .maybeSingle();
+  if (pubErr) throw new Error(pubErr.message);
+  if (!pub) return { success: false, message: 'Public session not found.' };
+
+  // Validate that the user/student has access.
+  if (!pub.is_public) {
+    // Restricted — require a valid session token.
+    const session = await _validateSession(userToken);
+    if (!session || session.expired) {
+      return { success: false, message: 'Access denied. Please log in to view this session.' };
+    }
+  }
+
+  // Load the lesson content using track/level/session_number from the public_session row.
+  const slides = await _loadLessonContent(pub.track, pub.level, pub.session_number);
+  return {
+    success: true,
+    title: pub.title || '',
+    track: pub.track,
+    level: pub.level,
+    sessionNumber: pub.session_number,
+    slides: slides
+  };
+}
+
+// =====================================================================
 // Dispatcher
 // =====================================================================
 const actions = {
@@ -2480,7 +2520,8 @@ const actions = {
   analyzePPTXImage: _analyzePPTXImage,
   createPaymobLink: _createPaymobLink,
   listPaymobLinks: _listPaymobLinks,
-  deletePaymobLink: _deletePaymobLink
+  deletePaymobLink: _deletePaymobLink,
+  getPublicSessionContent: _getPublicSessionContent
 };
 
 module.exports = async function handler(req, res) {
