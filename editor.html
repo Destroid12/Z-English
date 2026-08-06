@@ -1966,8 +1966,10 @@ async function saveSession() {
 let undoStack = [];
 function saveUndoState() {
   undoStack.push({ slides: JSON.stringify(slides), selectedSlideId: selectedSlideId });
-  document.getElementById('undoAutoFixBtnTop').style.display = 'inline-block';
-  document.getElementById('undoAutoFixBtnSide').style.display = 'inline-block';
+  const top = document.getElementById('undoAutoFixBtnTop');
+  const side = document.getElementById('undoAutoFixBtnSide');
+  if (top) top.style.display = 'inline-block';
+  if (side) side.style.display = 'inline-block';
 }
 function undoAutoFix() {
   if (undoStack.length === 0) return;
@@ -1985,8 +1987,10 @@ function undoAutoFix() {
     renderElements();
   }
   if (undoStack.length === 0) {
-    document.getElementById('undoAutoFixBtnTop').style.display = 'none';
-    document.getElementById('undoAutoFixBtnSide').style.display = 'none';
+    const top = document.getElementById('undoAutoFixBtnTop');
+    const side = document.getElementById('undoAutoFixBtnSide');
+    if (top) top.style.display = 'none';
+    if (side) side.style.display = 'none';
   }
   setStatus('Auto-Fix undone.', 'success');
 }
@@ -1998,22 +2002,25 @@ function stopAutoFix() {
 }
 
 function stripLargeDataUrls(slide) {
+  if (!slide) return { strippedSlide: slide, dataMap: {} };
   const clone = JSON.parse(JSON.stringify(slide));
   const dataMap = {};
-  clone.elements.forEach(el => {
-    if (el.url && el.url.length > 500 && el.url.startsWith('data:')) {
-      const ph = `__DATA_URL_${el.id}__`;
-      dataMap[ph] = el.url;
-      el.url = ph;
-    }
-  });
+  if (clone && clone.elements && Array.isArray(clone.elements)) {
+    clone.elements.forEach(el => {
+      if (el && el.url && el.url.length > 500 && el.url.startsWith('data:')) {
+        const ph = `__DATA_URL_${el.id}__`;
+        dataMap[ph] = el.url;
+        el.url = ph;
+      }
+    });
+  }
   return { strippedSlide: clone, dataMap };
 }
 
 function restoreLargeDataUrls(slide, dataMap) {
   if (!slide || !slide.elements) return slide;
   slide.elements.forEach(el => {
-    if (el.url && dataMap[el.url]) {
+    if (el && el.url && dataMap[el.url]) {
       el.url = dataMap[el.url];
     }
   });
@@ -2022,7 +2029,10 @@ function restoreLargeDataUrls(slide, dataMap) {
 
 async function autoFixCurrentSlide() {
   const slide = getSelectedSlide();
-  if (!slide) return;
+  if (!slide) {
+    setStatus('Please select a slide to fix first.', 'error');
+    return;
+  }
   if (!confirm('Send this slide to Z-AI to automatically fix emojis, broken texts, and add missing questions? This will replace the current slide contents.')) return;
   const customInstructions = await openAiModal();
   if (customInstructions === null) return;
@@ -2066,12 +2076,16 @@ async function autoFixCurrentSlide() {
       setStatus('AI returned an invalid format.', 'error');
     }
   } catch (err) {
+    console.error('autoFixCurrentSlide error:', err);
     setStatus('Network error: ' + err.message, 'error');
   }
 }
 
 async function autoFixCurrentSession() {
-  if (!slides || slides.length === 0) return;
+  if (!slides || slides.length === 0) {
+    setStatus('No slides to fix in this session.', 'error');
+    return;
+  }
   if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed or generated? This may take some time depending on the prompt.')) return;
   const customInstructions = await openAiModal();
   if (customInstructions === null) return;
@@ -2080,8 +2094,8 @@ async function autoFixCurrentSession() {
   cancelAutoFix = false;
   const btn = document.getElementById('autoFixSessionBtn');
   const stopBtn = document.getElementById('stopAutoFixBtn');
-  btn.disabled = true;
-  stopBtn.style.display = 'inline-block';
+  if (btn) btn.disabled = true;
+  if (stopBtn) stopBtn.style.display = 'inline-block';
   
   setStatus('Z-AI is analyzing and generating session...', 'info');
   
@@ -2121,12 +2135,14 @@ async function autoFixCurrentSession() {
       setStatus(result.message || 'Auto-Fix failed.', 'error');
     }
   } catch (err) {
+    console.error('autoFixCurrentSession error:', err);
     setStatus('Network error during auto-fix: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (stopBtn) stopBtn.style.display = 'none';
+    const topUndo = document.getElementById('undoAutoFixBtnTop');
+    if (topUndo && undoStack.length > 0) topUndo.style.display = 'inline-block';
   }
-  
-  btn.disabled = false;
-  stopBtn.style.display = 'none';
-  document.getElementById('undoAutoFixBtnTop').style.display = 'inline-block';
 }
 </script>
 
@@ -2203,18 +2219,30 @@ async function autoFixCurrentSession() {
 <script>
 let aiModalResolve = null;
 function openAiModal() {
-  document.getElementById('aiModalInput').value = '';
-  document.getElementById('aiModal').classList.add('active');
-  document.getElementById('aiModalInput').focus();
+  const input = document.getElementById('aiModalInput');
+  if (input) {
+    input.value = '';
+    input.onkeydown = function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        closeAiModal(input.value);
+      }
+    };
+  }
+  const modal = document.getElementById('aiModal');
+  if (modal) modal.classList.add('active');
+  if (input) input.focus();
   return new Promise(resolve => {
     aiModalResolve = resolve;
   });
 }
 function closeAiModal(value) {
-  document.getElementById('aiModal').classList.remove('active');
+  const modal = document.getElementById('aiModal');
+  if (modal) modal.classList.remove('active');
   if (aiModalResolve) {
-    aiModalResolve(value);
+    const res = aiModalResolve;
     aiModalResolve = null;
+    res(value);
   }
 }
 
