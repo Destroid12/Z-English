@@ -13,3 +13,6 @@ patch*
 generate_*.py
 process_pptx.py
 update_backend.js
+.vercel
+.env*.local
+node_modules/

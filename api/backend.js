@@ -887,7 +887,7 @@ async function _createPost(p) {
 
 async function _getLikesForPosts(postIds) {
   const { data, error } = await supabase
-    .from('likes').select('post_id, author_id').in('post_id', postIds);
+    .from('likes').select('post_id, user_id').in('post_id', postIds);
   if (error) throw new Error(error.message);
   return data || [];
 }
@@ -943,7 +943,7 @@ async function _getPosts(p) {
   for (const like of likeRows) {
     const pid = String(like.post_id);
     likeCounts[pid] = (likeCounts[pid] || 0) + 1;
-    if (userId && String(like.author_id) === String(userId)) likedByUser[pid] = true;
+    if (userId && String(like.user_id) === String(userId)) likedByUser[pid] = true;
   }
   const commentCounts = {};
   for (const comment of commentRows) {
@@ -992,16 +992,16 @@ async function _toggleLike(p) {
   const userId = session.user.id;
 
   const { data: existing } = await supabase
-    .from('likes').select('post_id').eq('post_id', postId).eq('author_id', userId).maybeSingle();
+    .from('likes').select('post_id').eq('post_id', postId).eq('user_id', userId).maybeSingle();
 
   let liked;
   if (existing) {
     const { error } = await supabase
-      .from('likes').delete().eq('post_id', postId).eq('author_id', userId);
+      .from('likes').delete().eq('post_id', postId).eq('user_id', userId);
     if (error) throw new Error(error.message);
     liked = false;
   } else {
-    const { error } = await supabase.from('likes').insert({ post_id: postId, author_id: userId });
+    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: userId });
     if (error) throw new Error(error.message);
     liked = true;
   }
@@ -1031,6 +1031,7 @@ async function _createComment(p) {
   const { data, error } = await supabase
     .from('comments')
     .insert({
+      id: _uuid(),
       post_id: postId,
       parent_comment_id: parentCommentId,
       author_id: session.user.id,
@@ -2205,24 +2206,35 @@ async function _autoFixSession(p) {
   if (!Array.isArray(slides)) return { success: false, message: 'slidesJson must be an array of slides.' };
 
   // Fix each slide individually so one bad slide can't sink the whole session.
-  const fixedSlides = [];
-  for (let i = 0; i < slides.length; i++) {
-    const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
-    let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
-    if (customInstructions) {
-      userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions +
-        '\n"""\nPlease process this slide according to these instructions.';
-    }
-    try {
+  // Run a few slides concurrently so multi-slide sessions finish within the
+  // Vercel function time limit (gemini flash models handle parallel calls).
+  const CONCURRENCY = 3;
+  const fixedSlides = new Array(slides.length);
+  let nextSlide = 0;
+
+  async function worker() {
+    while (true) {
+      const i = nextSlide++;
+      if (i >= slides.length) return;
+      const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
+      let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
+      if (customInstructions) {
+        userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions +
+          '\n"""\nPlease process this slide according to these instructions.';
+      }
       const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
         [{ role: 'user', parts: [{ text: userPrompt }] }],
         { maxOutputTokens: 16384, temperature: 0.3 });
-      const fixedSlide = _extractJsonFromGemini(fixedText, false);
-      fixedSlides.push(fixedSlide);
-    } catch (err) {
-      console.error('AutoFixSession slide ' + (i + 1) + ' failed: ' + err.message);
-      return { success: false, message: 'AI returned invalid JSON on slide ' + (i + 1) + ': ' + err.message };
+      fixedSlides[i] = _extractJsonFromGemini(fixedText, false);
     }
+  }
+
+  const workerCount = Math.min(CONCURRENCY, slides.length);
+  try {
+    await Promise.all(Array.from({ length: workerCount }, function () { return worker(); }));
+  } catch (err) {
+    console.error('AutoFixSession failed: ' + err.message);
+    return { success: false, message: 'AI returned invalid JSON: ' + err.message };
   }
   return { success: true, slides: fixedSlides };
 }
