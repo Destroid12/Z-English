@@ -405,6 +405,7 @@ const BACKEND_URL = "/api/backend";
 
 // --- Read the params the dashboard put in the URL ---
 const params = new URLSearchParams(window.location.search);
+const isPreview = params.get('preview') === '1';
 const tempId = params.get('tempId');
 const testCode = params.get('testCode');
 const track = params.get('track');
@@ -429,32 +430,33 @@ function showBlocked(message){
 }
 
 async function loadLesson(){
-  if (isPreview) {
-    try {
-      const raw = localStorage.getItem('zenglish_preview_session');
-      if (!raw) {
-        showBlocked("No preview session data found. Please return to the editor and click 'Preview Session' again.");
+  try {
+    if (isPreview) {
+      try {
+        const raw = localStorage.getItem('zenglish_preview_session');
+        if (!raw) {
+          showBlocked("No preview session data found. Please return to the editor and click 'Preview Session' again.");
+          return;
+        }
+        let previewSlides = JSON.parse(raw);
+        if (!Array.isArray(previewSlides) || previewSlides.length === 0) {
+          showBlocked("The preview session has no slides. Add slides in the editor and click Preview Session.");
+          return;
+        }
+        initDeck(previewSlides);
+        return;
+      } catch (e) {
+        console.error('Failed to load preview:', e);
+        showBlocked("Could not load preview session: " + e.message);
         return;
       }
-      let previewSlides = JSON.parse(raw);
-      if (!Array.isArray(previewSlides) || previewSlides.length === 0) {
-        showBlocked("The preview session has no slides. Add slides in the editor and click Preview Session.");
-        return;
-      }
-      initDeck(previewSlides);
-      return;
-    } catch (e) {
-      console.error('Failed to load preview:', e);
-      showBlocked("Could not load preview session: " + e.message);
+    }
+
+    if (!tempId && !testCode && (!track || !level || !sessionNumber || !accessToken)) {
+      showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
       return;
     }
-  }
 
-  if (!tempId && !testCode && (!track || !level || !sessionNumber || !accessToken)) {
-    showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
-    return;
-  }
-  try {
     let userToken = '';
     try {
       const rawSession = localStorage.getItem('zenglish_session');
