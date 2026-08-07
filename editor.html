@@ -176,6 +176,9 @@
     <button class="btn btn-outline" id="undoAutoFixBtnTop" onclick="undoAutoFix()" title="Undo last Auto-Fix" style="display: none; border-color: #d32f2f; color: #d32f2f;">
       <i class="fas fa-undo"></i> Undo Fix
     </button>
+    <button class="btn btn-outline" id="previewSessionBtn" title="Preview whole session in player">
+      <i class="fas fa-play"></i> Preview Session
+    </button>
 
     <span id="statusMsg" class="info"></span>
 
@@ -231,6 +234,8 @@ let selectedSlideId = null;
 let openAddElemMenuFor = null;
 let posModeOn = false;
 let previewFullscreenOn = false;
+let undoStack = [];
+let cancelAutoFix = false;
 
 // ---------- auth (reuses the same localStorage session as index.html) ----------
 function restoreSession() {
@@ -1851,16 +1856,23 @@ function updatePreview() {
 }
 
 // ---------- load / save ----------
-document.getElementById('loadBtn').onclick = loadSession;
-document.getElementById('saveBtn').onclick = saveSession;
-  document.getElementById('previewSessionBtn').onclick = () => {
-      if (slides.length === 0) {
-          setStatus('Add at least one slide to preview.', 'error');
-          return;
-      }
-      localStorage.setItem('zenglish_preview_session', JSON.stringify(slides));
-      window.open('player.html?preview=1', '_blank');
+const loadBtn = document.getElementById('loadBtn');
+if (loadBtn) loadBtn.onclick = loadSession;
+
+const saveBtn = document.getElementById('saveBtn');
+if (saveBtn) saveBtn.onclick = saveSession;
+
+const previewBtn = document.getElementById('previewSessionBtn');
+if (previewBtn) {
+  previewBtn.onclick = () => {
+    if (!slides || slides.length === 0) {
+      setStatus('Add at least one slide to preview.', 'error');
+      return;
+    }
+    localStorage.setItem('zenglish_preview_session', JSON.stringify(slides));
+    window.open('player.html?preview=1', '_blank');
   };
+}
 refreshCustomTypeButtons();
 
 async function loadSession() {
@@ -1963,7 +1975,6 @@ async function saveSession() {
   }
 }
 
-let undoStack = [];
 function saveUndoState() {
   undoStack.push({ slides: JSON.stringify(slides), selectedSlideId: selectedSlideId });
   const top = document.getElementById('undoAutoFixBtnTop');
@@ -1995,7 +2006,6 @@ function undoAutoFix() {
   setStatus('Auto-Fix undone.', 'success');
 }
 
-let cancelAutoFix = false;
 function stopAutoFix() {
   cancelAutoFix = true;
   setStatus('Stopping auto-fix...', 'info');
