@@ -433,14 +433,18 @@ async function loadLesson(){
   try {
     if (isPreview) {
       try {
-        const raw = localStorage.getItem('zenglish_preview_session');
-        if (!raw) {
-          showBlocked("No preview session data found. Please return to the editor and click 'Preview Session' again.");
-          return;
+        let previewSlides = null;
+        if (window.opener && typeof window.opener.getPreviewSessionSlides === 'function') {
+          try { previewSlides = window.opener.getPreviewSessionSlides(); } catch (e) {}
         }
-        let previewSlides = JSON.parse(raw);
+        if (!previewSlides || !Array.isArray(previewSlides) || previewSlides.length === 0) {
+          const raw = sessionStorage.getItem('zenglish_preview_session') || localStorage.getItem('zenglish_preview_session');
+          if (raw) {
+            try { previewSlides = JSON.parse(raw); } catch (e) {}
+          }
+        }
         if (!Array.isArray(previewSlides) || previewSlides.length === 0) {
-          showBlocked("The preview session has no slides. Add slides in the editor and click Preview Session.");
+          showBlocked("No preview session data found. Please return to the editor and click 'Preview Session' again.");
           return;
         }
         initDeck(previewSlides);

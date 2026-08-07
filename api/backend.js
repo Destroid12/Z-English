@@ -2205,16 +2205,17 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '   - Differentiate between ILLUSTRATIVE GRAPHICS and QUESTION/WORKSHEET IMAGES.\n' +
   '   - If an image or text contains a question, quiz, exercise, fill-in-the-blank, multiple choice, matching pairs, or reordering task:\n' +
   '     * Transcribe and OCR ALL questions and answers into native interactive kind: "question" elements!\n' +
+  '     * DO NOT include the worksheet screenshot image in elements — the interactive question elements REPLACE the image!\n' +
   '     * If an image or text has MULTIPLE questions (e.g. 1 to 5), create a SEPARATE kind: "question" element for EACH question!\n' +
+  '     * Each kind: "question" element MUST have: "prompt" (containing [blank] if fill-in-the-blank), and blanks array [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "options": [...] }]\n' +
   '     * Use appropriate "qtype":\n' +
   '       - "radio" for multiple choice (provide options array like ["A. apple", "B. banana", ...], and correct answer)\n' +
   '       - "select" for dropdown choices in sentences\n' +
-  '       - "text" for typing in blanks marked by [blank] in question text\n' +
+  '       - "text" for typing in blanks marked by [blank] in prompt text\n' +
   '       - "match" for matching pairs (format each item in options array as "left|right")\n' +
   '       - "wordbank" for sentence reconstruction\n' +
   '       - "schedule" for sequencing steps\n' +
-  '     * If the image was purely a screenshot of questions, the interactive question elements replace it.\n' +
-  '     * If the image contains a visual diagram/graphic needed to solve the question (e.g. chart, diagram, story picture), include kind: "image" with url: "[IMAGE:0]" (or tag) AND place the question below it.\n' +
+  '     * Only include kind: "image" with url: "[IMAGE:0]" if there is a separate educational illustration/diagram (e.g. a chart, diagram, or story picture) that students need to look at.\n' +
   '2. PRESERVE RELEVANT MEDIA & GRAPHICS:\n' +
   '   - For illustrative photos, diagrams, and figures, use kind: "image" with url: "[IMAGE:0]" (or index/name) so the client attaches the high-res image.\n' +
   '   - For audio clips, use kind: "audio" with url: "[MEDIA:filename]".\n' +

@@ -571,10 +571,26 @@ function driveThumbUrl(url, size) {
 }
 
 function b64EncodeUnicode(str) {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+  } catch (e) {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
 }
 function b64DecodeUnicode(str) {
-  return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  } catch (e) {
+    try {
+      return decodeURIComponent(escape(atob(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
 }
 
 // ---------- custom slide types ----------
@@ -649,14 +665,27 @@ function cssColorToHex(str) {
 
 // ---------- normalize legacy elements loaded from previously-saved slides ----------
 function normalizeSlide(slide) {
+  if (!slide) return slide;
   slide.elements = (slide.elements || []).map(el => {
     if (el.kind === 'question') {
-      if (!el.blanks) {
+      if (!el.prompt && el.question) {
+        el.prompt = el.question;
+      }
+      if (!el.prompt) el.prompt = '';
+
+      if (!el.blanks || el.blanks.length === 0) {
+        const qtype = el.qtype || 'text';
+        const answer = el.answer || '';
+        const altAnswers = Array.isArray(el.altAnswers) ? el.altAnswers : (el.alt ? [el.alt] : []);
+        let options = Array.isArray(el.options) ? el.options : [];
+        if (options.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+          options = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+        }
         el.blanks = [{
-          qtype: el.qtype || 'text',
-          answer: el.answer || '',
-          altAnswers: Array.isArray(el.altAnswers) ? el.altAnswers : (el.alt ? [el.alt] : []),
-          options: Array.isArray(el.options) ? el.options : []
+          qtype: qtype,
+          answer: answer,
+          altAnswers: altAnswers,
+          options: options
         }];
         delete el.qtype; delete el.answer; delete el.altAnswers; delete el.options; delete el.alt;
       } else {
@@ -666,6 +695,10 @@ function normalizeSlide(slide) {
           b.options = Array.isArray(b.options) ? b.options : [];
           return b;
         });
+      }
+
+      if (!el.prompt.includes('[blank]')) {
+        el.prompt = (el.prompt ? el.prompt.trim() + ' ' : '') + '[blank]';
       }
     }
     if (el.pos && (typeof el.pos.top !== 'string' || typeof el.pos.left !== 'string')) {
@@ -677,8 +710,15 @@ function normalizeSlide(slide) {
 }
 
 // ---------- compile: structured slide -> HTML string the player/backend expect ----------
-function compileSlide(slide) {
-  const dataComment = '<!--EDITOR_DATA:' + b64EncodeUnicode(JSON.stringify(slide)) + '-->';
+function compileSlide(slide, forExport = true) {
+  let dataComment = '';
+  if (forExport) {
+    try {
+      dataComment = '<!--EDITOR_DATA:' + b64EncodeUnicode(JSON.stringify(slide)) + '-->\n';
+    } catch (e) {
+      dataComment = '';
+    }
+  }
   const tagText = getTypeLabel(slide.type).toUpperCase();
   const h1Class = slide.type === 'activity' ? 't-activity' : 't-content';
 
@@ -690,7 +730,7 @@ function compileSlide(slide) {
   if (slide.titleFont) titleStyle += `font-family:${escAttr(slide.titleFont)};`;
   const titleStyleAttr = titleStyle ? ` style="${titleStyle}"` : '';
 
-  let body = `<span class="frame-tag">${esc(tagText)}</span>\n<h1 class="${h1Class}"${titleStyleAttr}>${esc(slide.title || '')}</h1>\n`;
+  let body = `${dataComment}<span class="frame-tag">${esc(tagText)}</span>\n<h1 class="${h1Class}"${titleStyleAttr}>${esc(slide.title || '')}</h1>\n`;
   let hasQuestion = false;
 
   slide.elements.forEach(el => {
@@ -1896,12 +1936,21 @@ function updatePreview() {
   const slide = getSelectedSlide();
   const frame = document.getElementById('previewFrame');
   if (!slide) { frame.srcdoc = ''; return; }
-  const compiled = compileSlide(slide).replace(/^<!--EDITOR_DATA:.*?-->\n?/, '');
-  frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-    <style>${PREVIEW_CSS}</style></head><body>${compiled}</body></html>`;
-  frame.onload = attachPosDragHandlers;
+  try {
+    const compiled = compileSlide(slide, false);
+    frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+      <style>${PREVIEW_CSS}</style></head><body>${compiled}</body></html>`;
+    frame.onload = attachPosDragHandlers;
+  } catch (err) {
+    console.error('updatePreview error:', err);
+  }
 }
+
+// Memory bridge so player.html can load preview data with 0 storage quota limits
+window.getPreviewSessionSlides = function() {
+  return (slides || []).map(s => compileSlide(s, false));
+};
 
 // ---------- load / save ----------
 const loadBtn = document.getElementById('loadBtn');
@@ -1917,8 +1966,13 @@ if (previewBtn) {
       setStatus('Add at least one slide to preview.', 'error');
       return;
     }
-    const compiledSlides = slides.map(compileSlide);
-    localStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
+    const compiledSlides = slides.map(s => compileSlide(s, false));
+    try {
+      sessionStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
+    } catch (e) {}
+    try {
+      localStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
+    } catch (e) {}
     window.open('player.html?preview=1', '_blank');
   };
 }
@@ -3140,11 +3194,13 @@ async function ocrQuestionFromMedia(mediaName) {
     const qElements = (result.slide.elements || []).filter(el => el.kind === 'question' || el.kind === 'speaking');
     if (qElements.length > 0) {
       currentSlide.elements.push(...qElements);
+      normalizeSlide(currentSlide);
       renderElements();
       if (typeof updatePreview === 'function') updatePreview();
       setPptxStatus('Successfully transcribed and added ' + qElements.length + ' interactive questions!', 'success');
     } else if (result.slide.elements && result.slide.elements.length > 0) {
       currentSlide.elements.push(...result.slide.elements);
+      normalizeSlide(currentSlide);
       renderElements();
       if (typeof updatePreview === 'function') updatePreview();
       setPptxStatus('Added converted elements to slide.', 'success');
@@ -3197,10 +3253,12 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
     }
   });
 
-  // Preserve any slide images (illustrations, diagrams, photos) that were not yet used
+  // Check if AI generated interactive questions or speaking tasks
   const hasQuestions = convertedSlide.elements.some(el => el.kind === 'question' || el.kind === 'speaking');
-  const imageElementCount = convertedSlide.elements.filter(el => el.kind === 'image').length;
-  if (!hasQuestions || imageElementCount === 0) {
+  
+  // If the slide was converted into interactive questions, NEVER append the original screenshot image!
+  // ONLY for content/lesson slides without questions AND without existing images, attach the illustration
+  if (!hasQuestions && convertedSlide.elements.filter(el => el.kind === 'image').length === 0 && slideImages.length > 0) {
     slideImages.forEach(img => {
       if (!usedImageUrls.has(img.dataUrl)) {
         convertedSlide.elements.push({
@@ -3214,7 +3272,7 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
     });
   }
 
-  return convertedSlide;
+  return normalizeSlide(convertedSlide);
 }
 
 // Builds a 1:1 direct native slide containing all text paragraphs and images
