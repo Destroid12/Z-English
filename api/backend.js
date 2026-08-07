@@ -2197,34 +2197,32 @@ const FIXER_SESSION_SYSTEM_PROMPT =
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY a valid JSON array enclosed in ```json [ ... ] ```.';
 
 const PPTX_CONVERTER_SYSTEM_PROMPT =
-  'You are an expert PowerPoint to Z-English interactive educational slide converter.\n' +
-  'You convert raw slides, text, speaker notes, and extracted media from PowerPoint (.pptx) into rich, interactive Z-English slides.\n\n' +
-  FIXER_SHARED_RULES +
+  'You are an expert PowerPoint (.pptx) to Z-English interactive educational slide converter.\n' +
+  'You convert raw slides, text, speaker notes, and extracted media from PowerPoint into rich, interactive Z-English slides.\n\n' +
+  '## ELEMENT KINDS:\n' +
+  '### 1. kind: "paragraph"\n' +
+  '{ "id": "ai_p1", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
+  'Use \\n for line breaks inside "text".\n\n' +
+  '### 2. kind: "image" (USE ACTUAL PPTX MEDIA)\n' +
+  '{ "id": "ai_img1", "kind": "image", "pos": null, "url": "[IMAGE:0]", "caption": "Optional caption" }\n' +
+  'CRITICAL: ALWAYS use the actual media attached to the slide with url tag `[IMAGE:0]`, `[IMAGE:1]`, or `[MEDIA:filename]`!\n' +
+  'DO NOT invent or generate external AI images (no pollinations.ai) when the presentation contains real media!\n\n' +
+  '### 3. kind: "speaking"\n' +
+  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n\n' +
+  '### 4. kind: "list"\n' +
+  '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
+  '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
+  '{ "id": "ai_q1", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "altAnswers": [], "options": [] }] }\n\n' +
   '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
-  '1. STRICT OCR RULE: IMAGES WITH WORDS/TEXT MUST BE CONVERTED TO TEXT AND THE IMAGE REMOVED:\n' +
-  '   - If an image contains text, words, sentences, grammar rules/tables, vocabulary lists, phonetics/pronunciation charts, reading passages, dialogues, or exercise instructions (e.g. textbook page scans, grammar charts, exercise worksheets):\n' +
-  '     * YOU MUST OCR AND TRANSCRIBE ALL WORDS, TABLES, AND INSTRUCTIONS into native Z-English elements:\n' +
-  '       - Grammar tables / explanations / reading text -> kind: "paragraph" (use clear line breaks, headers, clean formatting)\n' +
-  '       - Phonetics / vocabulary / bullet points -> kind: "list" or kind: "paragraph"\n' +
-  '       - Conversation prompts / dialogues / pronunciation -> kind: "speaking"\n' +
-  '       - Exercises / questions / quizzes -> kind: "question" (with proper blanks, qtype, and answers)\n' +
-  '     * NEVER output kind: "image" or [IMAGE:...] for an image that contains text/words — the image MUST BE DISCARDED completely once converted to text!\n' +
-  '   - ONLY keep kind: "image" (with [IMAGE:0] or pollinations.ai) if the image is a PURE illustration, photo, or drawing that contains NO textbook text/charts.\n' +
-  '2. INTELLIGENT QUESTION & EXERCISE EXTRACTION:\n' +
-  '   - If an image or text contains a question, quiz, exercise, fill-in-the-blank, multiple choice, matching pairs, or reordering task:\n' +
-  '     * Transcribe and OCR ALL questions and answers into native interactive kind: "question" elements!\n' +
-  '     * If an image or text has MULTIPLE questions (e.g. 1 to 5), create a SEPARATE kind: "question" element for EACH question!\n' +
-  '     * Each kind: "question" element MUST have: "prompt" (containing [blank] if fill-in-the-blank), and blanks array [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "options": [...] }]\n' +
-  '     * Use appropriate "qtype":\n' +
-  '       - "radio" for multiple choice (provide options array like ["A. apple", "B. banana", ...], and correct answer)\n' +
-  '       - "select" for dropdown choices in sentences\n' +
-  '       - "text" for typing in blanks marked by [blank] in prompt text\n' +
-  '       - "match" for matching pairs (format each item in options array as "left|right")\n' +
-  '       - "wordbank" for sentence reconstruction\n' +
-  '       - "schedule" for sequencing steps\n' +
-  '3. PRESERVE RELEVANT MEDIA & GRAPHICS:\n' +
-  '   - For illustrative photos and pure diagrams without textbook text, use kind: "image" with url: "[IMAGE:0]".\n' +
-  '   - For audio clips, use kind: "audio" with url: "[MEDIA:filename]".\n' +
+  '1. USE ACTUAL PRESENTATION MEDIA FIRST:\n' +
+  '   - When a slide contains photos, diagrams, character pictures, memes, icons, or illustrations from the PPTX, ALWAYS use kind: "image" with url: "[IMAGE:0]" (or [IMAGE:1], etc.).\n' +
+  '   - NEVER generate new images on your own when real media exists in the PowerPoint file.\n' +
+  '2. STRICT OCR RULE FOR WORKSHEETS & TEXTBOOK SCANS:\n' +
+  '   - If an attached image is a screenshot or scan of a worksheet, grammar table, vocabulary/phonetic chart, reading passage, or exercise:\n' +
+  '     * Transcribe and convert ALL words, tables, and instructions into native text elements (paragraph, list, speaking, question).\n' +
+  '     * In this specific case, DO NOT include an image element for this worksheet scan — the transcribed text completely replaces it.\n' +
+  '3. INTERACTIVE QUESTIONS & EXERCISES:\n' +
+  '   - Convert any quiz, fill-in-the-blank, multiple choice, matching pairs, or word order exercise into native kind: "question" elements.\n' +
   '4. OUTPUT STRUCTURE:\n' +
   '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
@@ -2404,12 +2402,13 @@ async function _convertPptxSlide(p) {
   }
 
   if (slideData.images && Array.isArray(slideData.images) && slideData.images.length > 0) {
-    promptText += '\nAttached Slide Images (' + slideData.images.length + ' image(s) provided below for multimodal analysis).\n' +
-      'STRICT OCR INSTRUCTION FOR IMAGES WITH WORDS/TEXT:\n' +
-      'If any image contains text, words, grammar charts/tables, vocabulary lists, phonetics/pronunciation, conversation prompts, or exercises:\n' +
-      '- You MUST OCR and transcribe ALL words, tables, lists, and instructions into native text elements (kind: "paragraph", kind: "list", kind: "speaking", or kind: "question").\n' +
-      '- DO NOT include the image in the elements array (no [IMAGE:...] tag and no kind: "image" for that image) — the transcribed text completely replaces the image!\n' +
-      '- Only include kind: "image" if the image is a pure illustration or photo that has NO textbook words/charts.\n';
+    promptText += '\nAttached Slide Images (' + slideData.images.length + ' image(s) provided below for multimodal analysis):\n';
+    slideData.images.forEach((img, idx) => {
+      promptText += '- Image ' + idx + ': Tag [IMAGE:' + idx + ']\n';
+    });
+    promptText += '\nRULES FOR ATTACHED IMAGES:\n' +
+      '1. ACTUAL PRESENTATION MEDIA: If an image is an actual photo, illustration, diagram, character drawing, meme, or graphic from the PowerPoint, YOU MUST USE IT by outputting `{ "kind": "image", "url": "[IMAGE:0]" }` (or corresponding index). NEVER create new AI images or pollinations URLs!\n' +
+      '2. WORKSHEET / TEXT OCR: If an image is a screenshot/scan of a worksheet, grammar table, vocabulary list, phonetic chart, or exercise, transcribe all its words into native elements (paragraph, list, speaking, question) and DO NOT output an image for it.\n';
   }
 
   if (customInstructions) {

@@ -3268,7 +3268,7 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
   const slideMedia = (originalSlide && originalSlide.media) || [];
   const usedImageUrls = new Set();
 
-  // Map audio/video elements from extracted slide media
+  // 1. Map audio/video elements from extracted slide media
   convertedSlide.elements.forEach(el => {
     if (el.kind === 'audio' || el.kind === 'video') {
       const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
@@ -3276,7 +3276,7 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
     }
   });
 
-  // Only map images if the AI explicitly requested a specific image via [IMAGE:n] or exact filename
+  // 2. Map image elements to actual slide images from PPTX
   convertedSlide.elements.forEach(el => {
     if (el.kind === 'image') {
       let matched = false;
@@ -3289,7 +3289,7 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
           matched = true;
         }
       }
-      if (!matched && el.url && !el.url.startsWith('http') && !el.url.startsWith('data:')) {
+      if (!matched && el.url) {
         const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
         if (found && found.dataUrl) {
           el.url = found.dataUrl;
@@ -3297,11 +3297,19 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
           matched = true;
         }
       }
-      // Valid URLs (like pollinations.ai or data:) are kept as-is
+      // If AI generated an external pollinations URL, but the original PPTX had real images, use the real PPTX image!
+      if (!matched && slideImages.length > 0 && (!el.url || el.url.includes('pollinations.ai') || el.url.startsWith('['))) {
+        const unused = slideImages.find(img => !usedImageUrls.has(img.dataUrl)) || slideImages[0];
+        if (unused && unused.dataUrl) {
+          el.url = unused.dataUrl;
+          usedImageUrls.add(unused.dataUrl);
+          matched = true;
+        }
+      }
     }
   });
 
-  // Clean up any unmapped placeholder images (e.g. leftover [IMAGE:...])
+  // 3. Clean up any unmapped placeholder images (e.g. leftover [IMAGE:...])
   convertedSlide.elements = convertedSlide.elements.filter(el => {
     if (el.kind === 'image') {
       if (!el.url || el.url.startsWith('[') || el.url.trim() === '') return false;
