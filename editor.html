@@ -3268,62 +3268,46 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
   const slideMedia = (originalSlide && originalSlide.media) || [];
   const usedImageUrls = new Set();
 
-  // Check if AI generated interactive questions or speaking tasks
-  const hasQuestions = convertedSlide.elements.some(el => el.kind === 'question' || el.kind === 'speaking');
-
-  if (hasQuestions) {
-    // If the slide was converted into interactive questions, STRIP ALL WORKSHEET SCREENSHOT IMAGES!
-    // The interactive questions replace the screenshot completely.
-    convertedSlide.elements = convertedSlide.elements.filter(el => el.kind !== 'image');
-  } else {
-    // Only map images for content/reading/story/vocab slides without questions:
-    convertedSlide.elements.forEach(el => {
-      if (el.kind === 'image') {
-        let matched = false;
-        const tagMatch = (el.url || '').match(/\[IMAGE:(\d+)\]/i);
-        if (tagMatch) {
-          const idx = parseInt(tagMatch[1], 10);
-          if (slideImages[idx] && slideImages[idx].dataUrl) {
-            el.url = slideImages[idx].dataUrl;
-            usedImageUrls.add(el.url);
-            matched = true;
-          }
-        }
-        if (!matched && el.url) {
-          const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
-          if (found && found.dataUrl) {
-            el.url = found.dataUrl;
-            usedImageUrls.add(el.url);
-            matched = true;
-          }
-        }
-        if (!matched && (!el.url || el.url.startsWith('[') || (!el.url.startsWith('data:') && !el.url.startsWith('http')))) {
-          const unused = slideImages.find(img => !usedImageUrls.has(img.dataUrl));
-          if (unused) {
-            el.url = unused.dataUrl;
-            usedImageUrls.add(unused.dataUrl);
-          }
-        }
-      } else if (el.kind === 'audio' || el.kind === 'video') {
-        const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
-        if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
-      }
-    });
-
-    if (convertedSlide.elements.filter(el => el.kind === 'image').length === 0 && slideImages.length > 0) {
-      slideImages.forEach(img => {
-        if (!usedImageUrls.has(img.dataUrl)) {
-          convertedSlide.elements.push({
-            id: 'el_' + Math.random().toString(36).substr(2, 9),
-            kind: 'image',
-            url: img.dataUrl,
-            caption: ''
-          });
-          usedImageUrls.add(img.dataUrl);
-        }
-      });
+  // Map audio/video elements from extracted slide media
+  convertedSlide.elements.forEach(el => {
+    if (el.kind === 'audio' || el.kind === 'video') {
+      const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
+      if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
     }
-  }
+  });
+
+  // Only map images if the AI explicitly requested a specific image via [IMAGE:n] or exact filename
+  convertedSlide.elements.forEach(el => {
+    if (el.kind === 'image') {
+      let matched = false;
+      const tagMatch = (el.url || '').match(/\[IMAGE:(\d+)\]/i);
+      if (tagMatch) {
+        const idx = parseInt(tagMatch[1], 10);
+        if (slideImages[idx] && slideImages[idx].dataUrl) {
+          el.url = slideImages[idx].dataUrl;
+          usedImageUrls.add(el.url);
+          matched = true;
+        }
+      }
+      if (!matched && el.url && !el.url.startsWith('http') && !el.url.startsWith('data:')) {
+        const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
+        if (found && found.dataUrl) {
+          el.url = found.dataUrl;
+          usedImageUrls.add(el.url);
+          matched = true;
+        }
+      }
+      // Valid URLs (like pollinations.ai or data:) are kept as-is
+    }
+  });
+
+  // Clean up any unmapped placeholder images (e.g. leftover [IMAGE:...])
+  convertedSlide.elements = convertedSlide.elements.filter(el => {
+    if (el.kind === 'image') {
+      if (!el.url || el.url.startsWith('[') || el.url.trim() === '') return false;
+    }
+    return true;
+  });
 
   return normalizeSlide(convertedSlide);
 }

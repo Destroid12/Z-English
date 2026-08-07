@@ -2201,11 +2201,18 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   'You convert raw slides, text, speaker notes, and extracted media from PowerPoint (.pptx) into rich, interactive Z-English slides.\n\n' +
   FIXER_SHARED_RULES +
   '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
-  '1. INTELLIGENT QUESTION & OCR EXTRACTION:\n' +
-  '   - Differentiate between ILLUSTRATIVE GRAPHICS and QUESTION/WORKSHEET IMAGES.\n' +
+  '1. STRICT OCR RULE: IMAGES WITH WORDS/TEXT MUST BE CONVERTED TO TEXT AND THE IMAGE REMOVED:\n' +
+  '   - If an image contains text, words, sentences, grammar rules/tables, vocabulary lists, phonetics/pronunciation charts, reading passages, dialogues, or exercise instructions (e.g. textbook page scans, grammar charts, exercise worksheets):\n' +
+  '     * YOU MUST OCR AND TRANSCRIBE ALL WORDS, TABLES, AND INSTRUCTIONS into native Z-English elements:\n' +
+  '       - Grammar tables / explanations / reading text -> kind: "paragraph" (use clear line breaks, headers, clean formatting)\n' +
+  '       - Phonetics / vocabulary / bullet points -> kind: "list" or kind: "paragraph"\n' +
+  '       - Conversation prompts / dialogues / pronunciation -> kind: "speaking"\n' +
+  '       - Exercises / questions / quizzes -> kind: "question" (with proper blanks, qtype, and answers)\n' +
+  '     * NEVER output kind: "image" or [IMAGE:...] for an image that contains text/words — the image MUST BE DISCARDED completely once converted to text!\n' +
+  '   - ONLY keep kind: "image" (with [IMAGE:0] or pollinations.ai) if the image is a PURE illustration, photo, or drawing that contains NO textbook text/charts.\n' +
+  '2. INTELLIGENT QUESTION & EXERCISE EXTRACTION:\n' +
   '   - If an image or text contains a question, quiz, exercise, fill-in-the-blank, multiple choice, matching pairs, or reordering task:\n' +
   '     * Transcribe and OCR ALL questions and answers into native interactive kind: "question" elements!\n' +
-  '     * DO NOT include the worksheet screenshot image in elements — the interactive question elements REPLACE the image!\n' +
   '     * If an image or text has MULTIPLE questions (e.g. 1 to 5), create a SEPARATE kind: "question" element for EACH question!\n' +
   '     * Each kind: "question" element MUST have: "prompt" (containing [blank] if fill-in-the-blank), and blanks array [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "options": [...] }]\n' +
   '     * Use appropriate "qtype":\n' +
@@ -2215,12 +2222,9 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '       - "match" for matching pairs (format each item in options array as "left|right")\n' +
   '       - "wordbank" for sentence reconstruction\n' +
   '       - "schedule" for sequencing steps\n' +
-  '     * Only include kind: "image" with url: "[IMAGE:0]" if there is a separate educational illustration/diagram (e.g. a chart, diagram, or story picture) that students need to look at.\n' +
-  '2. PRESERVE RELEVANT MEDIA & GRAPHICS:\n' +
-  '   - For illustrative photos, diagrams, and figures, use kind: "image" with url: "[IMAGE:0]" (or index/name) so the client attaches the high-res image.\n' +
+  '3. PRESERVE RELEVANT MEDIA & GRAPHICS:\n' +
+  '   - For illustrative photos and pure diagrams without textbook text, use kind: "image" with url: "[IMAGE:0]".\n' +
   '   - For audio clips, use kind: "audio" with url: "[MEDIA:filename]".\n' +
-  '3. DIALOGUE & PRONUNCIATION:\n' +
-  '   - Convert dialogue practice or "Say / Repeat" prompts into kind: "speaking" with text and practicePrompt.\n' +
   '4. OUTPUT STRUCTURE:\n' +
   '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
@@ -2401,8 +2405,11 @@ async function _convertPptxSlide(p) {
 
   if (slideData.images && Array.isArray(slideData.images) && slideData.images.length > 0) {
     promptText += '\nAttached Slide Images (' + slideData.images.length + ' image(s) provided below for multimodal analysis).\n' +
-      'Check if any image contains exercises/questions/quizzes/worksheets: If yes, OCR and extract ALL questions into native kind: "question" elements!\n' +
-      'DO NOT include the worksheet screenshot image in the elements array — the interactive questions replace it completely.\n';
+      'STRICT OCR INSTRUCTION FOR IMAGES WITH WORDS/TEXT:\n' +
+      'If any image contains text, words, grammar charts/tables, vocabulary lists, phonetics/pronunciation, conversation prompts, or exercises:\n' +
+      '- You MUST OCR and transcribe ALL words, tables, lists, and instructions into native text elements (kind: "paragraph", kind: "list", kind: "speaking", or kind: "question").\n' +
+      '- DO NOT include the image in the elements array (no [IMAGE:...] tag and no kind: "image" for that image) — the transcribed text completely replaces the image!\n' +
+      '- Only include kind: "image" if the image is a pure illustration or photo that has NO textbook words/charts.\n';
   }
 
   if (customInstructions) {
