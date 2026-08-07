@@ -2371,8 +2371,11 @@ async function _convertPptxSlide(p) {
   const customInstructions = String(p.instructions || '').trim();
   const parts = [];
 
-  let promptText = 'Convert this PowerPoint slide into a native Z-English interactive slide JSON:\n\n' +
-    'Slide Title: ' + (slideData.title || 'Untitled') + '\n' +
+  let promptText = 'Convert this PowerPoint slide into a native Z-English interactive slide JSON:\n\n';
+  if (slideData.slideIndex && slideData.totalSlides) {
+    promptText += 'SLIDE NUMBER: ' + slideData.slideIndex + ' of ' + slideData.totalSlides + '\n';
+  }
+  promptText += 'Slide Title: ' + (slideData.title || 'Untitled') + '\n' +
     'Slide Text Content:\n' + (slideData.text || '(none)') + '\n' +
     'Speaker Notes:\n' + (slideData.notes || '(none)') + '\n';
 
@@ -2386,11 +2389,12 @@ async function _convertPptxSlide(p) {
   if (slideData.images && Array.isArray(slideData.images) && slideData.images.length > 0) {
     promptText += '\nAttached Slide Images (' + slideData.images.length + ' image(s) provided below for multimodal analysis).\n' +
       'Check if any image contains exercises/questions/quizzes/worksheets: If yes, OCR and extract ALL questions into native kind: "question" elements!\n' +
-      'If an image is an educational illustration or needed diagram, include kind: "image" with url: "[IMAGE:0]" (or respective index).\n';
+      'DO NOT include the worksheet screenshot image in the elements array — the interactive questions replace it completely.\n';
   }
 
   if (customInstructions) {
-    promptText = 'USER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\n\n' + promptText;
+    promptText = 'USER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\n' +
+      '(NOTE: If user instructions request to skip, omit, or exclude this specific slide or slide number, output: { "skip": true, "elements": [] })\n\n' + promptText;
   }
 
   parts.push({ text: promptText });
@@ -2414,6 +2418,19 @@ async function _convertPptxSlide(p) {
       [{ role: 'user', parts: parts }],
       { maxOutputTokens: 16384, temperature: 0.3 });
     const fixedSlide = _extractJsonFromGemini(fixedText, false);
+    
+    if (fixedSlide && (fixedSlide.skip === true || (Array.isArray(fixedSlide.elements) && fixedSlide.elements.length === 0 && customInstructions.toLowerCase().includes('skip')))) {
+      return { success: true, slide: { skip: true, elements: [] } };
+    }
+
+    // Strip worksheet images if questions exist
+    if (fixedSlide && Array.isArray(fixedSlide.elements)) {
+      const hasQuestions = fixedSlide.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
+      if (hasQuestions) {
+        fixedSlide.elements = fixedSlide.elements.filter(el => el && el.kind !== 'image');
+      }
+    }
+
     return { success: true, slide: fixedSlide };
   } catch (err) {
     console.error('convertPptxSlide failed: ' + err.message);

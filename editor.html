@@ -2391,11 +2391,11 @@ async function autoFixCurrentSession() {
       <!-- Top Action Bar -->
       <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="convertPptxDeckToSession()" id="pptxConvertAllBtn" style="background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: white; font-weight: 800; font-size: 13px;" title="Convert ALL PowerPoint slides with AI OCR and interactive exercises">
-            <i class="fas fa-wand-magic-sparkles"></i> AI Smart Convert All (<span id="pptxSlideCountAllBtn">0</span> Slides)
+          <button class="btn btn-primary" onclick="convertPptxDeckToSession()" id="pptxConvertAllBtn" style="background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: white; font-weight: 800; font-size: 13px;" title="Convert selected PowerPoint slides with AI OCR and interactive exercises">
+            <i class="fas fa-wand-magic-sparkles"></i> AI Smart Convert (<span id="pptxSlideCountAllBtn">0</span> Slides)
           </button>
-          <button class="btn btn-outline" onclick="directImportPptxDeck()" id="pptxDirectImportAllBtn" style="font-size: 13px; font-weight: 700; border-color: #059669; color: #059669; background: #f0fdf4;" title="Instantly import ALL slides 1:1 with all extracted images and text">
-            <i class="fas fa-file-import"></i> Direct Import All (Instant)
+          <button class="btn btn-outline" onclick="directImportPptxDeck()" id="pptxDirectImportAllBtn" style="font-size: 13px; font-weight: 700; border-color: #059669; color: #059669; background: #f0fdf4;" title="Instantly import selected slides 1:1 with all extracted images and text">
+            <i class="fas fa-file-import"></i> Direct Import (<span id="pptxSlideCountDirectBtn">0</span>)
           </button>
           <button class="btn btn-outline" onclick="togglePptxMediaDrawer()" id="pptxMediaDrawerBtn" style="font-size: 13px; font-weight: 700; border-color: #0284c7; color: #0284c7;">
             <i class="fas fa-photo-film"></i> Media Gallery (<span id="pptxMediaCount">0</span>)
@@ -2410,9 +2410,13 @@ async function autoFixCurrentSession() {
       <div style="display: flex; flex: 1; gap: 14px; min-height: 0; overflow: hidden;">
         <!-- Left: Slide List Thumbnails -->
         <div style="width: 320px; flex-shrink: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden;">
-          <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 800; color: var(--ink); display: flex; justify-content: space-between; align-items: center;">
+          <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 800; color: var(--ink); display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span>PPTX Slides</span>
-            <span id="pptxSlideCounter" style="font-size: 11px; background: #e2e8f0; padding: 2px 6px; border-radius: 8px;">0 slides</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn btn-outline" onclick="toggleAllPptxSlideSelection(true)" style="padding: 2px 7px; font-size: 11px; font-weight: 700; background: #fff;" title="Select All Slides">All</button>
+              <button class="btn btn-outline" onclick="toggleAllPptxSlideSelection(false)" style="padding: 2px 7px; font-size: 11px; font-weight: 700; background: #fff;" title="Deselect All Slides">None</button>
+              <span id="pptxSlideCounter" style="font-size: 11px; background: #e2e8f0; padding: 2px 6px; border-radius: 8px;">0 slides</span>
+            </div>
           </div>
           <div id="pptxSlideList" style="flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px;">
             <!-- Rendered PPTX Slide items -->
@@ -2950,12 +2954,41 @@ async function parsePptxFile(file) {
   };
 }
 
+function updatePptxSelectionSummary() {
+  if (!currentPptxDeck || !currentPptxDeck.slides) return;
+  const total = currentPptxDeck.slides.length;
+  const selected = currentPptxDeck.slides.filter(s => s.selected !== false).length;
+  
+  const counter = document.getElementById('pptxSlideCounter');
+  if (counter) counter.innerText = selected === total ? `${total} slides` : `${selected}/${total} selected`;
+  
+  const countAllBtn = document.getElementById('pptxSlideCountAllBtn');
+  if (countAllBtn) countAllBtn.innerText = selected;
+  
+  const countDirectBtn = document.getElementById('pptxSlideCountDirectBtn');
+  if (countDirectBtn) countDirectBtn.innerText = selected;
+}
+
+function togglePptxSlideCheck(idx, checked) {
+  if (!currentPptxDeck || !currentPptxDeck.slides[idx]) return;
+  currentPptxDeck.slides[idx].selected = checked;
+  updatePptxSelectionSummary();
+}
+
+function toggleAllPptxSlideSelection(selectState) {
+  if (!currentPptxDeck || !currentPptxDeck.slides) return;
+  currentPptxDeck.slides.forEach(s => { s.selected = selectState; });
+  renderPptxSlideList();
+  updatePptxSelectionSummary();
+}
+
 function renderPptxSlideList() {
   const container = document.getElementById('pptxSlideList');
   if (!container || !currentPptxDeck) return;
   container.innerHTML = '';
 
   currentPptxDeck.slides.forEach((s, idx) => {
+    if (s.selected === undefined) s.selected = true;
     const card = document.createElement('div');
     card.className = 'pptx-slide-card' + (idx === selectedPptxSlideIdx ? ' active' : '');
     card.onclick = () => selectPptxSlide(idx);
@@ -2974,14 +3007,18 @@ function renderPptxSlideList() {
     const snippet = (s.text || '').replace(/\n+/g, ' ').substring(0, 70);
 
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:800; font-size:13px; color:var(--z-blue-dark);">${idx + 1}. ${esc(s.title || 'Untitled')}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; flex:1; overflow:hidden;" onclick="event.stopPropagation();">
+          <input type="checkbox" class="pptx-slide-check" ${s.selected !== false ? 'checked' : ''} onchange="togglePptxSlideCheck(${idx}, this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#6a1b9a; flex-shrink:0;">
+          <span style="font-weight:800; font-size:13px; color:var(--z-blue-dark); text-overflow:ellipsis; white-space:nowrap; overflow:hidden;">${idx + 1}. ${esc(s.title || 'Untitled')}</span>
+        </label>
       </div>
-      ${snippet ? `<div style="font-size:11px; color:var(--ink-soft); line-height:1.3;">${esc(snippet)}${s.text.length > 70 ? '...' : ''}</div>` : ''}
-      ${badgesHtml ? `<div style="display:flex; gap:4px; margin-top:2px;">${badgesHtml}</div>` : ''}
+      ${snippet ? `<div style="font-size:11px; color:var(--ink-soft); line-height:1.3; margin-left:24px;">${esc(snippet)}${s.text.length > 70 ? '...' : ''}</div>` : ''}
+      ${badgesHtml ? `<div style="display:flex; gap:4px; margin-top:2px; margin-left:24px;">${badgesHtml}</div>` : ''}
     `;
     container.appendChild(card);
   });
+  updatePptxSelectionSummary();
 }
 
 function selectPptxSlide(idx) {
@@ -3214,62 +3251,68 @@ async function ocrQuestionFromMedia(mediaName) {
 // Intelligent media mapping helper to ensure images & media are attached to converted slides
 function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
   if (!convertedSlide) return convertedSlide;
+  if (convertedSlide.skip === true) return null;
   if (!Array.isArray(convertedSlide.elements)) convertedSlide.elements = [];
 
   const slideImages = (originalSlide && originalSlide.images) || [];
   const slideMedia = (originalSlide && originalSlide.media) || [];
   const usedImageUrls = new Set();
 
-  convertedSlide.elements.forEach(el => {
-    if (el.kind === 'image') {
-      let matched = false;
-      const tagMatch = (el.url || '').match(/\[IMAGE:(\d+)\]/i);
-      if (tagMatch) {
-        const idx = parseInt(tagMatch[1], 10);
-        if (slideImages[idx] && slideImages[idx].dataUrl) {
-          el.url = slideImages[idx].dataUrl;
-          usedImageUrls.add(el.url);
-          matched = true;
-        }
-      }
-      if (!matched && el.url) {
-        const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
-        if (found && found.dataUrl) {
-          el.url = found.dataUrl;
-          usedImageUrls.add(el.url);
-          matched = true;
-        }
-      }
-      if (!matched && (!el.url || el.url.startsWith('[') || (!el.url.startsWith('data:') && !el.url.startsWith('http')))) {
-        const unused = slideImages.find(img => !usedImageUrls.has(img.dataUrl));
-        if (unused) {
-          el.url = unused.dataUrl;
-          usedImageUrls.add(unused.dataUrl);
-        }
-      }
-    } else if (el.kind === 'audio' || el.kind === 'video') {
-      const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
-      if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
-    }
-  });
-
   // Check if AI generated interactive questions or speaking tasks
   const hasQuestions = convertedSlide.elements.some(el => el.kind === 'question' || el.kind === 'speaking');
-  
-  // If the slide was converted into interactive questions, NEVER append the original screenshot image!
-  // ONLY for content/lesson slides without questions AND without existing images, attach the illustration
-  if (!hasQuestions && convertedSlide.elements.filter(el => el.kind === 'image').length === 0 && slideImages.length > 0) {
-    slideImages.forEach(img => {
-      if (!usedImageUrls.has(img.dataUrl)) {
-        convertedSlide.elements.push({
-          id: 'el_' + Math.random().toString(36).substr(2, 9),
-          kind: 'image',
-          url: img.dataUrl,
-          caption: ''
-        });
-        usedImageUrls.add(img.dataUrl);
+
+  if (hasQuestions) {
+    // If the slide was converted into interactive questions, STRIP ALL WORKSHEET SCREENSHOT IMAGES!
+    // The interactive questions replace the screenshot completely.
+    convertedSlide.elements = convertedSlide.elements.filter(el => el.kind !== 'image');
+  } else {
+    // Only map images for content/reading/story/vocab slides without questions:
+    convertedSlide.elements.forEach(el => {
+      if (el.kind === 'image') {
+        let matched = false;
+        const tagMatch = (el.url || '').match(/\[IMAGE:(\d+)\]/i);
+        if (tagMatch) {
+          const idx = parseInt(tagMatch[1], 10);
+          if (slideImages[idx] && slideImages[idx].dataUrl) {
+            el.url = slideImages[idx].dataUrl;
+            usedImageUrls.add(el.url);
+            matched = true;
+          }
+        }
+        if (!matched && el.url) {
+          const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
+          if (found && found.dataUrl) {
+            el.url = found.dataUrl;
+            usedImageUrls.add(el.url);
+            matched = true;
+          }
+        }
+        if (!matched && (!el.url || el.url.startsWith('[') || (!el.url.startsWith('data:') && !el.url.startsWith('http')))) {
+          const unused = slideImages.find(img => !usedImageUrls.has(img.dataUrl));
+          if (unused) {
+            el.url = unused.dataUrl;
+            usedImageUrls.add(unused.dataUrl);
+          }
+        }
+      } else if (el.kind === 'audio' || el.kind === 'video') {
+        const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
+        if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
       }
     });
+
+    if (convertedSlide.elements.filter(el => el.kind === 'image').length === 0 && slideImages.length > 0) {
+      slideImages.forEach(img => {
+        if (!usedImageUrls.has(img.dataUrl)) {
+          convertedSlide.elements.push({
+            id: 'el_' + Math.random().toString(36).substr(2, 9),
+            kind: 'image',
+            url: img.dataUrl,
+            caption: ''
+          });
+          usedImageUrls.add(img.dataUrl);
+        }
+      });
+    }
   }
 
   return normalizeSlide(convertedSlide);
@@ -3420,11 +3463,70 @@ function insertPptxSlideDirect() {
   setPptxStatus('Directly inserted slide with all images & text.', 'success');
 }
 
-// Instant 1:1 direct import of ALL slides with images and text in under 1 second
+// Parses natural language instructions to detect if the user requested to skip specific slides
+function parseSlideExclusions(instructionStr, totalSlides) {
+  const excludedIndices = new Set();
+  const text = (instructionStr || '').toLowerCase();
+  if (!text) return excludedIndices;
+
+  // Pattern: only convert slides X to Y / only slides X-Y
+  const onlyRangeMatch = text.match(/only\s+(?:convert|add|import|include)?\s*slides?\s+(\d+)\s*(?:to|-)\s*(\d+)/i);
+  if (onlyRangeMatch) {
+    const start = parseInt(onlyRangeMatch[1], 10) - 1;
+    const end = parseInt(onlyRangeMatch[2], 10) - 1;
+    for (let i = 0; i < totalSlides; i++) {
+      if (i < start || i > end) excludedIndices.add(i);
+    }
+    return excludedIndices;
+  }
+
+  // Pattern: skip slide(s) X to Y / X-Y
+  const rangeMatches = [...text.matchAll(/(?:skip|omit|exclude|don'?t\s+(?:add|convert|include)|do\s+not\s+(?:add|convert|include)|leave\s+out|remove|delete|ignore|without)\s+slides?\s+(\d+)\s*(?:to|-)\s*(\d+)/gi)];
+  rangeMatches.forEach(m => {
+    const start = parseInt(m[1], 10) - 1;
+    const end = parseInt(m[2], 10) - 1;
+    for (let i = start; i <= end; i++) {
+      if (i >= 0 && i < totalSlides) excludedIndices.add(i);
+    }
+  });
+
+  // Pattern: skip / omit / don't add slide(s) 1, 2, and 5
+  const listMatches = [...text.matchAll(/(?:skip|omit|exclude|don'?t\s+(?:add|convert|include)|do\s+not\s+(?:add|convert|include)|leave\s+out|remove|delete|ignore|without|no)\s+slides?\s+([\d\s,and&]+)/gi)];
+  listMatches.forEach(m => {
+    const nums = m[1].match(/\d+/g);
+    if (nums) {
+      nums.forEach(n => {
+        const idx = parseInt(n, 10) - 1;
+        if (idx >= 0 && idx < totalSlides) excludedIndices.add(idx);
+      });
+    }
+  });
+
+  // Specific keywords like 'skip first slide' / 'skip title slide' / 'skip last slide'
+  if (text.includes('skip first') || text.includes('skip title') || text.includes('skip cover') || text.includes('omit first') || text.includes('omit title') || text.includes('don\'t add title') || text.includes('don\'t add first') || text.includes('don\'t include title') || text.includes('don\'t include first')) {
+    excludedIndices.add(0);
+  }
+  if (text.includes('skip last') || text.includes('omit last') || text.includes('don\'t add last') || text.includes('don\'t include last')) {
+    if (totalSlides > 0) excludedIndices.add(totalSlides - 1);
+  }
+
+  return excludedIndices;
+}
+
+// Instant 1:1 direct import of selected slides with images and text
 function directImportPptxDeck() {
   if (!currentPptxDeck || !currentPptxDeck.slides || currentPptxDeck.slides.length === 0) return;
 
-  if (!confirm('Import all ' + currentPptxDeck.slides.length + ' slides directly with all images and text? (This will replace the current session slides)')) {
+  const selectedSlides = currentPptxDeck.slides
+    .map((s, i) => ({ s, originalIdx: i + 1 }))
+    .filter(item => item.s.selected !== false);
+
+  if (selectedSlides.length === 0) {
+    setPptxStatus('No slides selected for import.', 'error');
+    return;
+  }
+
+  if (!confirm('Import ' + selectedSlides.length + ' selected slide(s) directly with all images and text? (This will replace the current session slides)')) {
     return;
   }
 
@@ -3434,28 +3536,45 @@ function directImportPptxDeck() {
     if (topUndo) topUndo.style.display = 'inline-block';
   }
 
-  const newSlides = currentPptxDeck.slides.map((s, i) => buildDirectSlideFromPptx(s, i + 1));
+  const newSlides = selectedSlides.map(item => buildDirectSlideFromPptx(item.s, item.originalIdx));
   slides = newSlides;
   selectedSlideId = slides[0] ? slides[0].id : null;
   renderSlideList();
   renderElements();
   if (typeof updatePreview === 'function') updatePreview();
-  setPptxStatus('Successfully imported ALL ' + slides.length + ' slides directly with all images and text!', 'success');
+  setPptxStatus('Successfully imported ' + slides.length + ' slide(s) directly with all images and text!', 'success');
 }
 
-// Converts every single slide in the deck into rich interactive Z-English slides with AI OCR & question extraction
+// Converts selected slides in the deck into rich interactive Z-English slides with AI OCR & question extraction
 async function convertPptxDeckToSession() {
   if (!currentPptxDeck || !currentPptxDeck.slides || currentPptxDeck.slides.length === 0) return;
 
   const totalSlides = currentPptxDeck.slides.length;
-  const userInstructions = prompt('Enter any special instructions for converting all ' + totalSlides + ' slides with AI (or leave blank for standard interactive conversion):', '');
+  const userInstructions = prompt(
+    'Enter instructions for converting slides with AI (e.g. "skip slide 1 and 5", "make it challenging", or leave blank):',
+    ''
+  );
   if (userInstructions === null) return;
+
+  const promptExclusions = parseSlideExclusions(userInstructions, totalSlides);
+  const slidesToProcess = [];
+
+  currentPptxDeck.slides.forEach((s, idx) => {
+    if (s.selected === false) return; // Unchecked in UI
+    if (promptExclusions.has(idx)) return; // Excluded via prompt instruction
+    slidesToProcess.push({ s, idx });
+  });
+
+  if (slidesToProcess.length === 0) {
+    setPptxStatus('All slides were excluded or unselected. Nothing to convert.', 'error');
+    return;
+  }
 
   const btn = document.getElementById('pptxConvertAllBtn');
   const directBtn = document.getElementById('pptxDirectImportAllBtn');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting 0/' + totalSlides + '...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting 0/' + slidesToProcess.length + '...';
   }
   if (directBtn) directBtn.disabled = true;
 
@@ -3465,19 +3584,19 @@ async function convertPptxDeckToSession() {
     if (topUndo) topUndo.style.display = 'inline-block';
   }
 
-  const convertedSlides = new Array(totalSlides);
+  const convertedSlides = new Array(slidesToProcess.length);
   let completedCount = 0;
-  let nextIdx = 0;
+  let nextQueueIdx = 0;
   const CONCURRENCY = 2;
 
   async function worker() {
     while (true) {
-      const i = nextIdx++;
-      if (i >= totalSlides) return;
-      const s = currentPptxDeck.slides[i];
+      const qIdx = nextQueueIdx++;
+      if (qIdx >= slidesToProcess.length) return;
+      const { s, idx } = slidesToProcess[qIdx];
       
-      setPptxStatus('Converting slide ' + (i + 1) + ' of ' + totalSlides + ' (AI OCR & Interactive Exercises)... [' + Math.round((completedCount / totalSlides) * 100) + '%]', 'info', true);
-      if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Slide ' + (completedCount + 1) + '/' + totalSlides;
+      setPptxStatus('Converting slide ' + (idx + 1) + ' of ' + totalSlides + ' (AI OCR & Interactive Exercises)... [' + Math.round((completedCount / slidesToProcess.length) * 100) + '%]', 'info', true);
+      if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Slide ' + (completedCount + 1) + '/' + slidesToProcess.length;
 
       try {
         const imagesPayload = (s.images || []).slice(0, 4).map(img => ({
@@ -3489,6 +3608,8 @@ async function convertPptxDeckToSession() {
           action: 'convertPptxSlide',
           token: sessionToken,
           slideData: JSON.stringify({
+            slideIndex: idx + 1,
+            totalSlides: totalSlides,
             title: s.title,
             text: s.text,
             notes: s.notes,
@@ -3500,24 +3621,29 @@ async function convertPptxDeckToSession() {
 
         if (result && result.success && result.slide) {
           let cSlide = result.slide;
-          if (!cSlide.id) cSlide.id = 'slide_' + Math.random().toString(36).substr(2, 9);
-          convertedSlides[i] = mapMediaToConvertedSlide(cSlide, s);
+          if (cSlide.skip === true) {
+            // Explicitly skipped by AI
+            convertedSlides[qIdx] = null;
+          } else {
+            if (!cSlide.id) cSlide.id = 'slide_' + Math.random().toString(36).substr(2, 9);
+            convertedSlides[qIdx] = mapMediaToConvertedSlide(cSlide, s);
+          }
         } else {
-          // Direct slide fallback so no slide is ever lost
-          convertedSlides[i] = buildDirectSlideFromPptx(s, i + 1);
+          // Direct slide fallback so non-skipped slides are not lost
+          convertedSlides[qIdx] = buildDirectSlideFromPptx(s, idx + 1);
         }
       } catch (slideErr) {
-        console.warn('AI conversion failed on slide ' + (i + 1) + ', using direct slide fallback:', slideErr);
-        convertedSlides[i] = buildDirectSlideFromPptx(s, i + 1);
+        console.warn('AI conversion failed on slide ' + (idx + 1) + ', using direct slide fallback:', slideErr);
+        convertedSlides[qIdx] = buildDirectSlideFromPptx(s, idx + 1);
       } finally {
         completedCount++;
-        setPptxStatus('Processed ' + completedCount + ' of ' + totalSlides + ' slides (' + Math.round((completedCount / totalSlides) * 100) + '%)...', 'info', true);
+        setPptxStatus('Processed ' + completedCount + ' of ' + slidesToProcess.length + ' selected slides...', 'info', true);
       }
     }
   }
 
   try {
-    const workerCount = Math.min(CONCURRENCY, totalSlides);
+    const workerCount = Math.min(CONCURRENCY, slidesToProcess.length);
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
     const finalSlides = convertedSlides.filter(Boolean);
@@ -3527,9 +3653,9 @@ async function convertPptxDeckToSession() {
       renderSlideList();
       renderElements();
       if (typeof updatePreview === 'function') updatePreview();
-      setPptxStatus('Successfully converted and imported ALL ' + slides.length + ' slides with images & interactive questions!', 'success');
+      setPptxStatus('Successfully converted and imported ' + slides.length + ' slide(s) with images & interactive questions!', 'success');
     } else {
-      setPptxStatus('Failed to generate slides.', 'error');
+      setPptxStatus('No slides generated (all were skipped).', 'error');
     }
   } catch (err) {
     console.error('convertPptxDeckToSession error:', err);
@@ -3537,8 +3663,7 @@ async function convertPptxDeckToSession() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      const count = currentPptxDeck ? currentPptxDeck.slides.length : 0;
-      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> AI Smart Convert All (' + count + ' Slides)';
+      updatePptxSelectionSummary();
     }
     if (directBtn) directBtn.disabled = false;
   }
