@@ -2198,29 +2198,30 @@ const FIXER_SESSION_SYSTEM_PROMPT =
 
 const PPTX_CONVERTER_SYSTEM_PROMPT =
   'You are an expert PowerPoint to Z-English interactive educational slide converter.\n' +
-  'You convert raw slides and extracted media from PowerPoint (.pptx) into rich, interactive Z-English slides.\n\n' +
+  'You convert raw slides, text, speaker notes, and extracted media from PowerPoint (.pptx) into rich, interactive Z-English slides.\n\n' +
   FIXER_SHARED_RULES +
   '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
-  '1. INTELLIGENT QUESTION & OCR RECOGNITION:\n' +
+  '1. INTELLIGENT QUESTION & OCR EXTRACTION:\n' +
   '   - Differentiate between ILLUSTRATIVE GRAPHICS and QUESTION/WORKSHEET IMAGES.\n' +
   '   - If an image or text contains a question, quiz, exercise, fill-in-the-blank, multiple choice, matching pairs, or reordering task:\n' +
-  '     * Transcribe all questions and answers into native interactive kind: "question" elements!\n' +
+  '     * Transcribe and OCR ALL questions and answers into native interactive kind: "question" elements!\n' +
+  '     * If an image or text has MULTIPLE questions (e.g. 1 to 5), create a SEPARATE kind: "question" element for EACH question!\n' +
   '     * Use appropriate "qtype":\n' +
-  '       - "radio" for multiple choice (A, B, C, D)\n' +
-  '       - "select" for dropdown choices\n' +
-  '       - "text" for typing in blanks marked by [blank]\n' +
-  '       - "match" for matching pairs (format in options: "left|right")\n' +
+  '       - "radio" for multiple choice (provide options array like ["A. apple", "B. banana", ...], and correct answer)\n' +
+  '       - "select" for dropdown choices in sentences\n' +
+  '       - "text" for typing in blanks marked by [blank] in question text\n' +
+  '       - "match" for matching pairs (format each item in options array as "left|right")\n' +
   '       - "wordbank" for sentence reconstruction\n' +
   '       - "schedule" for sequencing steps\n' +
-  '     * If the image was purely a screenshot of a worksheet question, DO NOT include the static image element (the interactive question replaces it).\n' +
-  '     * If the image contains a visual diagram/graphic needed to solve the question (e.g. map, diagram, picture prompt), KEEP the image element and place the interactive question below it.\n' +
-  '2. PRESERVE RELEVANT MEDIA:\n' +
-  '   - If the slide input mentions media attachments (e.g. "[MEDIA:img_1]", "[MEDIA:audio_1]"), preserve or attach the appropriate media URL/reference in the element.\n' +
-  '   - If a slide needs an illustration for vocabulary/story and has none, add a pollinations.ai URL.\n' +
+  '     * If the image was purely a screenshot of questions, the interactive question elements replace it.\n' +
+  '     * If the image contains a visual diagram/graphic needed to solve the question (e.g. chart, diagram, story picture), include kind: "image" with url: "[IMAGE:0]" (or tag) AND place the question below it.\n' +
+  '2. PRESERVE RELEVANT MEDIA & GRAPHICS:\n' +
+  '   - For illustrative photos, diagrams, and figures, use kind: "image" with url: "[IMAGE:0]" (or index/name) so the client attaches the high-res image.\n' +
+  '   - For audio clips, use kind: "audio" with url: "[MEDIA:filename]".\n' +
   '3. DIALOGUE & PRONUNCIATION:\n' +
-  '   - Convert dialogue practice or "Say / Repeat" prompts into kind: "speaking" with Practice with Tutor button.\n' +
+  '   - Convert dialogue practice or "Say / Repeat" prompts into kind: "speaking" with text and practicePrompt.\n' +
   '4. OUTPUT STRUCTURE:\n' +
-  '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "...", "elements": [...] }\n' +
+  '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON.';
 
@@ -2260,7 +2261,7 @@ async function _autoFixSlide(p) {
       [{ role: 'user', parts: [{ text: userPrompt }] }],
       { maxOutputTokens: 16384, temperature: 0.3 });
     const fixedSlide = _extractJsonFromGemini(fixedText, false);
-    return { success: true, fixedSlide: fixedSlide };
+    return { success: true, slide: fixedSlide };
   } catch (err) {
     console.error('AutoFixSlide failed: ' + err.message);
     return { success: false, message: 'AI returned invalid JSON: ' + err.message };
@@ -2272,41 +2273,13 @@ async function _autoFixSession(p) {
   if (!session) return { success: false, message: 'Authentication required.' };
   if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
 
-  const slidesJsonStr = String(p.slidesJson || '').trim();
+  const slides = p.slides || [];
   const customInstructions = String(p.instructions || '').trim();
-
-  let slides = [];
-  if (slidesJsonStr) {
-    try { slides = JSON.parse(slidesJsonStr); } catch (err) {
-      return { success: false, message: 'slidesJson is not valid JSON.' };
-    }
-  }
-  if (!Array.isArray(slides)) slides = [];
-
-  // When user gives instructions (e.g. create N slides, add new slides, re-structure),
-  // OR when starting with a small/empty deck, use whole-session generation to allow creating new slides!
-  try {
-    let userPrompt = 'Existing Session Slides JSON:\n' + JSON.stringify(slides, null, 2);
-    if (customInstructions) {
-      userPrompt = 'USER INSTRUCTIONS FOR THIS SESSION:\n"""\n' + customInstructions + '\n"""\n\n' + userPrompt;
-    } else {
-      userPrompt += '\n\nPlease fix, polish, improve, and add high-quality relevant images and interactive questions across this entire session.';
-    }
-
-    const fixedText = await _callGemini(FIXER_SESSION_SYSTEM_PROMPT,
-      [{ role: 'user', parts: [{ text: userPrompt }] }],
-      { maxOutputTokens: 16384, temperature: 0.4 });
-
-    const resultSlides = _extractJsonFromGemini(fixedText, true);
-    if (Array.isArray(resultSlides)) {
-      const keptSlides = resultSlides.filter(function (s) { return s && s.delete !== true; });
-      return { success: true, slides: keptSlides };
-    }
-  } catch (wholeErr) {
-    console.warn('Whole-session AutoFix fallback due to:', wholeErr.message);
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return { success: false, message: 'No slides provided.' };
   }
 
-  // Fallback: individual slide worker pool if whole-session returned error
+  // Auto-Fix uses per-slide parallel workers with FIXER_SYSTEM_PROMPT
   if (slides.length > 0) {
     const CONCURRENCY = 3;
     const fixedSlides = new Array(slides.length);
@@ -2334,7 +2307,7 @@ async function _autoFixSession(p) {
       const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
       return { success: true, slides: keptSlides };
     } catch (err) {
-      console.error('AutoFixSession fallback failed: ' + err.message);
+      console.error('AutoFixSession failed: ' + err.message);
       return { success: false, message: 'AI returned invalid JSON: ' + err.message };
     }
   }
@@ -2374,7 +2347,6 @@ async function _analyzePPTXImage(p) {
       try { parsed = _extractJsonFromGemini(reply, false); } catch (err2) { parsed = null; }
     }
     if (!parsed || typeof parsed !== 'object') {
-      // Fallback: treat the raw text as lesson content.
       return { success: true, result: { type: 'question', content: reply } };
     }
     const type = parsed.type === 'text' ? 'text' : 'question';
@@ -2406,8 +2378,14 @@ async function _convertPptxSlide(p) {
   if (slideData.media && Array.isArray(slideData.media) && slideData.media.length > 0) {
     promptText += '\nAttached Media Items (' + slideData.media.length + '):\n';
     slideData.media.forEach((m, idx) => {
-      promptText += '- Media ' + (idx + 1) + ': Name: ' + (m.name || '') + ', Type: ' + (m.type || '') + (m.url ? ', URL: ' + m.url : '') + '\n';
+      promptText += '- Media ' + (idx + 1) + ': Name: ' + (m.name || '') + ', Tag: [IMAGE:' + idx + '] or [MEDIA:' + (m.name || '') + '], Type: ' + (m.type || '') + '\n';
     });
+  }
+
+  if (slideData.images && Array.isArray(slideData.images) && slideData.images.length > 0) {
+    promptText += '\nAttached Slide Images (' + slideData.images.length + ' image(s) provided below for multimodal analysis).\n' +
+      'Check if any image contains exercises/questions/quizzes/worksheets: If yes, OCR and extract ALL questions into native kind: "question" elements!\n' +
+      'If an image is an educational illustration or needed diagram, include kind: "image" with url: "[IMAGE:0]" (or respective index).\n';
   }
 
   if (customInstructions) {
@@ -2416,9 +2394,9 @@ async function _convertPptxSlide(p) {
 
   parts.push({ text: promptText });
 
-  // If there are images provided with base64 for OCR analysis, attach them to the multimodal request (up to 3 images)
+  // If there are images provided with base64 for OCR analysis, attach them to the multimodal request (up to 4 images)
   if (slideData.images && Array.isArray(slideData.images)) {
-    slideData.images.slice(0, 3).forEach(img => {
+    slideData.images.slice(0, 4).forEach(img => {
       if (img.base64) {
         parts.push({
           inlineData: {

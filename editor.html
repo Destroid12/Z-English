@@ -2336,9 +2336,12 @@ async function autoFixCurrentSession() {
     <div id="pptxDeckView" style="display: none; flex: 1; flex-direction: column; overflow: hidden;">
       <!-- Top Action Bar -->
       <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="btn btn-primary" onclick="convertPptxDeckToSession()" id="pptxConvertAllBtn" style="background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: white; font-weight: 800; font-size: 13px;" title="Convert entire PowerPoint into a complete multi-slide Z-English session">
-            <i class="fas fa-wand-magic-sparkles"></i> Convert Entire Deck to Session (AI)
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="convertPptxDeckToSession()" id="pptxConvertAllBtn" style="background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: white; font-weight: 800; font-size: 13px;" title="Convert ALL PowerPoint slides with AI OCR and interactive exercises">
+            <i class="fas fa-wand-magic-sparkles"></i> AI Smart Convert All (<span id="pptxSlideCountAllBtn">0</span> Slides)
+          </button>
+          <button class="btn btn-outline" onclick="directImportPptxDeck()" id="pptxDirectImportAllBtn" style="font-size: 13px; font-weight: 700; border-color: #059669; color: #059669; background: #f0fdf4;" title="Instantly import ALL slides 1:1 with all extracted images and text">
+            <i class="fas fa-file-import"></i> Direct Import All (Instant)
           </button>
           <button class="btn btn-outline" onclick="togglePptxMediaDrawer()" id="pptxMediaDrawerBtn" style="font-size: 13px; font-weight: 700; border-color: #0284c7; color: #0284c7;">
             <i class="fas fa-photo-film"></i> Media Gallery (<span id="pptxMediaCount">0</span>)
@@ -2627,6 +2630,8 @@ function showPptxDeckView() {
   
   if (currentPptxDeck) {
     document.getElementById('pptxDeckBadge').innerText = currentPptxDeck.slides.length + ' Slides';
+    const countBtnSpan = document.getElementById('pptxSlideCountAllBtn');
+    if (countBtnSpan) countBtnSpan.innerText = currentPptxDeck.slides.length;
     document.getElementById('pptxFileNameDisplay').innerText = currentPptxDeck.filename || 'presentation.pptx';
     document.getElementById('pptxSlideCounter').innerText = currentPptxDeck.slides.length + ' slides';
     document.getElementById('pptxMediaCount').innerText = (currentPptxDeck.allMedia || []).length;
@@ -3150,6 +3155,111 @@ async function ocrQuestionFromMedia(mediaName) {
   }
 }
 
+// Intelligent media mapping helper to ensure images & media are attached to converted slides
+function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
+  if (!convertedSlide) return convertedSlide;
+  if (!Array.isArray(convertedSlide.elements)) convertedSlide.elements = [];
+
+  const slideImages = (originalSlide && originalSlide.images) || [];
+  const slideMedia = (originalSlide && originalSlide.media) || [];
+  const usedImageUrls = new Set();
+
+  convertedSlide.elements.forEach(el => {
+    if (el.kind === 'image') {
+      let matched = false;
+      const tagMatch = (el.url || '').match(/\[IMAGE:(\d+)\]/i);
+      if (tagMatch) {
+        const idx = parseInt(tagMatch[1], 10);
+        if (slideImages[idx] && slideImages[idx].dataUrl) {
+          el.url = slideImages[idx].dataUrl;
+          usedImageUrls.add(el.url);
+          matched = true;
+        }
+      }
+      if (!matched && el.url) {
+        const found = slideImages.find(img => img.name && (el.url.includes(img.name) || img.name.includes(el.url)));
+        if (found && found.dataUrl) {
+          el.url = found.dataUrl;
+          usedImageUrls.add(el.url);
+          matched = true;
+        }
+      }
+      if (!matched && (!el.url || el.url.startsWith('[') || (!el.url.startsWith('data:') && !el.url.startsWith('http')))) {
+        const unused = slideImages.find(img => !usedImageUrls.has(img.dataUrl));
+        if (unused) {
+          el.url = unused.dataUrl;
+          usedImageUrls.add(unused.dataUrl);
+        }
+      }
+    } else if (el.kind === 'audio' || el.kind === 'video') {
+      const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
+      if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
+    }
+  });
+
+  // Preserve any slide images (illustrations, diagrams, photos) that were not yet used
+  const hasQuestions = convertedSlide.elements.some(el => el.kind === 'question' || el.kind === 'speaking');
+  const imageElementCount = convertedSlide.elements.filter(el => el.kind === 'image').length;
+  if (!hasQuestions || imageElementCount === 0) {
+    slideImages.forEach(img => {
+      if (!usedImageUrls.has(img.dataUrl)) {
+        convertedSlide.elements.push({
+          id: 'el_' + Math.random().toString(36).substr(2, 9),
+          kind: 'image',
+          url: img.dataUrl,
+          caption: ''
+        });
+        usedImageUrls.add(img.dataUrl);
+      }
+    });
+  }
+
+  return convertedSlide;
+}
+
+// Builds a 1:1 direct native slide containing all text paragraphs and images
+function buildDirectSlideFromPptx(s, slideNum) {
+  const elements = [];
+  if (s.text && s.text.trim()) {
+    elements.push({
+      id: 'el_' + Math.random().toString(36).substr(2, 9),
+      kind: 'paragraph',
+      text: s.text.trim(),
+      size: 16
+    });
+  }
+
+  (s.images || []).forEach(img => {
+    elements.push({
+      id: 'el_' + Math.random().toString(36).substr(2, 9),
+      kind: 'image',
+      url: img.dataUrl,
+      caption: ''
+    });
+  });
+
+  (s.media || []).filter(m => m.type === 'audio' || m.type === 'video').forEach(m => {
+    elements.push({
+      id: 'el_' + Math.random().toString(36).substr(2, 9),
+      kind: m.type,
+      url: m.dataUrl,
+      caption: m.name || ''
+    });
+  });
+
+  return {
+    id: 'slide_' + Math.random().toString(36).substr(2, 9),
+    type: 'content',
+    title: s.title || ('Slide ' + slideNum),
+    elements: elements.length > 0 ? elements : [{
+      id: 'el_' + Math.random().toString(36).substr(2, 9),
+      kind: 'paragraph',
+      text: 'Slide ' + slideNum,
+      size: 16
+    }]
+  };
+}
+
 async function convertPptxSlideAI(mode) {
   if (!currentPptxDeck || !currentPptxDeck.slides[selectedPptxSlideIdx]) return;
   const s = currentPptxDeck.slides[selectedPptxSlideIdx];
@@ -3163,7 +3273,7 @@ async function convertPptxSlideAI(mode) {
   setPptxStatus('Converting PowerPoint slide with AI (OCR & Interactive Exercises)...', 'info', true);
 
   try {
-    const imagesPayload = (s.images || []).slice(0, 3).map(img => ({
+    const imagesPayload = (s.images || []).slice(0, 4).map(img => ({
       mimeType: img.mimeType,
       base64: img.base64
     }));
@@ -3192,8 +3302,9 @@ async function convertPptxSlideAI(mode) {
       if (topUndo) topUndo.style.display = 'inline-block';
     }
 
-    const convertedSlide = result.slide;
+    let convertedSlide = result.slide;
     if (!convertedSlide.id) convertedSlide.id = 'slide_' + Math.random().toString(36).substr(2, 9);
+    convertedSlide = mapMediaToConvertedSlide(convertedSlide, s);
 
     if (mode === 'replace') {
       const idx = slides.findIndex(x => x.id === selectedSlideId);
@@ -3216,7 +3327,7 @@ async function convertPptxSlideAI(mode) {
     renderSlideList();
     renderElements();
     if (typeof updatePreview === 'function') updatePreview();
-    setPptxStatus('Slide ' + (mode === 'replace' ? 'replaced' : 'inserted') + ' with AI conversion!', 'success');
+    setPptxStatus('Slide ' + (mode === 'replace' ? 'replaced' : 'inserted') + ' with AI conversion & images!', 'success');
   } catch (err) {
     console.error('convertPptxSlideAI error:', err);
     setPptxStatus('Conversion error: ' + err.message, 'error');
@@ -3229,32 +3340,13 @@ async function convertPptxSlideAI(mode) {
 function insertPptxSlideDirect() {
   if (!currentPptxDeck || !currentPptxDeck.slides[selectedPptxSlideIdx]) return;
   const s = currentPptxDeck.slides[selectedPptxSlideIdx];
+  const newSlide = buildDirectSlideFromPptx(s, selectedPptxSlideIdx + 1);
 
-  const elements = [];
-  if (s.text) {
-    elements.push({
-      id: 'el_' + Math.random().toString(36).substr(2, 9),
-      kind: 'paragraph',
-      text: s.text,
-      size: 16
-    });
+  if (typeof undoStack !== 'undefined') {
+    undoStack.push(JSON.parse(JSON.stringify(slides)));
+    const topUndo = document.getElementById('undoAutoFixBtnTop');
+    if (topUndo) topUndo.style.display = 'inline-block';
   }
-
-  (s.images || []).forEach(img => {
-    elements.push({
-      id: 'el_' + Math.random().toString(36).substr(2, 9),
-      kind: 'image',
-      url: img.dataUrl,
-      caption: ''
-    });
-  });
-
-  const newSlide = {
-    id: 'slide_' + Math.random().toString(36).substr(2, 9),
-    type: 'content',
-    title: s.title || 'Slide ' + (slides.length + 1),
-    elements: elements
-  };
 
   const idx = slides.findIndex(x => x.id === selectedSlideId);
   if (idx !== -1) {
@@ -3267,63 +3359,130 @@ function insertPptxSlideDirect() {
   renderSlideList();
   renderElements();
   if (typeof updatePreview === 'function') updatePreview();
-  setPptxStatus('Directly inserted slide from PowerPoint.', 'success');
+  setPptxStatus('Directly inserted slide with all images & text.', 'success');
 }
 
+// Instant 1:1 direct import of ALL slides with images and text in under 1 second
+function directImportPptxDeck() {
+  if (!currentPptxDeck || !currentPptxDeck.slides || currentPptxDeck.slides.length === 0) return;
+
+  if (!confirm('Import all ' + currentPptxDeck.slides.length + ' slides directly with all images and text? (This will replace the current session slides)')) {
+    return;
+  }
+
+  if (typeof undoStack !== 'undefined') {
+    undoStack.push(JSON.parse(JSON.stringify(slides)));
+    const topUndo = document.getElementById('undoAutoFixBtnTop');
+    if (topUndo) topUndo.style.display = 'inline-block';
+  }
+
+  const newSlides = currentPptxDeck.slides.map((s, i) => buildDirectSlideFromPptx(s, i + 1));
+  slides = newSlides;
+  selectedSlideId = slides[0] ? slides[0].id : null;
+  renderSlideList();
+  renderElements();
+  if (typeof updatePreview === 'function') updatePreview();
+  setPptxStatus('Successfully imported ALL ' + slides.length + ' slides directly with all images and text!', 'success');
+}
+
+// Converts every single slide in the deck into rich interactive Z-English slides with AI OCR & question extraction
 async function convertPptxDeckToSession() {
   if (!currentPptxDeck || !currentPptxDeck.slides || currentPptxDeck.slides.length === 0) return;
 
-  const userInstructions = prompt('Enter any special instructions for converting this full PowerPoint deck (or leave blank for standard interactive session):', '');
+  const totalSlides = currentPptxDeck.slides.length;
+  const userInstructions = prompt('Enter any special instructions for converting all ' + totalSlides + ' slides with AI (or leave blank for standard interactive conversion):', '');
   if (userInstructions === null) return;
 
   const btn = document.getElementById('pptxConvertAllBtn');
+  const directBtn = document.getElementById('pptxDirectImportAllBtn');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting Presentation...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting 0/' + totalSlides + '...';
   }
-  setPptxStatus('Converting complete PowerPoint presentation (' + currentPptxDeck.slides.length + ' slides) into an interactive Z-English session...', 'info', true);
+  if (directBtn) directBtn.disabled = true;
+
+  if (typeof undoStack !== 'undefined') {
+    undoStack.push(JSON.parse(JSON.stringify(slides)));
+    const topUndo = document.getElementById('undoAutoFixBtnTop');
+    if (topUndo) topUndo.style.display = 'inline-block';
+  }
+
+  const convertedSlides = new Array(totalSlides);
+  let completedCount = 0;
+  let nextIdx = 0;
+  const CONCURRENCY = 2;
+
+  async function worker() {
+    while (true) {
+      const i = nextIdx++;
+      if (i >= totalSlides) return;
+      const s = currentPptxDeck.slides[i];
+      
+      setPptxStatus('Converting slide ' + (i + 1) + ' of ' + totalSlides + ' (AI OCR & Interactive Exercises)... [' + Math.round((completedCount / totalSlides) * 100) + '%]', 'info', true);
+      if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Slide ' + (completedCount + 1) + '/' + totalSlides;
+
+      try {
+        const imagesPayload = (s.images || []).slice(0, 4).map(img => ({
+          mimeType: img.mimeType,
+          base64: img.base64
+        }));
+
+        const result = await callBackend(new URLSearchParams({
+          action: 'convertPptxSlide',
+          token: sessionToken,
+          slideData: JSON.stringify({
+            title: s.title,
+            text: s.text,
+            notes: s.notes,
+            media: (s.media || []).map(m => ({ name: m.name, type: m.type })),
+            images: imagesPayload
+          }),
+          instructions: userInstructions || ''
+        }));
+
+        if (result && result.success && result.slide) {
+          let cSlide = result.slide;
+          if (!cSlide.id) cSlide.id = 'slide_' + Math.random().toString(36).substr(2, 9);
+          convertedSlides[i] = mapMediaToConvertedSlide(cSlide, s);
+        } else {
+          // Direct slide fallback so no slide is ever lost
+          convertedSlides[i] = buildDirectSlideFromPptx(s, i + 1);
+        }
+      } catch (slideErr) {
+        console.warn('AI conversion failed on slide ' + (i + 1) + ', using direct slide fallback:', slideErr);
+        convertedSlides[i] = buildDirectSlideFromPptx(s, i + 1);
+      } finally {
+        completedCount++;
+        setPptxStatus('Processed ' + completedCount + ' of ' + totalSlides + ' slides (' + Math.round((completedCount / totalSlides) * 100) + '%)...', 'info', true);
+      }
+    }
+  }
 
   try {
-    const outline = currentPptxDeck.slides.map((s, i) => ({
-      index: i + 1,
-      title: s.title,
-      text: s.text,
-      notes: s.notes,
-      media: (s.media || []).map(m => ({ name: m.name, type: m.type }))
-    }));
+    const workerCount = Math.min(CONCURRENCY, totalSlides);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
-    const result = await callBackend(new URLSearchParams({
-      action: 'convertPptxSession',
-      token: sessionToken,
-      slides: JSON.stringify(outline),
-      instructions: userInstructions || ''
-    }));
-
-    if (!result.success || !Array.isArray(result.slides) || result.slides.length === 0) {
-      setPptxStatus('Could not convert presentation: ' + (result.message || 'AI did not return slides'), 'error');
-      return;
+    const finalSlides = convertedSlides.filter(Boolean);
+    if (finalSlides.length > 0) {
+      slides = finalSlides;
+      selectedSlideId = slides[0] ? slides[0].id : null;
+      renderSlideList();
+      renderElements();
+      if (typeof updatePreview === 'function') updatePreview();
+      setPptxStatus('Successfully converted and imported ALL ' + slides.length + ' slides with images & interactive questions!', 'success');
+    } else {
+      setPptxStatus('Failed to generate slides.', 'error');
     }
-
-    if (typeof undoStack !== 'undefined') {
-      undoStack.push(JSON.parse(JSON.stringify(slides)));
-      const topUndo = document.getElementById('undoAutoFixBtnTop');
-      if (topUndo) topUndo.style.display = 'inline-block';
-    }
-
-    slides = result.slides;
-    selectedSlideId = slides[0] ? slides[0].id : null;
-    renderSlideList();
-    renderElements();
-    if (typeof updatePreview === 'function') updatePreview();
-    setPptxStatus('Successfully generated full session (' + slides.length + ' slides) from PowerPoint!', 'success');
   } catch (err) {
     console.error('convertPptxDeckToSession error:', err);
-    setPptxStatus('Session conversion failed: ' + err.message, 'error');
+    setPptxStatus('Session conversion error: ' + err.message, 'error');
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Convert Entire Deck to Session (AI)';
+      const count = currentPptxDeck ? currentPptxDeck.slides.length : 0;
+      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> AI Smart Convert All (' + count + ' Slides)';
     }
+    if (directBtn) directBtn.disabled = false;
   }
 }
 </script>
