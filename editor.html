@@ -2303,6 +2303,17 @@ async function autoFixCurrentSession() {
     <!-- Hidden file input -->
     <input type="file" id="pptxFileInput" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display: none;" onchange="handlePptxFileUpload(event)">
 
+    <!-- In-Modal Live Status Banner -->
+    <div id="pptxModalStatusBar" style="display:none; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:12px; align-items:center; justify-content:space-between; gap:10px; transition:all 0.2s;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <i id="pptxModalStatusIcon" class="fas fa-spinner fa-spin"></i>
+        <span id="pptxModalStatusText">Loading...</span>
+      </div>
+      <button class="btn btn-outline" onclick="hidePptxStatus()" style="padding:2px 8px; font-size:11px; border:none; background:transparent; cursor:pointer;" title="Dismiss">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
     <!-- Upload Dropzone View (when no file loaded) -->
     <div id="pptxDropzoneView" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="triggerPptxFileInput()" ondragover="handlePptxDragOver(event)" ondragleave="handlePptxDragLeave(event)" ondrop="handlePptxDrop(event)">
       <div style="width: 72px; height: 72px; border-radius: 50%; background: #fff3e0; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #d84315; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(216, 67, 21, 0.15);">
@@ -2426,6 +2437,10 @@ async function autoFixCurrentSession() {
 </div>
 
 <script>
+window.updateLivePreview = function() {
+  if (typeof updatePreview === 'function') updatePreview();
+};
+
 let aiModalResolve = null;
 function openAiModal() {
   const input = document.getElementById('aiModalInput');
@@ -2544,10 +2559,44 @@ let currentPptxDeck = null;
 let selectedPptxSlideIdx = 0;
 let pptxMediaDrawerOpen = false;
 
+function setPptxStatus(msg, type = 'info', showSpinner = false) {
+  if (typeof setStatus === 'function') setStatus(msg, type);
+  const bar = document.getElementById('pptxModalStatusBar');
+  const text = document.getElementById('pptxModalStatusText');
+  const icon = document.getElementById('pptxModalStatusIcon');
+  if (!bar || !text || !icon) return;
+
+  bar.style.display = 'flex';
+  text.innerText = msg;
+
+  if (type === 'error') {
+    bar.style.background = '#fef2f2';
+    bar.style.border = '1.5px solid #f87171';
+    bar.style.color = '#b91c1c';
+    icon.className = 'fas fa-circle-exclamation';
+  } else if (type === 'success') {
+    bar.style.background = '#f0fdf4';
+    bar.style.border = '1.5px solid #86efac';
+    bar.style.color = '#15803d';
+    icon.className = 'fas fa-circle-check';
+  } else {
+    bar.style.background = '#faf5ff';
+    bar.style.border = '1.5px solid #d8b4fe';
+    bar.style.color = '#6b21a8';
+    icon.className = showSpinner ? 'fas fa-spinner fa-spin' : 'fas fa-circle-info';
+  }
+}
+
+function hidePptxStatus() {
+  const bar = document.getElementById('pptxModalStatusBar');
+  if (bar) bar.style.display = 'none';
+}
+
 function openPptxModal() {
   const modal = document.getElementById('pptxModal');
   if (!modal) return;
   modal.classList.add('active');
+  hidePptxStatus();
   if (currentPptxDeck && currentPptxDeck.slides && currentPptxDeck.slides.length > 0) {
     showPptxDeckView();
   } else {
@@ -2619,7 +2668,7 @@ function handlePptxDrop(e) {
     if (file.name.toLowerCase().endsWith('.pptx')) {
       processPptxFile(file);
     } else {
-      alert('Please select a valid PowerPoint (.pptx) file.');
+      setPptxStatus('Please select a valid PowerPoint (.pptx) file.', 'error');
     }
   }
 }
@@ -2632,21 +2681,22 @@ function handlePptxFileUpload(e) {
 
 async function processPptxFile(file) {
   if (typeof JSZip === 'undefined') {
-    alert('JSZip library is still loading. Please wait a moment and try again.');
+    setPptxStatus('JSZip library is still loading. Please wait a moment and try again.', 'error');
     return;
   }
   const loading = document.getElementById('pptxLoadingIndicator');
   if (loading) loading.style.display = 'flex';
+  setPptxStatus('Extracting PowerPoint contents and media...', 'info', true);
   
   try {
     const parsed = await parsePptxFile(file);
     currentPptxDeck = parsed;
     selectedPptxSlideIdx = 0;
     showPptxDeckView();
-    setStatus('PowerPoint loaded: ' + parsed.slides.length + ' slides, ' + parsed.allMedia.length + ' media items found.', 'success');
+    setPptxStatus('PowerPoint loaded: ' + parsed.slides.length + ' slides, ' + parsed.allMedia.length + ' media items found.', 'success');
   } catch (err) {
     console.error('Failed to parse PPTX file:', err);
-    alert('Could not read PowerPoint file: ' + err.message);
+    setPptxStatus('Could not read PowerPoint file: ' + err.message, 'error');
     showPptxDropzoneView();
   }
 }
@@ -3036,7 +3086,7 @@ function insertExtractedMediaToSlide(mediaName) {
 
   const currentSlide = slides.find(s => s.id === selectedSlideId) || slides[0];
   if (!currentSlide) {
-    alert('Please add or select a slide first.');
+    setPptxStatus('Please add or select a slide first.', 'error');
     return;
   }
 
@@ -3049,8 +3099,8 @@ function insertExtractedMediaToSlide(mediaName) {
 
   currentSlide.elements.push(newEl);
   renderElements();
-  updateLivePreview();
-  setStatus('Inserted ' + item.name + ' into slide.', 'success');
+  if (typeof updatePreview === 'function') updatePreview();
+  setPptxStatus('Inserted ' + item.name + ' into slide.', 'success');
 }
 
 async function ocrQuestionFromMedia(mediaName) {
@@ -3058,7 +3108,7 @@ async function ocrQuestionFromMedia(mediaName) {
   const item = (currentPptxDeck.allMedia || []).find(m => m.name === mediaName);
   if (!item || !item.base64) return;
 
-  setStatus('Analyzing and transcribing question image with AI OCR...', 'info');
+  setPptxStatus('Analyzing and transcribing question image with AI OCR...', 'info', true);
   try {
     const result = await callBackend(new URLSearchParams({
       action: 'convertPptxSlide',
@@ -3072,13 +3122,13 @@ async function ocrQuestionFromMedia(mediaName) {
     }));
 
     if (!result.success || !result.slide) {
-      alert('Could not convert image question: ' + (result.message || 'Unknown error'));
+      setPptxStatus('Could not convert image question: ' + (result.message || 'Unknown error'), 'error');
       return;
     }
 
     const currentSlide = slides.find(s => s.id === selectedSlideId) || slides[0];
     if (!currentSlide) {
-      alert('Please select a slide in the editor first.');
+      setPptxStatus('Please select a slide in the editor first.', 'error');
       return;
     }
 
@@ -3086,17 +3136,17 @@ async function ocrQuestionFromMedia(mediaName) {
     if (qElements.length > 0) {
       currentSlide.elements.push(...qElements);
       renderElements();
-      updateLivePreview();
-      setStatus('Successfully transcribed and added ' + qElements.length + ' interactive questions!', 'success');
+      if (typeof updatePreview === 'function') updatePreview();
+      setPptxStatus('Successfully transcribed and added ' + qElements.length + ' interactive questions!', 'success');
     } else if (result.slide.elements && result.slide.elements.length > 0) {
       currentSlide.elements.push(...result.slide.elements);
       renderElements();
-      updateLivePreview();
-      setStatus('Added converted elements to slide.', 'success');
+      if (typeof updatePreview === 'function') updatePreview();
+      setPptxStatus('Added converted elements to slide.', 'success');
     }
   } catch (err) {
     console.error('OCR Question error:', err);
-    setStatus('Failed to transcribe image: ' + err.message, 'error');
+    setPptxStatus('Failed to transcribe image: ' + err.message, 'error');
   }
 }
 
@@ -3110,7 +3160,7 @@ async function convertPptxSlideAI(mode) {
   if (insertBtn) insertBtn.disabled = true;
   if (replaceBtn) replaceBtn.disabled = true;
 
-  setStatus('Converting PowerPoint slide with AI (OCR & Interactive Exercises)...', 'info');
+  setPptxStatus('Converting PowerPoint slide with AI (OCR & Interactive Exercises)...', 'info', true);
 
   try {
     const imagesPayload = (s.images || []).slice(0, 3).map(img => ({
@@ -3132,7 +3182,7 @@ async function convertPptxSlideAI(mode) {
     }));
 
     if (!result.success || !result.slide) {
-      alert('AI Conversion failed: ' + (result.message || 'Unknown error'));
+      setPptxStatus('AI Conversion failed: ' + (result.message || 'Unknown error'), 'error');
       return;
     }
 
@@ -3165,12 +3215,11 @@ async function convertPptxSlideAI(mode) {
     selectedSlideId = convertedSlide.id;
     renderSlideList();
     renderElements();
-    updateLivePreview();
-    closePptxModal();
-    setStatus('Slide ' + (mode === 'replace' ? 'replaced' : 'inserted') + ' with AI conversion!', 'success');
+    if (typeof updatePreview === 'function') updatePreview();
+    setPptxStatus('Slide ' + (mode === 'replace' ? 'replaced' : 'inserted') + ' with AI conversion!', 'success');
   } catch (err) {
     console.error('convertPptxSlideAI error:', err);
-    setStatus('Conversion error: ' + err.message, 'error');
+    setPptxStatus('Conversion error: ' + err.message, 'error');
   } finally {
     if (insertBtn) insertBtn.disabled = false;
     if (replaceBtn) replaceBtn.disabled = false;
@@ -3217,9 +3266,8 @@ function insertPptxSlideDirect() {
   selectedSlideId = newSlide.id;
   renderSlideList();
   renderElements();
-  updateLivePreview();
-  closePptxModal();
-  setStatus('Directly inserted slide from PowerPoint.', 'success');
+  if (typeof updatePreview === 'function') updatePreview();
+  setPptxStatus('Directly inserted slide from PowerPoint.', 'success');
 }
 
 async function convertPptxDeckToSession() {
@@ -3233,7 +3281,7 @@ async function convertPptxDeckToSession() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting Presentation...';
   }
-  setStatus('Converting complete PowerPoint presentation into an interactive Z-English session...', 'info');
+  setPptxStatus('Converting complete PowerPoint presentation (' + currentPptxDeck.slides.length + ' slides) into an interactive Z-English session...', 'info', true);
 
   try {
     const outline = currentPptxDeck.slides.map((s, i) => ({
@@ -3252,7 +3300,7 @@ async function convertPptxDeckToSession() {
     }));
 
     if (!result.success || !Array.isArray(result.slides) || result.slides.length === 0) {
-      alert('Could not convert presentation: ' + (result.message || 'AI did not return slides'));
+      setPptxStatus('Could not convert presentation: ' + (result.message || 'AI did not return slides'), 'error');
       return;
     }
 
@@ -3266,12 +3314,11 @@ async function convertPptxDeckToSession() {
     selectedSlideId = slides[0] ? slides[0].id : null;
     renderSlideList();
     renderElements();
-    updateLivePreview();
-    closePptxModal();
-    setStatus('Successfully generated full session (' + slides.length + ' slides) from PowerPoint!', 'success');
+    if (typeof updatePreview === 'function') updatePreview();
+    setPptxStatus('Successfully generated full session (' + slides.length + ' slides) from PowerPoint!', 'success');
   } catch (err) {
     console.error('convertPptxDeckToSession error:', err);
-    setStatus('Session conversion failed: ' + err.message, 'error');
+    setPptxStatus('Session conversion failed: ' + err.message, 'error');
   } finally {
     if (btn) {
       btn.disabled = false;

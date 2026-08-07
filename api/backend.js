@@ -2391,7 +2391,10 @@ async function _convertPptxSlide(p) {
   if (!session) return { success: false, message: 'Authentication required.' };
   if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
 
-  const slideData = p.slideData || {};
+  let slideData = p.slideData || {};
+  if (typeof slideData === 'string') {
+    try { slideData = JSON.parse(slideData); } catch (e) { slideData = {}; }
+  }
   const customInstructions = String(p.instructions || '').trim();
   const parts = [];
 
@@ -2444,7 +2447,10 @@ async function _convertPptxSession(p) {
   if (!session) return { success: false, message: 'Authentication required.' };
   if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
 
-  const pptxSlides = p.slides;
+  let pptxSlides = p.slides;
+  if (typeof pptxSlides === 'string') {
+    try { pptxSlides = JSON.parse(pptxSlides); } catch (e) { pptxSlides = []; }
+  }
   if (!Array.isArray(pptxSlides) || pptxSlides.length === 0) {
     return { success: false, message: 'No slides provided.' };
   }
