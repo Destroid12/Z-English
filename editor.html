@@ -1869,7 +1869,8 @@ if (previewBtn) {
       setStatus('Add at least one slide to preview.', 'error');
       return;
     }
-    localStorage.setItem('zenglish_preview_session', JSON.stringify(slides));
+    const compiledSlides = slides.map(compileSlide);
+    localStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
     window.open('player.html?preview=1', '_blank');
   };
 }
@@ -2092,11 +2093,6 @@ async function autoFixCurrentSlide() {
 }
 
 async function autoFixCurrentSession() {
-  if (!slides || slides.length === 0) {
-    setStatus('No slides to fix in this session.', 'error');
-    return;
-  }
-  if (!confirm('Send ALL slides in this session to Z-AI to be automatically fixed or generated? This may take some time depending on the prompt.')) return;
   const customInstructions = await openAiModal();
   if (customInstructions === null) return;
   
@@ -2107,10 +2103,11 @@ async function autoFixCurrentSession() {
   if (btn) btn.disabled = true;
   if (stopBtn) stopBtn.style.display = 'inline-block';
   
-  setStatus('Z-AI is analyzing and generating session...', 'info');
+  setStatus('Z-AI is analyzing, designing, and generating slides...', 'info');
   
   try {
-    const strippedSlides = slides.map(s => stripLargeDataUrls(s).strippedSlide);
+    const currentList = Array.isArray(slides) ? slides : [];
+    const strippedSlides = currentList.map(s => stripLargeDataUrls(s).strippedSlide);
     const result = await callBackend(new URLSearchParams({ 
       action: 'autoFixSession', 
       token: sessionToken, 
@@ -2140,7 +2137,7 @@ async function autoFixCurrentSession() {
       renderSlideList();
       if (slides.length > 0) selectSlide(slides[0].id);
       else { selectedSlideId = null; document.getElementById('previewFrame').srcdoc = ''; renderElements(); }
-      setStatus('Session Auto-Fix complete!', 'success');
+      setStatus(`Session generation complete! (${slides.length} slides)`, 'success');
     } else {
       setStatus(result.message || 'Auto-Fix failed.', 'error');
     }

@@ -845,16 +845,84 @@ async function _uploadMedia(p) {
 }
 
 async function _getMedia(p) {
-  const id = p.id;
+  let id = String(p.id || '').trim();
   if (!id) return { success: false, message: 'No file ID provided' };
+
+  // If a full Drive URL or ID was provided, extract the clean file ID
+  const driveMatch = id.match(/\/file\/d\/([-\w]+)/) || id.match(/id=([-\w]+)/) || id.match(/([-\w]{25,})/);
+  const cleanDriveId = driveMatch ? (driveMatch[1] || driveMatch[0]) : id;
+
   try {
+    // 1. Try Supabase storage
     const { data: row } = await supabase
-      .from('media').select('*').eq('id', id).maybeSingle();
-    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(id);
-    if (error || !data) throw new Error(error ? error.message : 'File not found');
-    const buf = Buffer.from(await data.arrayBuffer());
-    const mimeType = (row && row.mime_type) ? row.mime_type : 'application/octet-stream';
-    return { success: true, base64: buf.toString('base64'), mimeType: mimeType };
+      .from('media').select('*').or(`id.eq.${id},id.eq.${cleanDriveId}`).maybeSingle();
+    
+    const lookupId = (row && row.id) ? row.id : id;
+    let data = null, error = null;
+    try {
+      const res = await supabase.storage.from(STORAGE_BUCKET).download(lookupId);
+      data = res.data;
+      error = res.error;
+    } catch (e) {
+      error = e;
+    }
+
+    if (!error && data) {
+      const buf = Buffer.from(await data.arrayBuffer());
+      const mimeType = (row && row.mime_type) ? row.mime_type : 'audio/mpeg';
+      return { success: true, base64: buf.toString('base64'), mimeType: mimeType };
+    }
+
+    // 2. Fallback: Google Drive or external URL download
+    const candidateUrls = [];
+    if (id.startsWith('http://') || id.startsWith('https://')) {
+      candidateUrls.push(id);
+    }
+    candidateUrls.push(
+      `https://drive.usercontent.google.com/download?id=${cleanDriveId}&export=download&confirm=t`,
+      `https://drive.google.com/uc?export=download&id=${cleanDriveId}&confirm=t`,
+      `https://docs.google.com/uc?export=download&id=${cleanDriveId}`
+    );
+
+    for (const fetchUrl of candidateUrls) {
+      try {
+        const extResp = await fetch(fetchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          },
+          redirect: 'follow'
+        });
+
+        if (extResp.ok) {
+          const ct = extResp.headers.get('content-type') || '';
+          if (!ct.includes('text/html')) {
+            const buf = Buffer.from(await extResp.arrayBuffer());
+            const mimeType = ct || (row && row.mime_type) || 'audio/mpeg';
+            return { success: true, base64: buf.toString('base64'), mimeType: mimeType };
+          } else {
+            const html = await extResp.text();
+            const confirmMatch = html.match(/href="(\/uc\?export=download[^"]+)"/) || html.match(/href="(https:\/\/[^"]+confirm=[^"]+)"/);
+            if (confirmMatch) {
+              let nextUrl = confirmMatch[1].replace(/&amp;/g, '&');
+              if (nextUrl.startsWith('/')) nextUrl = 'https://drive.google.com' + nextUrl;
+              const res2 = await fetch(nextUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                redirect: 'follow'
+              });
+              if (res2.ok && !res2.headers.get('content-type')?.includes('text/html')) {
+                const buf2 = Buffer.from(await res2.arrayBuffer());
+                const mimeType2 = res2.headers.get('content-type') || 'audio/mpeg';
+                return { success: true, base64: buf2.toString('base64'), mimeType: mimeType2 };
+              }
+            }
+          }
+        }
+      } catch (fetchErr) {
+        // Continue to next candidate URL
+      }
+    }
+
+    return { success: false, message: 'Media not found in storage or external source.' };
   } catch (err) {
     return { success: false, message: 'Failed to fetch media: ' + err.message };
   }
@@ -2074,77 +2142,59 @@ async function _askSiteTutor(p) {
 }
 
 // ---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Auto-fix (editor AI helpers)
 // ---------------------------------------------------------------------
-// Shared fixer prompt from the .gs file: describes the Z-English slide
-// element schema and asks for a JSON slide object (or { "delete": true }).
+const FIXER_SHARED_RULES =
+  '## ELEMENT KINDS (the "kind" property inside "elements" array)\n\n' +
+  '### 1. kind: "paragraph"\n' +
+  '{ "id": "ai_p123", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
+  'Use \\n for line breaks inside "text".\n\n' +
+  '### 2. kind: "image" (PICK RELATED IMAGES FROM INTERNET)\n' +
+  '{ "id": "ai_img12", "kind": "image", "pos": null, "url": "https://image.pollinations.ai/prompt/[detailed_english_description_with_spaces_replaced_by_%20]?width=600&height=400&nologo=true", "caption": "Optional caption" }\n' +
+  'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, ALWAYS include a kind:"image" element with a vivid, specific descriptive prompt.\n' +
+  'Example: "https://image.pollinations.ai/prompt/a%20happy%20family%20eating%20dinner%20together%20in%20a%20cozy%20kitchen?width=600&height=400&nologo=true"\n\n' +
+  '### 3. kind: "speaking"\n' +
+  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n\n' +
+  '### 4. kind: "list"\n' +
+  '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
+  '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
+  'Schema: { "id": "ai_q123", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "...", "answer": "...", "altAnswers": [], "options": [] }] }\n' +
+  'The "prompt" contains the question text. Use [blank] to mark where the interactive input goes.\n\n' +
+  '#### Supported Question Types ("qtype"):\n' +
+  '- "text": free text input. Example: { "qtype": "text", "answer": "goes", "altAnswers": ["Goes"], "options": [] }\n' +
+  '- "select": dropdown menu. Example: { "qtype": "select", "answer": "apples", "altAnswers": [], "options": ["apples", "banana", "bread"] }\n' +
+  '- "radio": single choice clickable buttons. Example: { "qtype": "radio", "answer": "blue", "altAnswers": [], "options": ["red", "blue", "green"] }\n' +
+  '- "checkbox": multi-select checkboxes. "answer" is comma-separated correct keys. Example: { "qtype": "checkbox", "answer": "dog,cat", "altAnswers": [], "options": ["dog", "cat", "chair", "table"] }\n' +
+  '- "match": matching pairs. "options" is array of "left|right". Example: { "qtype": "match", "answer": "", "altAnswers": [], "options": ["sun|daytime", "moon|night", "rain|water"] }\n' +
+  '- "schedule": put items in order. "options" is correct order array. Example: { "qtype": "schedule", "answer": "", "altAnswers": [], "options": ["First step", "Second step", "Third step"] }\n' +
+  '- "wordbank": arrange words into sentence. "answer" is full sentence, "options" is list of words. Example: { "qtype": "wordbank", "answer": "She is reading a book", "altAnswers": [], "options": ["She", "is", "reading", "a", "book", "plays"] }\n\n';
+
 const FIXER_SYSTEM_PROMPT =
   'You are an expert educational slide fixer for the Z-English learning platform.\n' +
   'You receive a JSON object representing a SINGLE SLIDE with: { "id": "...", "type": "content"|"activity", "title": "...", "elements": [...] }\n\n' +
-  '## ELEMENT KINDS (the "kind" property)\n' +
-  'Each element in the "elements" array has a "kind". Here is every supported kind and its exact schema:\n\n' +
-  '### kind: "paragraph"\n' +
-  '{ "id": "uid", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "", "font": "" }\n' +
-  'Use \\n for line breaks inside "text".\n\n' +
-  '### kind: "image"\n' +
-  '{ "id": "uid", "kind": "image", "pos": null, "url": "https://...", "caption": "Optional caption" }\n' +
-  'To generate images, set url to: "https://image.pollinations.ai/prompt/[detailed_description]?width=600&height=400&nologo=true"\n\n' +
-  '### kind: "video"\n' +
-  '{ "id": "uid", "kind": "video", "pos": null, "url": "https://drive.google.com/...", "caption": "" }\n\n' +
-  '### kind: "audio"\n' +
-  '{ "id": "uid", "kind": "audio", "pos": null, "url": "https://...", "caption": "" }\n\n' +
-  '### kind: "list"\n' +
-  '{ "id": "uid", "kind": "list", "pos": null, "items": [{ "text": "Item 1", "time": "" }, { "text": "Item 2", "time": "10:00" }], "font": "" }\n\n' +
-  '### kind: "link"\n' +
-  '{ "id": "uid", "kind": "link", "pos": null, "url": "https://...", "text": "Link Title", "subtext": "optional subtitle" }\n\n' +
-  '### kind: "raw"\n' +
-  '{ "id": "uid", "kind": "raw", "pos": null, "html": "<div>...raw HTML...</div>" }\n' +
-  'Use "raw" ONLY as a last resort for complex layouts that cannot be represented by the other kinds.\n\n' +
-  '### kind: "question" ← THIS IS THE MOST IMPORTANT ONE\n' +
-  'Schema: { "id": "uid", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "...", "answer": "...", "altAnswers": [], "options": [] }] }\n\n' +
-  'The "prompt" contains the question text. Use [blank] to mark where the interactive input goes.\n' +
-  'If the prompt has NO [blank], the interactive input appears AFTER the prompt text.\n' +
-  'The "blanks" array has one entry per [blank] in the prompt (or one entry if no [blank]).\n\n' +
-  '## QUESTION TYPES (qtype values inside blanks)\n\n' +
-  '### qtype: "text" — free text input\n' +
-  'Student types the answer. Example:\n' +
-  '{ "id": "q1", "kind": "question", "pos": null, "prompt": "The capital of France is [blank].", "font": "", "blanks": [{ "qtype": "text", "answer": "Paris", "altAnswers": ["paris"], "options": [] }] }\n\n' +
-  '### qtype: "select" — dropdown menu\n' +
-  'Student picks from a dropdown. "options" lists all choices, "answer" is the correct one.\n' +
-  '{ "id": "q2", "kind": "question", "pos": null, "prompt": "She [blank] to school every day.", "font": "", "blanks": [{ "qtype": "select", "answer": "goes", "altAnswers": [], "options": ["go", "goes", "going", "gone"] }] }\n\n' +
-  '### qtype: "radio" — single choice (buttons)\n' +
-  'Student clicks one option. Same schema as select but rendered as clickable buttons.\n' +
-  '{ "id": "q3", "kind": "question", "pos": null, "prompt": "What color is the sky?", "font": "", "blanks": [{ "qtype": "radio", "answer": "blue", "altAnswers": [], "options": ["red", "blue", "green", "yellow"] }] }\n\n' +
-  '### qtype: "checkbox" — multiple choice (select all that apply)\n' +
-  '"answer" is a comma-separated string of ALL correct values.\n' +
-  '{ "id": "q4", "kind": "question", "pos": null, "prompt": "Select all the fruits:", "font": "", "blanks": [{ "qtype": "checkbox", "answer": "apple,banana,mango", "altAnswers": [], "options": ["apple", "banana", "mango", "chair", "car"] }] }\n\n' +
-  '### qtype: "match" — matching pairs\n' +
-  '"options" is an array of strings in "left|right" format. Each string pairs a left item with its correct right item.\n' +
-  '{ "id": "q5", "kind": "question", "pos": null, "prompt": "Match the words with their meanings:", "font": "", "blanks": [{ "qtype": "match", "answer": "", "altAnswers": [], "options": ["dog|a pet animal", "car|a vehicle", "book|something to read"] }] }\n' +
-  'You can add TRAP choices (extra right-side items with no left match) by adding entries with an empty left side: "|a wrong answer"\n\n' +
-  '### qtype: "schedule" — put items in correct order\n' +
-  '"options" lists the items in the CORRECT order. The player will shuffle them for the student to reorder.\n' +
-  '{ "id": "q6", "kind": "question", "pos": null, "prompt": "Put these steps in order:", "font": "", "blanks": [{ "qtype": "schedule", "answer": "", "altAnswers": [], "options": ["Wake up", "Brush teeth", "Eat breakfast", "Go to school"] }] }\n\n' +
-  '### qtype: "wordbank" — drag words to form a sentence\n' +
-  '"answer" is the correct sentence. "options" lists the individual words (can include distractors).\n' +
-  '{ "id": "q7", "kind": "question", "pos": null, "prompt": "Arrange the words to make a sentence:", "font": "", "blanks": [{ "qtype": "wordbank", "answer": "I like to eat pizza", "altAnswers": [], "options": ["I", "like", "to", "eat", "pizza", "run"] }] }\n\n' +
+  FIXER_SHARED_RULES +
   '## YOUR TASK RULES\n' +
-  '1. SLIDE DELETION: If custom instructions say to remove the slide, or if it is a "Rules"/"Workbook" slide, return exactly: { "delete": true }\n' +
-  '2. TITLE: Update "title" if it says "(untitled)" or is inaccurate.\n' +
-  '3. EMOJIS: Replace bland emoji illustrations with kind:"image" elements using pollinations.ai URLs.\n' +
-  '4. BROKEN TEXT: Fix broken grammar, cut-off texts, or raw HTML. Convert to kind:"paragraph" elements.\n' +
-  '5. QUESTIONS: When asked to add questions, you MUST actually create kind:"question" elements with proper "prompt", "blanks", and the correct "qtype".\n' +
-  '   - Choose the most appropriate qtype for the content.\n' +
-  '   - For vocabulary lessons, prefer "match" or "select".\n' +
-  '   - For comprehension, prefer "radio" or "checkbox".\n' +
-  '   - For ordering/sequencing, prefer "schedule".\n' +
-  '   - For sentence building, prefer "wordbank".\n' +
-  '6. ADDING ELEMENTS: To add a new element, create a JSON object with a unique "id" (use format "ai_" + random 6 chars), the correct "kind", and all required properties.\n' +
-  '7. REMOVING ELEMENTS: To remove an element, simply omit it from the "elements" array.\n' +
-  '8. PRESERVE: Keep the original "id" of elements you are not removing. Keep the slide "id" unchanged.\n\n' +
-  'CRITICAL: You MUST think step-by-step inside a <think> ... </think> block BEFORE writing the JSON.\n' +
-  'After the <think> block, output ONLY a raw JSON object enclosed in ```json ... ``` containing the fixed slide (with "id", "type", "title", and "elements"), OR { "delete": true }.\n' +
-  'Generate unique IDs for new elements using the format "ai_" followed by 6 random lowercase alphanumeric characters.';
+  '1. Fix grammar, formatting, and layout. Add relevant images using pollinations.ai URLs for vocabulary and topics.\n' +
+  '2. Convert raw text questions into interactive kind:"question" elements.\n' +
+  '3. Generate unique IDs for new elements using "ai_" followed by 6 random alphanumeric characters.\n' +
+  '4. Preserve existing element IDs where applicable. Keep the slide "id" unchanged.\n' +
+  '5. If the slide is obsolete or user requested deletion, return: { "delete": true }\n\n' +
+  'CRITICAL: You MUST think inside <think> ... </think> first. After that, output ONLY a valid JSON object ```json { ... } ``` or ```json { "delete": true } ```.';
+
+const FIXER_SESSION_SYSTEM_PROMPT =
+  'You are an expert educational curriculum creator and slide designer for the Z-English learning platform.\n' +
+  'You receive a JSON array of existing slides (which may be empty or contain 1 or more slides) along with user instructions.\n' +
+  'You must return a complete, professional, beautifully-structured JSON ARRAY of SLIDES: [ { "id": "...", "type": "content"|"activity", "title": "...", "elements": [...] }, ... ]\n\n' +
+  '## CORE POWERS:\n' +
+  '1. CREATE NEW SLIDES: If the user asks for a new session (e.g. "Create 10 slides about..."), or asks to add practice/quiz/dialogue/reading slides, CREATE AS MANY SLIDES AS REQUESTED OR NEEDED!\n' +
+  '2. PICK / GENERATE RELEVANT IMAGES: Include kind:"image" elements with vivid, educational prompts (e.g. "https://image.pollinations.ai/prompt/a%20modern%20doctor%20talking%20to%20a%20patient%20in%20a%20clinic?width=600&height=400&nologo=true") for vocabulary and concepts.\n' +
+  '3. INTERACTIVE ACTIVITIES: Create interactive exercises (matching pairs, radio buttons, select dropdowns, wordbank sentence builders, fill-in-the-blanks) and speaking practice blocks.\n' +
+  '4. EDIT / EXPAND EXISTING SLIDES: Polish, expand, or reorganize existing slides according to the instructions.\n\n' +
+  FIXER_SHARED_RULES +
+  '## SLIDE STRUCTURE:\n' +
+  'Each slide object must have: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n\n' +
+  'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY a valid JSON array enclosed in ```json [ ... ] ```.';
 
 // Extract the JSON payload out of a Gemini text reply (strip <think> blocks
 // and markdown fences; fall back to first {...} / [...] substring).
@@ -2172,16 +2222,15 @@ async function _autoFixSlide(p) {
   const customInstructions = String(p.instructions || '').trim();
   if (!slideJsonStr) return { success: false, message: 'Missing slide JSON.' };
 
-  let userPrompt = slideJsonStr;
+  let userPrompt = 'Slide JSON:\n' + slideJsonStr;
   if (customInstructions) {
-    userPrompt = 'Please follow these CUSTOM USER INSTRUCTIONS in addition to your standard rules:\n"""\n' +
-      customInstructions + '\n"""\n\nSlide JSON:\n' + slideJsonStr;
+    userPrompt = 'USER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\n\n' + userPrompt;
   }
 
   try {
     const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
       [{ role: 'user', parts: [{ text: userPrompt }] }],
-      { maxOutputTokens: 16384, temperature: 0.2 });
+      { maxOutputTokens: 16384, temperature: 0.3 });
     const fixedSlide = _extractJsonFromGemini(fixedText, false);
     return { success: true, fixedSlide: fixedSlide };
   } catch (err) {
@@ -2197,48 +2246,72 @@ async function _autoFixSession(p) {
 
   const slidesJsonStr = String(p.slidesJson || '').trim();
   const customInstructions = String(p.instructions || '').trim();
-  if (!slidesJsonStr) return { success: false, message: 'Missing slides JSON.' };
 
-  let slides;
-  try { slides = JSON.parse(slidesJsonStr); } catch (err) {
-    return { success: false, message: 'slidesJson is not valid JSON.' };
+  let slides = [];
+  if (slidesJsonStr) {
+    try { slides = JSON.parse(slidesJsonStr); } catch (err) {
+      return { success: false, message: 'slidesJson is not valid JSON.' };
+    }
   }
-  if (!Array.isArray(slides)) return { success: false, message: 'slidesJson must be an array of slides.' };
+  if (!Array.isArray(slides)) slides = [];
 
-  // Fix each slide individually so one bad slide can't sink the whole session.
-  // Run a few slides concurrently so multi-slide sessions finish within the
-  // Vercel function time limit (gemini flash models handle parallel calls).
-  const CONCURRENCY = 3;
-  const fixedSlides = new Array(slides.length);
-  let nextSlide = 0;
+  // When user gives instructions (e.g. create N slides, add new slides, re-structure),
+  // OR when starting with a small/empty deck, use whole-session generation to allow creating new slides!
+  try {
+    let userPrompt = 'Existing Session Slides JSON:\n' + JSON.stringify(slides, null, 2);
+    if (customInstructions) {
+      userPrompt = 'USER INSTRUCTIONS FOR THIS SESSION:\n"""\n' + customInstructions + '\n"""\n\n' + userPrompt;
+    } else {
+      userPrompt += '\n\nPlease fix, polish, improve, and add high-quality relevant images and interactive questions across this entire session.';
+    }
 
-  async function worker() {
-    while (true) {
-      const i = nextSlide++;
-      if (i >= slides.length) return;
-      const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
-      let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
-      if (customInstructions) {
-        userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions +
-          '\n"""\nPlease process this slide according to these instructions.';
+    const fixedText = await _callGemini(FIXER_SESSION_SYSTEM_PROMPT,
+      [{ role: 'user', parts: [{ text: userPrompt }] }],
+      { maxOutputTokens: 16384, temperature: 0.4 });
+
+    const resultSlides = _extractJsonFromGemini(fixedText, true);
+    if (Array.isArray(resultSlides)) {
+      const keptSlides = resultSlides.filter(function (s) { return s && s.delete !== true; });
+      return { success: true, slides: keptSlides };
+    }
+  } catch (wholeErr) {
+    console.warn('Whole-session AutoFix fallback due to:', wholeErr.message);
+  }
+
+  // Fallback: individual slide worker pool if whole-session returned error
+  if (slides.length > 0) {
+    const CONCURRENCY = 3;
+    const fixedSlides = new Array(slides.length);
+    let nextSlide = 0;
+
+    async function worker() {
+      while (true) {
+        const i = nextSlide++;
+        if (i >= slides.length) return;
+        const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
+        let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
+        if (customInstructions) {
+          userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\nPlease process this slide.';
+        }
+        const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
+          [{ role: 'user', parts: [{ text: userPrompt }] }],
+          { maxOutputTokens: 16384, temperature: 0.3 });
+        fixedSlides[i] = _extractJsonFromGemini(fixedText, false);
       }
-      const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
-        [{ role: 'user', parts: [{ text: userPrompt }] }],
-        { maxOutputTokens: 16384, temperature: 0.3 });
-      fixedSlides[i] = _extractJsonFromGemini(fixedText, false);
+    }
+
+    const workerCount = Math.min(CONCURRENCY, slides.length);
+    try {
+      await Promise.all(Array.from({ length: workerCount }, function () { return worker(); }));
+      const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
+      return { success: true, slides: keptSlides };
+    } catch (err) {
+      console.error('AutoFixSession fallback failed: ' + err.message);
+      return { success: false, message: 'AI returned invalid JSON: ' + err.message };
     }
   }
 
-  const workerCount = Math.min(CONCURRENCY, slides.length);
-  try {
-    await Promise.all(Array.from({ length: workerCount }, function () { return worker(); }));
-  } catch (err) {
-    console.error('AutoFixSession failed: ' + err.message);
-    return { success: false, message: 'AI returned invalid JSON: ' + err.message };
-  }
-  // Filter out any slides the AI decided to delete ({ delete: true }).
-  const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
-  return { success: true, slides: keptSlides };
+  return { success: false, message: 'No slides generated.' };
 }
 
 async function _analyzePPTXImage(p) {

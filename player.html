@@ -429,6 +429,27 @@ function showBlocked(message){
 }
 
 async function loadLesson(){
+  if (isPreview) {
+    try {
+      const raw = localStorage.getItem('zenglish_preview_session');
+      if (!raw) {
+        showBlocked("No preview session data found. Please return to the editor and click 'Preview Session' again.");
+        return;
+      }
+      let previewSlides = JSON.parse(raw);
+      if (!Array.isArray(previewSlides) || previewSlides.length === 0) {
+        showBlocked("The preview session has no slides. Add slides in the editor and click Preview Session.");
+        return;
+      }
+      initDeck(previewSlides);
+      return;
+    } catch (e) {
+      console.error('Failed to load preview:', e);
+      showBlocked("Could not load preview session: " + e.message);
+      return;
+    }
+  }
+
   if (!tempId && !testCode && (!track || !level || !sessionNumber || !accessToken)) {
     showBlocked("Missing or incomplete access link. Please open the lesson from the Z-English dashboard.");
     return;
@@ -507,7 +528,10 @@ function shuffleArray(array) {
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
-  if (tempId) {
+  if (isPreview) {
+    document.getElementById('lessonLabel').textContent = `Live Session Preview (Editor)`;
+    document.title = `Z-English — Live Preview`;
+  } else if (tempId) {
     document.getElementById('lessonLabel').textContent = `Temporary Session`;
     document.title = `Temporary Session`;
   } else {
@@ -1428,18 +1452,23 @@ function initCustomAudio(container) {
   const fill = container.querySelector('.z-audio-fill');
   const track = container.querySelector('.z-audio-track');
   const timeDisplay = container.querySelector('.z-audio-time');
-  const driveId = container.getAttribute('data-drive-id');
+  const rawId = container.getAttribute('data-drive-id') || container.getAttribute('data-src') || container.getAttribute('data-id') || '';
+  
+  // Extract file ID if a URL is provided
+  const driveMatch = rawId.match(/\/file\/d\/([-\w]+)/) || rawId.match(/id=([-\w]+)/) || rawId.match(/([-\w]{25,})/);
+  const driveId = driveMatch ? (driveMatch[1] || driveMatch[0]) : rawId;
+
   let audio = null;
   let isPlaying = false;
   let isReady = false;
-  let wantsToPlay = false;
+  let isLoading = false;
 
   const iconPlay = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>`;
   const iconPause = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
   const iconSpinner = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.2"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>`;
 
   function formatTime(sec) {
-    if (isNaN(sec)) return "0:00";
+    if (isNaN(sec) || !isFinite(sec)) return "0:00";
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return m + ":" + (s < 10 ? '0'+s : s);
@@ -1447,86 +1476,158 @@ function initCustomAudio(container) {
 
   function updateUI() {
     if (!audio) return;
-    const current = audio.currentTime;
+    const current = audio.currentTime || 0;
     const total = audio.duration || 0;
-    const pct = total > 0 ? (current / total) * 100 : 0;
-    fill.style.width = pct + '%';
-    timeDisplay.textContent = formatTime(current) + " / " + formatTime(total);
+    const pct = (total > 0 && isFinite(total)) ? (current / total) * 100 : 0;
+    if (fill) fill.style.width = pct + '%';
+    if (timeDisplay) timeDisplay.textContent = formatTime(current) + " / " + (total ? formatTime(total) : "0:00");
   }
 
-  async function preload() {
-    btn.innerHTML = iconSpinner;
-    container.classList.add('loading');
-    try {
-      const res = await fetch(`${BACKEND_URL}?action=getMedia&id=${driveId}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-      
-      audio = new Audio(`data:${data.mimeType};base64,${data.base64}`);
-      audio.addEventListener('timeupdate', updateUI);
-      audio.addEventListener('loadedmetadata', () => {
-        updateUI();
-        isReady = true;
-        
-        if (wantsToPlay) {
-          container.classList.remove('loading');
-          audio.play();
-          isPlaying = true;
-          btn.innerHTML = iconPause;
-        } else {
-          container.classList.remove('loading');
-          btn.innerHTML = iconPlay;
-        }
-      });
-      
-      audio.addEventListener('ended', () => {
-        isPlaying = false;
-        btn.innerHTML = iconPlay;
-        fill.style.width = '0%';
-        timeDisplay.textContent = "0:00 / " + formatTime(audio.duration);
-      });
-      
-    } catch (e) {
-      console.error(e);
+  function setPlayingState(playing) {
+    isPlaying = playing;
+    isLoading = false;
+    container.classList.remove('loading');
+    if (btn) btn.innerHTML = playing ? iconPause : iconPlay;
+  }
+
+  function attachAudioEvents(a) {
+    a.addEventListener('timeupdate', updateUI);
+    a.addEventListener('loadedmetadata', () => {
+      isReady = true;
+      isLoading = false;
       container.classList.remove('loading');
-      btn.innerHTML = iconPlay;
-    }
+      updateUI();
+    });
+    a.addEventListener('canplay', () => {
+      isReady = true;
+      isLoading = false;
+      container.classList.remove('loading');
+    });
+    a.addEventListener('ended', () => {
+      setPlayingState(false);
+      if (fill) fill.style.width = '0%';
+      if (timeDisplay && a.duration) timeDisplay.textContent = "0:00 / " + formatTime(a.duration);
+    });
+    a.addEventListener('error', () => {
+      console.warn('Audio playback error for ID:', driveId);
+      setPlayingState(false);
+    });
   }
 
-  preload();
-
-  btn.addEventListener('click', () => {
-    if (isReady) {
-      if (isPlaying) { 
-        audio.pause(); 
-        btn.innerHTML = iconPlay;
-      } else { 
-        audio.play(); 
-        btn.innerHTML = iconPause;
+  async function loadAudioSource() {
+    if (audio && isReady) return true;
+    if (!driveId) {
+      const innerAudio = container.querySelector('audio');
+      if (innerAudio && innerAudio.src) {
+        audio = innerAudio;
+        attachAudioEvents(audio);
+        isReady = true;
+        return true;
       }
-      isPlaying = !isPlaying;
-    } else {
-      wantsToPlay = !wantsToPlay;
-      if (wantsToPlay) {
-        container.classList.add('loading');
-        btn.innerHTML = iconSpinner;
+      return false;
+    }
+
+    // Direct HTTP or data URL
+    if (driveId.startsWith('http://') || driveId.startsWith('https://') || driveId.startsWith('data:')) {
+      audio = new Audio(driveId);
+      audio.preload = 'auto';
+      attachAudioEvents(audio);
+      isReady = true;
+      return true;
+    }
+
+    // Fetch via backend
+    try {
+      const res = await fetch(`${BACKEND_URL}?action=getMedia&id=${encodeURIComponent(driveId)}`);
+      const data = await res.json();
+      if (data.success && data.base64) {
+        audio = new Audio(`data:${data.mimeType || 'audio/mpeg'};base64,${data.base64}`);
+        audio.preload = 'auto';
+        attachAudioEvents(audio);
+        isReady = true;
+        return true;
+      }
+    } catch (e) {
+      console.warn('Backend getMedia failed:', e);
+    }
+
+    return false;
+  }
+
+  // Initial setup: start with clean Play icon, preload quietly in background
+  if (btn) btn.innerHTML = iconPlay;
+  container.classList.remove('loading');
+
+  // Background warm-up
+  if (driveId) {
+    loadAudioSource().then(ok => {
+      if (ok && audio) {
+        audio.load();
+      }
+    }).catch(() => {});
+  }
+
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (isPlaying && audio) {
+        audio.pause();
+        setPlayingState(false);
+        return;
+      }
+
+      if (isReady && audio) {
+        try {
+          await audio.play();
+          setPlayingState(true);
+        } catch (playErr) {
+          console.warn('Audio play failed:', playErr);
+          setPlayingState(false);
+        }
+        return;
+      }
+
+      // If not yet loaded, show spinner during load
+      isLoading = true;
+      container.classList.add('loading');
+      btn.innerHTML = iconSpinner;
+
+      const loaded = await loadAudioSource();
+      if (loaded && audio) {
+        try {
+          await audio.play();
+          setPlayingState(true);
+        } catch (err) {
+          console.warn('Audio play rejected:', err);
+          setPlayingState(false);
+        }
       } else {
+        // Fallback: render Google Drive preview iframe inside container so audio plays directly
         container.classList.remove('loading');
         btn.innerHTML = iconPlay;
+        const fallbackFrame = document.createElement('iframe');
+        fallbackFrame.src = `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview`;
+        fallbackFrame.style.width = '100%';
+        fallbackFrame.style.height = '60px';
+        fallbackFrame.style.border = 'none';
+        fallbackFrame.style.borderRadius = '12px';
+        fallbackFrame.style.marginTop = '6px';
+        fallbackFrame.setAttribute('allow', 'autoplay');
+        container.innerHTML = '';
+        container.appendChild(fallbackFrame);
       }
-    }
-  });
+    });
+  }
 
-  track.addEventListener('click', (e) => {
-    if (!isReady) return;
-    const rect = track.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
-    if (audio.duration) {
+  if (track) {
+    track.addEventListener('click', (e) => {
+      if (!isReady || !audio || !audio.duration) return;
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, x / rect.width));
       audio.currentTime = pct * audio.duration;
       updateUI();
-    }
-  });
+    });
+  }
 }
 </script>
 
