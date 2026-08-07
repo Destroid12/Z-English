@@ -2231,18 +2231,37 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
 // Extract the JSON payload out of a Gemini text reply (strip <think> blocks
 // and markdown fences; fall back to first {...} / [...] substring).
 function _extractJsonFromGemini(fixedText, wantArray) {
+  if (!fixedText || typeof fixedText !== 'string') return wantArray ? [] : {};
   let text = fixedText.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
-  const fenceMatch = text.match(/```(?:json)?\n?([\s\S]*?)```/i);
-  if (fenceMatch) {
-    text = fenceMatch[1].trim();
-  } else {
+
+  // Try finding fenced code block first
+  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/i);
+  let candidate = fenceMatch ? fenceMatch[1].trim() : text;
+
+  try {
+    return JSON.parse(candidate);
+  } catch (e1) {
+    // If fence candidate failed, look for matching open/close brackets in entire text
     const open = wantArray ? '[' : '{';
     const close = wantArray ? ']' : '}';
     const first = text.indexOf(open);
     const last = text.lastIndexOf(close);
-    if (first !== -1 && last !== -1) text = text.substring(first, last + 1).trim();
+    if (first !== -1 && last !== -1 && last > first) {
+      const sub = text.substring(first, last + 1).trim();
+      try {
+        return JSON.parse(sub);
+      } catch (e2) {
+        // Try fixing common JSON quirks like trailing commas
+        try {
+          const cleaned = sub.replace(/,\s*([}\]])/g, '$1');
+          return JSON.parse(cleaned);
+        } catch (e3) {
+          throw new Error('Failed to parse AI JSON response: ' + e1.message);
+        }
+      }
+    }
+    throw new Error('No valid JSON structure found in AI response.');
   }
-  return JSON.parse(text);
 }
 
 async function _autoFixSlide(p) {
@@ -2270,7 +2289,7 @@ async function _autoFixSlide(p) {
         fixedSlide.elements = fixedSlide.elements.filter(el => el && el.kind !== 'image');
       }
     }
-    return { success: true, slide: fixedSlide };
+    return { success: true, slide: fixedSlide, fixedSlide: fixedSlide };
   } catch (err) {
     console.error('AutoFixSlide failed: ' + err.message);
     return { success: false, message: 'AI returned invalid JSON: ' + err.message };
@@ -2282,27 +2301,34 @@ async function _autoFixSession(p) {
   if (!session) return { success: false, message: 'Authentication required.' };
   if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
 
-  const slides = p.slides || [];
+  let slides = p.slides;
+  if (typeof slides === 'string') {
+    try { slides = JSON.parse(slides); } catch (e) { slides = []; }
+  } else if (!Array.isArray(slides) && p.slidesJson) {
+    try { slides = JSON.parse(p.slidesJson); } catch (e) { slides = []; }
+  }
+  slides = Array.isArray(slides) ? slides : [];
+
   const customInstructions = String(p.instructions || '').trim();
-  if (!Array.isArray(slides) || slides.length === 0) {
+  if (slides.length === 0) {
     return { success: false, message: 'No slides provided.' };
   }
 
   // Auto-Fix uses per-slide parallel workers with FIXER_SYSTEM_PROMPT
-  if (slides.length > 0) {
-    const CONCURRENCY = 3;
-    const fixedSlides = new Array(slides.length);
-    let nextSlide = 0;
+  const CONCURRENCY = 3;
+  const fixedSlides = new Array(slides.length);
+  let nextSlide = 0;
 
-    async function worker() {
-      while (true) {
-        const i = nextSlide++;
-        if (i >= slides.length) return;
-        const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
-        let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
-        if (customInstructions) {
-          userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\nPlease process this slide.';
-        }
+  async function worker() {
+    while (true) {
+      const i = nextSlide++;
+      if (i >= slides.length) return;
+      const slideStr = typeof slides[i] === 'string' ? slides[i] : JSON.stringify(slides[i]);
+      let userPrompt = 'Input Slide JSON:\n' + slideStr + '\n\n';
+      if (customInstructions) {
+        userPrompt += '\nUSER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\nPlease process this slide.';
+      }
+      try {
         const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
           [{ role: 'user', parts: [{ text: userPrompt }] }],
           { maxOutputTokens: 16384, temperature: 0.3 });
@@ -2314,21 +2340,22 @@ async function _autoFixSession(p) {
           }
         }
         fixedSlides[i] = extracted;
+      } catch (slideErr) {
+        console.warn('AutoFix on slide ' + i + ' failed, keeping original:', slideErr);
+        fixedSlides[i] = typeof slides[i] === 'string' ? JSON.parse(slides[i]) : slides[i];
       }
-    }
-
-    const workerCount = Math.min(CONCURRENCY, slides.length);
-    try {
-      await Promise.all(Array.from({ length: workerCount }, function () { return worker(); }));
-      const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
-      return { success: true, slides: keptSlides };
-    } catch (err) {
-      console.error('AutoFixSession failed: ' + err.message);
-      return { success: false, message: 'AI returned invalid JSON: ' + err.message };
     }
   }
 
-  return { success: false, message: 'No slides generated.' };
+  const workerCount = Math.min(CONCURRENCY, slides.length);
+  try {
+    await Promise.all(Array.from({ length: workerCount }, function () { return worker(); }));
+    const keptSlides = fixedSlides.filter(function (s) { return s && s.delete !== true; });
+    return { success: true, slides: keptSlides };
+  } catch (err) {
+    console.error('AutoFixSession failed: ' + err.message);
+    return { success: false, message: 'AI returned invalid JSON: ' + err.message };
+  }
 }
 
 async function _analyzePPTXImage(p) {

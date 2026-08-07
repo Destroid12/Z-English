@@ -2159,17 +2159,18 @@ async function autoFixCurrentSlide() {
       setStatus(result.message || 'AI Auto-Fix failed.', 'error');
       return;
     }
-    if (result.fixedSlide) {
-      if (result.fixedSlide.delete) {
+    const fixedSlide = result.fixedSlide || result.slide;
+    if (fixedSlide) {
+      if (fixedSlide.delete) {
         slides = slides.filter(s => s.id !== slide.id);
         renderSlideList();
         if (slides.length > 0) selectSlide(slides[0].id);
         else { selectedSlideId = null; document.getElementById('previewFrame').srcdoc = ''; renderElements(); }
         setStatus('Slide deleted by AI.', 'success');
       } else {
-        if (result.fixedSlide.title) slide.title = result.fixedSlide.title;
-        if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
-          slide.elements = restoreLargeDataUrls(result.fixedSlide, dataMap).elements;
+        if (fixedSlide.title) slide.title = fixedSlide.title;
+        if (fixedSlide.elements && Array.isArray(fixedSlide.elements)) {
+          slide.elements = restoreLargeDataUrls(fixedSlide, dataMap).elements;
           const hasQuestions = slide.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
           if (hasQuestions) {
             slide.elements = slide.elements.filter(el => el && el.kind !== 'image');
