@@ -2196,6 +2196,34 @@ const FIXER_SESSION_SYSTEM_PROMPT =
   'Each slide object must have: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY a valid JSON array enclosed in ```json [ ... ] ```.';
 
+const PPTX_CONVERTER_SYSTEM_PROMPT =
+  'You are an expert PowerPoint to Z-English interactive educational slide converter.\n' +
+  'You convert raw slides and extracted media from PowerPoint (.pptx) into rich, interactive Z-English slides.\n\n' +
+  FIXER_SHARED_RULES +
+  '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
+  '1. INTELLIGENT QUESTION & OCR RECOGNITION:\n' +
+  '   - Differentiate between ILLUSTRATIVE GRAPHICS and QUESTION/WORKSHEET IMAGES.\n' +
+  '   - If an image or text contains a question, quiz, exercise, fill-in-the-blank, multiple choice, matching pairs, or reordering task:\n' +
+  '     * Transcribe all questions and answers into native interactive kind: "question" elements!\n' +
+  '     * Use appropriate "qtype":\n' +
+  '       - "radio" for multiple choice (A, B, C, D)\n' +
+  '       - "select" for dropdown choices\n' +
+  '       - "text" for typing in blanks marked by [blank]\n' +
+  '       - "match" for matching pairs (format in options: "left|right")\n' +
+  '       - "wordbank" for sentence reconstruction\n' +
+  '       - "schedule" for sequencing steps\n' +
+  '     * If the image was purely a screenshot of a worksheet question, DO NOT include the static image element (the interactive question replaces it).\n' +
+  '     * If the image contains a visual diagram/graphic needed to solve the question (e.g. map, diagram, picture prompt), KEEP the image element and place the interactive question below it.\n' +
+  '2. PRESERVE RELEVANT MEDIA:\n' +
+  '   - If the slide input mentions media attachments (e.g. "[MEDIA:img_1]", "[MEDIA:audio_1]"), preserve or attach the appropriate media URL/reference in the element.\n' +
+  '   - If a slide needs an illustration for vocabulary/story and has none, add a pollinations.ai URL.\n' +
+  '3. DIALOGUE & PRONUNCIATION:\n' +
+  '   - Convert dialogue practice or "Say / Repeat" prompts into kind: "speaking" with Practice with Tutor button.\n' +
+  '4. OUTPUT STRUCTURE:\n' +
+  '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "...", "elements": [...] }\n' +
+  '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
+  'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON.';
+
 // Extract the JSON payload out of a Gemini text reply (strip <think> blocks
 // and markdown fences; fall back to first {...} / [...] substring).
 function _extractJsonFromGemini(fixedText, wantArray) {
@@ -2355,6 +2383,102 @@ async function _analyzePPTXImage(p) {
   } catch (err) {
     console.error('analyzePPTXImage failed: ' + err.message);
     return { success: false, message: 'Could not analyze the image. Please try again.' };
+  }
+}
+
+async function _convertPptxSlide(p) {
+  const session = await _validateSession(p.token);
+  if (!session) return { success: false, message: 'Authentication required.' };
+  if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
+
+  const slideData = p.slideData || {};
+  const customInstructions = String(p.instructions || '').trim();
+  const parts = [];
+
+  let promptText = 'Convert this PowerPoint slide into a native Z-English interactive slide JSON:\n\n' +
+    'Slide Title: ' + (slideData.title || 'Untitled') + '\n' +
+    'Slide Text Content:\n' + (slideData.text || '(none)') + '\n' +
+    'Speaker Notes:\n' + (slideData.notes || '(none)') + '\n';
+
+  if (slideData.media && Array.isArray(slideData.media) && slideData.media.length > 0) {
+    promptText += '\nAttached Media Items (' + slideData.media.length + '):\n';
+    slideData.media.forEach((m, idx) => {
+      promptText += '- Media ' + (idx + 1) + ': Name: ' + (m.name || '') + ', Type: ' + (m.type || '') + (m.url ? ', URL: ' + m.url : '') + '\n';
+    });
+  }
+
+  if (customInstructions) {
+    promptText = 'USER INSTRUCTIONS:\n"""\n' + customInstructions + '\n"""\n\n' + promptText;
+  }
+
+  parts.push({ text: promptText });
+
+  // If there are images provided with base64 for OCR analysis, attach them to the multimodal request (up to 3 images)
+  if (slideData.images && Array.isArray(slideData.images)) {
+    slideData.images.slice(0, 3).forEach(img => {
+      if (img.base64) {
+        parts.push({
+          inlineData: {
+            mimeType: img.mimeType || 'image/png',
+            data: img.base64.replace(/^data:[^;]+;base64,/, '')
+          }
+        });
+      }
+    });
+  }
+
+  try {
+    const fixedText = await _callGemini(PPTX_CONVERTER_SYSTEM_PROMPT,
+      [{ role: 'user', parts: parts }],
+      { maxOutputTokens: 16384, temperature: 0.3 });
+    const fixedSlide = _extractJsonFromGemini(fixedText, false);
+    return { success: true, slide: fixedSlide };
+  } catch (err) {
+    console.error('convertPptxSlide failed: ' + err.message);
+    return { success: false, message: 'AI conversion failed: ' + err.message };
+  }
+}
+
+async function _convertPptxSession(p) {
+  const session = await _validateSession(p.token);
+  if (!session) return { success: false, message: 'Authentication required.' };
+  if (session.expired) return { success: false, expired: true, message: 'Session expired.' };
+
+  const pptxSlides = p.slides;
+  if (!Array.isArray(pptxSlides) || pptxSlides.length === 0) {
+    return { success: false, message: 'No slides provided.' };
+  }
+
+  const customInstructions = String(p.instructions || '').trim();
+  const summaryList = pptxSlides.map((s, i) => {
+    return {
+      slideIndex: i + 1,
+      title: s.title || '',
+      text: s.text || '',
+      notes: s.notes || '',
+      media: (s.media || []).map(m => ({ name: m.name, type: m.type, url: m.url }))
+    };
+  });
+
+  let promptText = 'Convert this complete PowerPoint deck (' + summaryList.length + ' slides) into a full interactive Z-English session JSON array.\n\n' +
+    'PPTX Slides Outline:\n' + JSON.stringify(summaryList, null, 2);
+
+  if (customInstructions) {
+    promptText = 'USER INSTRUCTIONS FOR SESSION CONVERSION:\n"""\n' + customInstructions + '\n"""\n\n' + promptText;
+  }
+
+  try {
+    const fixedText = await _callGemini(PPTX_CONVERTER_SYSTEM_PROMPT,
+      [{ role: 'user', parts: [{ text: promptText }] }],
+      { maxOutputTokens: 16384, temperature: 0.3 });
+    const resultSlides = _extractJsonFromGemini(fixedText, true);
+    if (Array.isArray(resultSlides)) {
+      return { success: true, slides: resultSlides };
+    }
+    throw new Error('AI did not return a valid slides array');
+  } catch (err) {
+    console.error('convertPptxSession failed: ' + err.message);
+    return { success: false, message: 'AI session conversion failed: ' + err.message };
   }
 }
 // ---------------------------------------------------------------------
@@ -2591,6 +2715,8 @@ const actions = {
   autoFixSlide: _autoFixSlide,
   autoFixSession: _autoFixSession,
   analyzePPTXImage: _analyzePPTXImage,
+  convertPptxSlide: _convertPptxSlide,
+  convertPptxSession: _convertPptxSession,
   createPaymobLink: _createPaymobLink,
   listPaymobLinks: _listPaymobLinks,
   deletePaymobLink: _deletePaymobLink,
