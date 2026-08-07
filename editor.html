@@ -2170,6 +2170,10 @@ async function autoFixCurrentSlide() {
         if (result.fixedSlide.title) slide.title = result.fixedSlide.title;
         if (result.fixedSlide.elements && Array.isArray(result.fixedSlide.elements)) {
           slide.elements = restoreLargeDataUrls(result.fixedSlide, dataMap).elements;
+          const hasQuestions = slide.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
+          if (hasQuestions) {
+            slide.elements = slide.elements.filter(el => el && el.kind !== 'image');
+          }
           slide.elements.forEach(el => {
             if (!el.id) el.id = uid();
             if (el.kind === 'question' && el.blanks) {
@@ -2222,7 +2226,11 @@ async function autoFixCurrentSession() {
     } else if (result.success && result.slides) {
       slides = result.slides.map(s => {
         if (!s.id) s.id = uid();
-        if (s.elements) {
+        if (s.elements && Array.isArray(s.elements)) {
+          const hasQuestions = s.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
+          if (hasQuestions) {
+            s.elements = s.elements.filter(el => el && el.kind !== 'image');
+          }
           s.elements.forEach(el => {
             if (!el.id) el.id = uid();
             if (el.kind === 'question' && el.blanks) {
@@ -3230,11 +3238,13 @@ async function ocrQuestionFromMedia(mediaName) {
 
     const qElements = (result.slide.elements || []).filter(el => el.kind === 'question' || el.kind === 'speaking');
     if (qElements.length > 0) {
+      // Remove worksheet image elements so both questions and image don't appear
+      currentSlide.elements = currentSlide.elements.filter(el => el.kind !== 'image');
       currentSlide.elements.push(...qElements);
       normalizeSlide(currentSlide);
       renderElements();
       if (typeof updatePreview === 'function') updatePreview();
-      setPptxStatus('Successfully transcribed and added ' + qElements.length + ' interactive questions!', 'success');
+      setPptxStatus('Successfully transcribed and added ' + qElements.length + ' interactive questions (worksheet image removed)!', 'success');
     } else if (result.slide.elements && result.slide.elements.length > 0) {
       currentSlide.elements.push(...result.slide.elements);
       normalizeSlide(currentSlide);

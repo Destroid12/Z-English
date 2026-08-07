@@ -2262,6 +2262,12 @@ async function _autoFixSlide(p) {
       [{ role: 'user', parts: [{ text: userPrompt }] }],
       { maxOutputTokens: 16384, temperature: 0.3 });
     const fixedSlide = _extractJsonFromGemini(fixedText, false);
+    if (fixedSlide && Array.isArray(fixedSlide.elements)) {
+      const hasQuestions = fixedSlide.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
+      if (hasQuestions) {
+        fixedSlide.elements = fixedSlide.elements.filter(el => el && el.kind !== 'image');
+      }
+    }
     return { success: true, slide: fixedSlide };
   } catch (err) {
     console.error('AutoFixSlide failed: ' + err.message);
@@ -2298,7 +2304,14 @@ async function _autoFixSession(p) {
         const fixedText = await _callGemini(FIXER_SYSTEM_PROMPT,
           [{ role: 'user', parts: [{ text: userPrompt }] }],
           { maxOutputTokens: 16384, temperature: 0.3 });
-        fixedSlides[i] = _extractJsonFromGemini(fixedText, false);
+        const extracted = _extractJsonFromGemini(fixedText, false);
+        if (extracted && Array.isArray(extracted.elements)) {
+          const hasQuestions = extracted.elements.some(el => el && (el.kind === 'question' || el.kind === 'speaking'));
+          if (hasQuestions) {
+            extracted.elements = extracted.elements.filter(el => el && el.kind !== 'image');
+          }
+        }
+        fixedSlides[i] = extracted;
       }
     }
 
