@@ -2147,15 +2147,19 @@ async function _askSiteTutor(p) {
 // ---------------------------------------------------------------------
 const FIXER_SHARED_RULES =
   '## ELEMENT KINDS (the "kind" property inside "elements" array)\n\n' +
-  '### 1. kind: "paragraph"\n' +
+  '### 1. kind: "paragraph" (PRIMARY ELEMENT FOR ALL TEXT CONTENT)\n' +
   '{ "id": "ai_p123", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
-  'Use \\n for line breaks inside "text".\n\n' +
+  'Use \\n for line breaks inside "text". Use kind: "paragraph" for all standard lesson explanations, stories, dialogues, vocabulary explanations, grammar rules, examples, and reading text.\n\n' +
   '### 2. kind: "image" (PICK RELATED IMAGES FROM INTERNET)\n' +
   '{ "id": "ai_img12", "kind": "image", "pos": null, "url": "https://image.pollinations.ai/prompt/[detailed_english_description_with_spaces_replaced_by_%20]?width=600&height=400&nologo=true", "caption": "Optional caption" }\n' +
   'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, ALWAYS include a kind:"image" element with a vivid, specific descriptive prompt.\n' +
   'Example: "https://image.pollinations.ai/prompt/a%20happy%20family%20eating%20dinner%20together%20in%20a%20cozy%20kitchen?width=600&height=400&nologo=true"\n\n' +
-  '### 3. kind: "speaking"\n' +
-  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n\n' +
+  '### 3. kind: "speaking" (STRICTLY ONLY FOR EXPLICIT SPEAKING & PRONUNCIATION DRILLS)\n' +
+  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n' +
+  'CRITICAL RULE FOR SPEAKING:\n' +
+  '- In the Z-English student interface, kind: "speaking" automatically renders a large "Practice with Tutor" AI voice microphone button.\n' +
+  '- ONLY use kind: "speaking" when the slide is explicitly a dedicated speaking activity, pronunciation drill, or "speak aloud" oral exercise!\n' +
+  '- DO NOT use kind: "speaking" for ordinary paragraphs, dialogues, reading texts, grammar rules, vocabulary words, or general slide content. Use kind: "paragraph" for those!\n\n' +
   '### 4. kind: "list"\n' +
   '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
   '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
@@ -2177,9 +2181,10 @@ const FIXER_SYSTEM_PROMPT =
   '## YOUR TASK RULES\n' +
   '1. Fix grammar, formatting, and layout. Add relevant images using pollinations.ai URLs for vocabulary and topics.\n' +
   '2. Convert raw text questions into interactive kind:"question" elements.\n' +
-  '3. Generate unique IDs for new elements using "ai_" followed by 6 random alphanumeric characters.\n' +
-  '4. Preserve existing element IDs where applicable. Keep the slide "id" unchanged.\n' +
-  '5. If the slide is obsolete or user requested deletion, return: { "delete": true }\n\n' +
+  '3. Use kind: "paragraph" for all normal text. DO NOT use kind: "speaking" unless the slide is explicitly a speaking drill.\n' +
+  '4. Generate unique IDs for new elements using "ai_" followed by 6 random alphanumeric characters.\n' +
+  '5. Preserve existing element IDs where applicable. Keep the slide "id" unchanged.\n' +
+  '6. If the slide is obsolete or user requested deletion, return: { "delete": true }\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. After that, output ONLY a valid JSON object ```json { ... } ``` or ```json { "delete": true } ```.';
 
 const FIXER_SESSION_SYSTEM_PROMPT =
@@ -2189,7 +2194,7 @@ const FIXER_SESSION_SYSTEM_PROMPT =
   '## CORE POWERS:\n' +
   '1. CREATE NEW SLIDES: If the user asks for a new session (e.g. "Create 10 slides about..."), or asks to add practice/quiz/dialogue/reading slides, CREATE AS MANY SLIDES AS REQUESTED OR NEEDED!\n' +
   '2. PICK / GENERATE RELEVANT IMAGES: Include kind:"image" elements with vivid, educational prompts (e.g. "https://image.pollinations.ai/prompt/a%20modern%20doctor%20talking%20to%20a%20patient%20in%20a%20clinic?width=600&height=400&nologo=true") for vocabulary and concepts.\n' +
-  '3. INTERACTIVE ACTIVITIES: Create interactive exercises (matching pairs, radio buttons, select dropdowns, wordbank sentence builders, fill-in-the-blanks) and speaking practice blocks.\n' +
+  '3. INTERACTIVE ACTIVITIES: Create interactive exercises (matching pairs, radio buttons, select dropdowns, wordbank sentence builders, fill-in-the-blanks).\n' +
   '4. EDIT / EXPAND EXISTING SLIDES: Polish, expand, or reorganize existing slides according to the instructions.\n\n' +
   FIXER_SHARED_RULES +
   '## SLIDE STRUCTURE:\n' +
@@ -2200,15 +2205,16 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   'You are an expert PowerPoint (.pptx) to Z-English interactive educational slide converter.\n' +
   'You convert raw slides, text, speaker notes, and extracted media from PowerPoint into rich, interactive Z-English slides.\n\n' +
   '## ELEMENT KINDS:\n' +
-  '### 1. kind: "paragraph"\n' +
+  '### 1. kind: "paragraph" (DEFAULT & PRIMARY FOR ALL TEXT)\n' +
   '{ "id": "ai_p1", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
-  'Use \\n for line breaks inside "text".\n\n' +
+  'Use \\n for line breaks inside "text". Use this for all general lesson text, explanations, dialogues, reading passages, vocabulary, and instructions.\n\n' +
   '### 2. kind: "image" (USE ACTUAL PPTX MEDIA)\n' +
   '{ "id": "ai_img1", "kind": "image", "pos": null, "url": "[IMAGE:0]", "caption": "Optional caption" }\n' +
   'CRITICAL: ALWAYS use the actual media attached to the slide with url tag `[IMAGE:0]`, `[IMAGE:1]`, or `[MEDIA:filename]`!\n' +
   'DO NOT invent or generate external AI images (no pollinations.ai) when the presentation contains real media!\n\n' +
-  '### 3. kind: "speaking"\n' +
-  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n\n' +
+  '### 3. kind: "speaking" (STRICTLY ONLY FOR DEDICATED SPEAKING EXERCISES)\n' +
+  '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n' +
+  'CRITICAL: kind: "speaking" creates a "Practice with Tutor" AI voice microphone button in the app. ONLY use kind: "speaking" if the slide is explicitly a Speaking activity, pronunciation drill, or oral practice task. For all normal reading, dialogues, explanations, stories, and grammar, ALWAYS use kind: "paragraph"!\n\n' +
   '### 4. kind: "list"\n' +
   '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
   '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
@@ -2219,11 +2225,13 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '   - NEVER generate new images on your own when real media exists in the PowerPoint file.\n' +
   '2. STRICT OCR RULE FOR WORKSHEETS & TEXTBOOK SCANS:\n' +
   '   - If an attached image is a screenshot or scan of a worksheet, grammar table, vocabulary/phonetic chart, reading passage, or exercise:\n' +
-  '     * Transcribe and convert ALL words, tables, and instructions into native text elements (paragraph, list, speaking, question).\n' +
+  '     * Transcribe and convert ALL words, tables, and instructions into native text elements (paragraph, list, or question).\n' +
   '     * In this specific case, DO NOT include an image element for this worksheet scan — the transcribed text completely replaces it.\n' +
   '3. INTERACTIVE QUESTIONS & EXERCISES:\n' +
   '   - Convert any quiz, fill-in-the-blank, multiple choice, matching pairs, or word order exercise into native kind: "question" elements.\n' +
-  '4. OUTPUT STRUCTURE:\n' +
+  '4. NO UNNECESSARY SPEAKING BUTTONS:\n' +
+  '   - DO NOT make everything a kind: "speaking" element. Use kind: "paragraph" for almost all slide texts and dialogues. Only use kind: "speaking" for explicit oral drills.\n' +
+  '5. OUTPUT STRUCTURE:\n' +
   '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON.';
@@ -2435,7 +2443,7 @@ async function _convertPptxSlide(p) {
     });
     promptText += '\nRULES FOR ATTACHED IMAGES:\n' +
       '1. ACTUAL PRESENTATION MEDIA: If an image is an actual photo, illustration, diagram, character drawing, meme, or graphic from the PowerPoint, YOU MUST USE IT by outputting `{ "kind": "image", "url": "[IMAGE:0]" }` (or corresponding index). NEVER create new AI images or pollinations URLs!\n' +
-      '2. WORKSHEET / TEXT OCR: If an image is a screenshot/scan of a worksheet, grammar table, vocabulary list, phonetic chart, or exercise, transcribe all its words into native elements (paragraph, list, speaking, question) and DO NOT output an image for it.\n';
+      '2. WORKSHEET / TEXT OCR: If an image is a screenshot/scan of a worksheet, grammar table, vocabulary list, phonetic chart, or exercise, transcribe all its words into native elements (paragraph, list, or question) and DO NOT output an image for it.\n';
   }
 
   if (customInstructions) {
