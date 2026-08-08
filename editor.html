@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Z-English — Slide Editor</title>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/bYQvFz9s/image.png">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Georgia&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -666,7 +666,47 @@ function cssColorToHex(str) {
 // ---------- normalize legacy elements loaded from previously-saved slides ----------
 function normalizeSlide(slide) {
   if (!slide) return slide;
+  if (!slide.id) slide.id = 'slide_' + uid();
+  const seenIds = new Set();
   slide.elements = (slide.elements || []).map(el => {
+    if (!el || typeof el !== 'object') return null;
+
+    // Ensure valid, clean string ID without quotes or special chars
+    if (!el.id || typeof el.id !== 'string' || seenIds.has(el.id) || /['"\\<>]/.test(el.id)) {
+      el.id = uid();
+    }
+    seenIds.add(el.id);
+
+    // Map any potential alias kinds from AI / PPTX to native editor kinds
+    if (el.kind === 'text' || el.kind === 'heading' || el.kind === 'title' || el.kind === 'dialogue' || el.kind === 'note' || el.kind === 'subtitle') {
+      el.kind = 'paragraph';
+    } else if (el.kind === 'img' || el.kind === 'photo' || el.kind === 'picture') {
+      el.kind = 'image';
+    } else if (el.kind === 'audio_prompt') {
+      el.kind = 'speaking';
+    } else if (el.kind === 'quiz' || el.kind === 'exercise') {
+      el.kind = 'question';
+    } else if (el.kind === 'bullet' || el.kind === 'bullets' || el.kind === 'items') {
+      el.kind = 'list';
+    }
+
+    // Default kind fallback if still unknown
+    if (typeof ELEM_LABELS !== 'undefined' && !ELEM_LABELS[el.kind]) {
+      if (el.url && (el.url.includes('.mp4') || el.url.includes('.webm') || el.url.includes('youtube') || el.url.includes('vimeo'))) {
+        el.kind = 'video';
+      } else if (el.url && (el.url.includes('.mp3') || el.url.includes('.wav') || el.url.includes('.ogg'))) {
+        el.kind = 'audio';
+      } else if (el.url) {
+        el.kind = 'image';
+      } else if (el.items && Array.isArray(el.items)) {
+        el.kind = 'list';
+      } else if (el.prompt || el.blanks) {
+        el.kind = 'question';
+      } else {
+        el.kind = 'paragraph';
+      }
+    }
+
     if (el.kind === 'question') {
       if (!el.prompt && el.question) {
         el.prompt = el.question;
@@ -705,7 +745,7 @@ function normalizeSlide(slide) {
       el.pos = null;
     }
     return el;
-  });
+  }).filter(Boolean);
   return slide;
 }
 
@@ -1426,24 +1466,37 @@ function addElement(kind) {
   slide.elements.push(el);
   renderElemCards(slide); updatePreview();
 }
-function moveElement(elId, dir) {
+function moveElement(elId, dir, index) {
   const slide = getSelectedSlide(); if (!slide) return;
-  const i = slide.elements.findIndex(e => e.id === elId);
+  let i = slide.elements.findIndex(e => e && e.id === elId);
+  if (i === -1 && typeof index === 'number') i = index;
   const j = i + dir;
-  if (j < 0 || j >= slide.elements.length) return;
+  if (i < 0 || i >= slide.elements.length || j < 0 || j >= slide.elements.length) return;
   [slide.elements[i], slide.elements[j]] = [slide.elements[j], slide.elements[i]];
   renderElemCards(slide); updatePreview();
 }
-function deleteElement(elId) {
+function deleteElement(elId, index) {
   const slide = getSelectedSlide(); if (!slide) return;
-  slide.elements = slide.elements.filter(e => e.id !== elId);
+  const initialLen = slide.elements.length;
+  if (elId) {
+    slide.elements = slide.elements.filter(e => e && e.id !== elId);
+  }
+  if (slide.elements.length === initialLen && typeof index === 'number' && index >= 0 && index < slide.elements.length) {
+    slide.elements.splice(index, 1);
+  }
   renderElemCards(slide); updatePreview();
 }
 
 function renderElemCards(slide) {
   const wrap = document.getElementById('elemList');
   if (!wrap) return;
-  if (slide.elements.length === 0) {
+  if (!slide) slide = getSelectedSlide();
+  if (!slide) {
+    wrap.innerHTML = '<div class="empty-state" style="padding:30px 10px;">Select or add a slide to start editing.</div>';
+    return;
+  }
+  normalizeSlide(slide);
+  if (!slide.elements || slide.elements.length === 0) {
     wrap.innerHTML = '<div class="empty-state" style="padding:30px 10px;">No elements yet — click "Add" above.</div>';
     return;
   }
@@ -1639,9 +1692,9 @@ function elemCardHTML(el, i, total) {
       <div class="head">
         <div class="kind"><i class="fas ${meta.icon}"></i> ${meta.label}</div>
         <div class="actions">
-          <button class="btn-icon" ${i === 0 ? 'disabled' : ''} onclick="moveElement('${el.id}', -1)"><i class="fas fa-arrow-up"></i></button>
-          <button class="btn-icon" ${i === total - 1 ? 'disabled' : ''} onclick="moveElement('${el.id}', 1)"><i class="fas fa-arrow-down"></i></button>
-          <button class="btn-icon" onclick="deleteElement('${el.id}')"><i class="fas fa-trash"></i></button>
+          <button class="btn-icon" ${i === 0 ? 'disabled' : ''} onclick="moveElement('${escAttr(el.id)}', -1, ${i})" title="Move Up"><i class="fas fa-arrow-up"></i></button>
+          <button class="btn-icon" ${i === total - 1 ? 'disabled' : ''} onclick="moveElement('${escAttr(el.id)}', 1, ${i})" title="Move Down"><i class="fas fa-arrow-down"></i></button>
+          <button class="btn-icon" onclick="deleteElement('${escAttr(el.id)}', ${i})" title="Delete Element"><i class="fas fa-trash"></i></button>
         </div>
       </div>
       ${fields}
