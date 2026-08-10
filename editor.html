@@ -1678,7 +1678,7 @@ function elemCardHTML(el, i, total) {
           <button class="btn btn-outline" onclick="document.getElementById('file-${el.id}').click()"><i class="fas fa-cloud-arrow-up"></i> Upload ${el.kind === 'video' ? 'Video' : 'Audio'}(s)</button>
           <span id="uploadStatus-${el.id}" class="hint"></span>
         </div>
-        <div class="hint">Uploads go to Drive automatically. Prefer uploading over pasting Dropbox/Drive share links — those often expire or block hotlinking.</div>
+        <div class="hint">Uploads go to Supabase Cloud automatically. Prefer uploading over pasting Dropbox/Drive share links — those often expire or have permission issues.</div>
       </div>
       <div class="field"><label>Caption (optional)</label><input type="text" value="${escAttr(el.caption)}" oninput="updateElField('${el.id}','caption',this.value)"></div>
       <div class="field"><label>Caption Font</label>${fontSelectHTML(el.captionFont, `updateElField('${el.id}','captionFont',this.value)`)}</div>
