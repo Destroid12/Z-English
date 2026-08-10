@@ -476,12 +476,27 @@ async function _listSessions(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
 
-  const { data, error } = await supabase
+  const { data: sessData, error: sessErr } = await supabase
     .from('sessions').select('*').order('track').order('level').order('session_number');
-  if (error) throw new Error(error.message);
-  const sessions = (data || []).map(function (r) {
-    return { track: r.track, level: r.level, sessionNumber: r.session_number, link: r.link };
+  if (sessErr) throw new Error(sessErr.message);
+
+  const { data: lessonData, error: lessonErr } = await supabase
+    .from('lesson_content').select('track, level, session_number');
+  if (lessonErr) throw new Error(lessonErr.message);
+
+  const map = {};
+  (sessData || []).forEach(function (r) {
+    const key = r.track + '-' + r.level + '-' + r.session_number;
+    map[key] = { track: r.track, level: r.level, sessionNumber: r.session_number, link: r.link || 'lesson' };
   });
+  (lessonData || []).forEach(function (r) {
+    const key = r.track + '-' + r.level + '-' + r.session_number;
+    if (!map[key]) {
+      map[key] = { track: r.track, level: r.level, sessionNumber: r.session_number, link: 'lesson' };
+    }
+  });
+
+  const sessions = Object.values(map);
   return { success: true, sessions: sessions };
 }
 
@@ -507,6 +522,17 @@ async function _setLessonContent(p) {
       { onConflict: 'track,level,session_number' }
     );
   if (error) throw new Error(error.message);
+
+  // Ensure sessions table also records this session as existing
+  try {
+    await supabase.from('sessions').upsert(
+      { track: track, level: level, session_number: sessionNumber, link: 'lesson', updated_at: _nowIso() },
+      { onConflict: 'track,level,session_number' }
+    );
+  } catch (e) {
+    console.warn('sessions upsert warning:', e.message);
+  }
+
   return { success: true };
 }
 
@@ -530,9 +556,15 @@ async function _listLessonContentSessions(p) {
   return { success: true, sessions: sessions };
 }
 
-async function _fetchDirectLessonContent(track, level, sessionNumber, tutorToken) {
+async function _fetchDirectLessonContent(track, level, sessionNumber, tutorToken, isAdmin) {
   const slidesJson = await _loadLessonContent(track, level, sessionNumber);
   if (!slidesJson) {
+    if (isAdmin) {
+      const blankSlideHtml = '<div class="frame"><h1>Session Not Yet Uploaded</h1><p style="font-size:18px; color:#64748b; margin-top:12px;">This session currently has no slide content. Open the Slide Editor to create and save slides for this session.</p></div>';
+      const resp = { success: true, slides: [blankSlideHtml], empty: true };
+      if (tutorToken) resp.tutorToken = tutorToken;
+      return resp;
+    }
     return { success: false, message: 'Lesson content has not been uploaded yet. Contact your administrator.' };
   }
   const resp = { success: true, slides: JSON.parse(slidesJson) };
@@ -550,7 +582,7 @@ async function _getLessonContentForEdit(p) {
   if (!track || !level || !sessionNumber) {
     return { success: false, message: 'Missing required fields.' };
   }
-  return await _fetchDirectLessonContent(track, level, sessionNumber, null);
+  return await _fetchDirectLessonContent(track, level, sessionNumber, null, true);
 }
 
 // ---------------------------------------------------------------------
@@ -690,7 +722,7 @@ async function _getLessonContent(p) {
   }
 
   const tutorToken = await _issueTutorToken(track, level, sessionNumber);
-  return await _fetchDirectLessonContent(track, level, sessionNumber, tutorToken);
+  return await _fetchDirectLessonContent(track, level, sessionNumber, tutorToken, isAdminPreview);
 }
 
 // ---------------------------------------------------------------------
@@ -701,14 +733,15 @@ async function _unlockSession(p) {
   if (!session || session.expired) {
     return { success: false, expired: true, message: 'Session expired.' };
   }
-  const track = String(p.track || '');
-  const level = String(p.level || '');
-  const sessionNumber = String(p.sessionNumber || '');
+  const track = String(p.track || '').trim().toLowerCase();
+  const level = String(p.level || '').trim();
+  const sessionNumber = String(p.sessionNumber || '').trim();
   if (!track || !level || !sessionNumber) {
     return { success: false, message: 'Missing required fields.' };
   }
 
-  if (session.user.role !== 'admin' && session.user.role !== 'instructor') {
+  const isAdminOrInstructor = session.user.role === 'admin' || session.user.role === 'instructor';
+  if (!isAdminOrInstructor) {
     if (!(await _hasLevelAccess(session.user.id, track, level))) {
       return { success: false, message: 'You have not unlocked this level yet.' };
     }
@@ -717,7 +750,15 @@ async function _unlockSession(p) {
     .from('sessions').select('link')
     .eq('track', track).eq('level', level).eq('session_number', sessionNumber)
     .maybeSingle();
-  if (!found) return { success: false, message: 'This session has not been set up yet.' };
+
+  let link = found ? found.link : '';
+  if (!found || !link) {
+    const hasLesson = await _loadLessonContent(track, level, sessionNumber);
+    if (!hasLesson && !isAdminOrInstructor) {
+      return { success: false, message: 'This session has not been set up yet.' };
+    }
+    link = 'lesson';
+  }
 
   const accessToken = _uuid();
   const tokenHash = _sha256(accessToken);
@@ -729,20 +770,20 @@ async function _unlockSession(p) {
     session_number: sessionNumber,
     expires_at: expiresAt,
     used: false,
-    is_admin_preview: false,
+    is_admin_preview: session.user.role === 'admin',
     student_id: session.user.id
   });
   if (error) throw new Error(error.message);
-  return { success: true, link: found.link, accessToken: accessToken };
+  return { success: true, link: link, accessToken: accessToken };
 }
 
 async function _getPreviewToken(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
 
-  const track = String(p.track || '');
-  const level = String(p.level || '');
-  const sessionNumber = String(p.sessionNumber || '');
+  const track = String(p.track || '').trim().toLowerCase();
+  const level = String(p.level || '').trim();
+  const sessionNumber = String(p.sessionNumber || '').trim();
   if (!track || !level || !sessionNumber) {
     return { success: false, message: 'Missing fields.' };
   }
@@ -750,7 +791,8 @@ async function _getPreviewToken(p) {
     .from('sessions').select('link')
     .eq('track', track).eq('level', level).eq('session_number', sessionNumber)
     .maybeSingle();
-  if (!found) return { success: false, message: 'This session has not been set up yet.' };
+
+  const link = (found && found.link) ? found.link : 'lesson';
 
   const accessToken = _uuid();
   const tokenHash = _sha256(accessToken);
@@ -766,11 +808,90 @@ async function _getPreviewToken(p) {
     student_id: gate.session.user.id
   });
   if (error) throw new Error(error.message);
-  return { success: true, link: found.link, accessToken: accessToken };
+  return { success: true, link: link, accessToken: accessToken };
 }
 // ---------------------------------------------------------------------
 // Media upload / download (public 'zenglish-media' storage bucket)
 // ---------------------------------------------------------------------
+async function _getMediaUploadUrl(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const rawFilename = String(p.filename || 'upload');
+  const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const mimeType = String(p.mimeType || 'application/octet-stream');
+  const fileSize = Number(p.fileSize || 0);
+
+  const allowedPrefixes = ['image/', 'audio/', 'video/'];
+  if (!allowedPrefixes.some(function (prefix) { return mimeType.startsWith(prefix); })) {
+    return { success: false, message: 'Only image, audio, or video uploads are supported.' };
+  }
+
+  const isMedia = mimeType.startsWith('audio/') || mimeType.startsWith('video/');
+  const ceiling = isMedia ? MAX_MEDIA_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
+
+  if (fileSize > ceiling) {
+    return {
+      success: false,
+      message: isMedia
+        ? 'File is too large. Please keep audio/video under ' + Math.round(ceiling / 1024 / 1024) + 'MB.'
+        : 'File is too large. Please keep images under 8MB.'
+    };
+  }
+
+  const key = Date.now() + '_' + filename;
+  try {
+    const { data: signedData, error: signErr } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUploadUrl(key);
+    if (signErr) throw new Error(signErr.message);
+
+    const { data: pubData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+    const publicUrl = pubData && pubData.publicUrl ? pubData.publicUrl : '';
+
+    return {
+      success: true,
+      signedUrl: signedData.signedUrl,
+      token: signedData.token,
+      path: signedData.path,
+      fileId: key,
+      publicUrl: publicUrl
+    };
+  } catch (err) {
+    console.error('getMediaUploadUrl error:', err);
+    return { success: false, message: 'Failed to generate upload URL: ' + err.message };
+  }
+}
+
+async function _finalizeMediaUpload(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const fileId = String(p.fileId || '').trim();
+  const url = String(p.url || '').trim();
+  const filename = String(p.filename || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const mimeType = String(p.mimeType || 'application/octet-stream');
+
+  if (!fileId || !url) {
+    return { success: false, message: 'Missing fileId or url.' };
+  }
+
+  try {
+    const { error: insErr } = await supabase.from('media').upsert({
+      id: fileId,
+      url: url,
+      mime_type: mimeType,
+      filename: filename
+    });
+    if (insErr) throw new Error(insErr.message);
+
+    return { success: true, url: url, fileId: fileId };
+  } catch (err) {
+    console.error('finalizeMediaUpload error:', err);
+    return { success: false, message: 'Failed to register media: ' + err.message };
+  }
+}
+
 async function _uploadMedia(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
@@ -2147,32 +2268,32 @@ async function _askSiteTutor(p) {
 // ---------------------------------------------------------------------
 const FIXER_SHARED_RULES =
   '## ELEMENT KINDS (the "kind" property inside "elements" array)\n\n' +
-  '### 1. kind: "paragraph" (PRIMARY ELEMENT FOR ALL TEXT CONTENT)\n' +
+  '### 1. kind: "paragraph" (PRIMARY & DEFAULT ELEMENT FOR ALL TEXT CONTENT)\n' +
   '{ "id": "ai_p123", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
-  'Use \\n for line breaks inside "text". Use kind: "paragraph" for all standard lesson explanations, stories, dialogues, vocabulary explanations, grammar rules, examples, and reading text.\n\n' +
+  'Use \\n for line breaks inside "text". Use kind: "paragraph" for 99% of text: all lesson explanations, dialogues, conversations, stories, vocabulary words, grammar rules, examples, reading passages, and general instructions.\n\n' +
   '### 2. kind: "image" (PICK RELATED IMAGES FROM INTERNET)\n' +
   '{ "id": "ai_img12", "kind": "image", "pos": null, "url": "https://image.pollinations.ai/prompt/[detailed_english_description_with_spaces_replaced_by_%20]?width=600&height=400&nologo=true", "caption": "Optional caption" }\n' +
-  'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, ALWAYS include a kind:"image" element with a vivid, specific descriptive prompt.\n' +
-  'Example: "https://image.pollinations.ai/prompt/a%20happy%20family%20eating%20dinner%20together%20in%20a%20cozy%20kitchen?width=600&height=400&nologo=true"\n\n' +
-  '### 3. kind: "speaking" (STRICTLY ONLY FOR EXPLICIT SPEAKING & PRONUNCIATION DRILLS)\n' +
+  'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, include a kind:"image" element with a vivid, specific descriptive prompt.\n\n' +
+  '### 3. kind: "speaking" (STRICTLY RESTRICTED TO EXPLICIT SPEAKING / ORAL PRONUNCIATION EXERCISES ONLY!)\n' +
   '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n' +
-  'CRITICAL RULE FOR SPEAKING:\n' +
+  'CRITICAL RESTRICTION FOR SPEAKING:\n' +
   '- In the Z-English student interface, kind: "speaking" automatically renders a large "Practice with Tutor" AI voice microphone button.\n' +
-  '- ONLY use kind: "speaking" when the slide is explicitly a dedicated speaking activity, pronunciation drill, or "speak aloud" oral exercise!\n' +
-  '- DO NOT use kind: "speaking" for ordinary paragraphs, dialogues, reading texts, grammar rules, vocabulary words, or general slide content. Use kind: "paragraph" for those!\n\n' +
+  '- NEVER use kind: "speaking" for ordinary paragraphs, dialogues, conversations, reading passages, grammar explanations, or vocabulary words! (Use kind: "paragraph" for those!).\n' +
+  '- ONLY use kind: "speaking" if the slide is explicitly and specifically a dedicated Speaking activity, pronunciation drill, or "speak aloud" oral practice exercise.\n\n' +
   '### 4. kind: "list"\n' +
   '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
   '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
   'Schema: { "id": "ai_q123", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "...", "answer": "...", "altAnswers": [], "options": [] }] }\n' +
   'The "prompt" contains the question text. Use [blank] to mark where the interactive input goes.\n\n' +
   '#### Supported Question Types ("qtype"):\n' +
-  '- "text": free text input. Example: { "qtype": "text", "answer": "goes", "altAnswers": ["Goes"], "options": [] }\n' +
+  '- "text": open-ended or fill-in-the-blank typing. Example: { "qtype": "text", "answer": "correct", "altAnswers": ["right"], "options": [], "strict": false, "tips": true, "aiInstructions": "Accept any reasonable answer" }\n' +
+  '     * For "text" blanks, you can turn on AI grading! Set "strict": false and "tips": true, and provide "aiInstructions" for the AI teacher to follow.\n' +
   '- "select": dropdown menu. Example: { "qtype": "select", "answer": "apples", "altAnswers": [], "options": ["apples", "banana", "bread"] }\n' +
   '- "radio": single choice clickable buttons. Example: { "qtype": "radio", "answer": "blue", "altAnswers": [], "options": ["red", "blue", "green"] }\n' +
   '- "checkbox": multi-select checkboxes. "answer" is comma-separated correct keys. Example: { "qtype": "checkbox", "answer": "dog,cat", "altAnswers": [], "options": ["dog", "cat", "chair", "table"] }\n' +
-  '- "match": matching pairs. "options" is array of "left|right". Example: { "qtype": "match", "answer": "", "altAnswers": [], "options": ["sun|daytime", "moon|night", "rain|water"] }\n' +
-  '- "schedule": put items in order. "options" is correct order array. Example: { "qtype": "schedule", "answer": "", "altAnswers": [], "options": ["First step", "Second step", "Third step"] }\n' +
-  '- "wordbank": arrange words into sentence. "answer" is full sentence, "options" is list of words. Example: { "qtype": "wordbank", "answer": "She is reading a book", "altAnswers": [], "options": ["She", "is", "reading", "a", "book", "plays"] }\n\n';
+  '- "match": matching pairs. "options" is array of "left|right". Example: { "qtype": "match", "options": ["Dog | Animal", "Apple | Fruit"] }\n' +
+  '- "schedule": drag/drop ordering. Example: { "qtype": "schedule", "options": ["First", "Second", "Third"] }\n' +
+  '- "wordbank": unscramble sentence. Example: { "qtype": "wordbank", "options": ["is", "This", "good"], "answer": "This is good." }\n\n';
 
 const FIXER_SYSTEM_PROMPT =
   'You are an expert educational slide fixer for the Z-English learning platform.\n' +
@@ -2205,20 +2326,22 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   'You are an expert PowerPoint (.pptx) to Z-English interactive educational slide converter.\n' +
   'You convert raw slides, text, speaker notes, and extracted media from PowerPoint into rich, interactive Z-English slides.\n\n' +
   '## ELEMENT KINDS:\n' +
-  '### 1. kind: "paragraph" (DEFAULT & PRIMARY FOR ALL TEXT)\n' +
+  '### 1. kind: "paragraph" (PRIMARY & DEFAULT FOR ALL TEXT CONTENT)\n' +
   '{ "id": "ai_p1", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
-  'Use \\n for line breaks inside "text". Use this for all general lesson text, explanations, dialogues, reading passages, vocabulary, and instructions.\n\n' +
-  '### 2. kind: "image" (USE ACTUAL PPTX MEDIA)\n' +
+  'Use \\n for line breaks inside "text". Use this for all general lesson text, explanations, dialogues, reading passages, vocabulary lists, and instructions.\n\n' +
+  '### 2. kind: "image", "audio", "video" (USE ACTUAL PPTX MEDIA)\n' +
   '{ "id": "ai_img1", "kind": "image", "pos": null, "url": "[IMAGE:0]", "caption": "Optional caption" }\n' +
-  'CRITICAL: ALWAYS use the actual media attached to the slide with url tag `[IMAGE:0]`, `[IMAGE:1]`, or `[MEDIA:filename]`!\n' +
-  'DO NOT invent or generate external AI images (no pollinations.ai) when the presentation contains real media!\n\n' +
-  '### 3. kind: "speaking" (STRICTLY ONLY FOR DEDICATED SPEAKING EXERCISES)\n' +
+  '{ "id": "ai_aud1", "kind": "audio", "pos": null, "url": "[MEDIA:https://drive.google.com/file/d/...]" }\n' +
+  '{ "id": "ai_vid1", "kind": "video", "pos": null, "url": "[MEDIA:video_file.mp4]" }\n' +
+  'CRITICAL: ALWAYS use the actual media attached to the slide with url tag `[IMAGE:0]`, `[IMAGE:1]`, or `[MEDIA:filename]` / `[MEDIA:url]`!\n' +
+  'DO NOT invent or generate external AI images when the presentation contains real media! Match the "kind" correctly based on the media type (image, audio, or video).\n\n' +
+  '### 3. kind: "speaking" (STRICTLY FOR DEDICATED SPEAKING DRILLS ONLY — NEVER FOR GENERAL SLIDES)\n' +
   '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n' +
-  'CRITICAL: kind: "speaking" creates a "Practice with Tutor" AI voice microphone button in the app. ONLY use kind: "speaking" if the slide is explicitly a Speaking activity, pronunciation drill, or oral practice task. For all normal reading, dialogues, explanations, stories, and grammar, ALWAYS use kind: "paragraph"!\n\n' +
+  'CRITICAL RULE: kind: "speaking" generates a "Practice with Tutor" AI voice recording button. DO NOT use kind: "speaking" unless the slide title or text explicitly says "Speaking Practice", "Speaking Activity", "Pronunciation Drill", "Say Aloud", or "Oral Task". For all dialogues, conversations, reading texts, grammar rules, and vocabulary, ALWAYS use kind: "paragraph"!\n\n' +
   '### 4. kind: "list"\n' +
   '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
   '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
-  '{ "id": "ai_q1", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "altAnswers": [], "options": [] }] }\n\n' +
+  '{ "id": "ai_q1", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "altAnswers": [], "options": [], "strict": false, "tips": true, "aiInstructions": "" }] }\n\n' +
   '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
   '1. USE ACTUAL PRESENTATION MEDIA FIRST:\n' +
   '   - When a slide contains photos, diagrams, character pictures, memes, icons, or illustrations from the PPTX, ALWAYS use kind: "image" with url: "[IMAGE:0]" (or [IMAGE:1], etc.).\n' +
@@ -2229,8 +2352,8 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '     * In this specific case, DO NOT include an image element for this worksheet scan — the transcribed text completely replaces it.\n' +
   '3. INTERACTIVE QUESTIONS & EXERCISES:\n' +
   '   - Convert any quiz, fill-in-the-blank, multiple choice, matching pairs, or word order exercise into native kind: "question" elements.\n' +
-  '4. NO UNNECESSARY SPEAKING BUTTONS:\n' +
-  '   - DO NOT make everything a kind: "speaking" element. Use kind: "paragraph" for almost all slide texts and dialogues. Only use kind: "speaking" for explicit oral drills.\n' +
+  '4. FORBIDDEN UNNECESSARY SPEAKING BUTTONS:\n' +
+  '   - DO NOT make dialogues or normal sentences into kind: "speaking" elements! Use kind: "paragraph" for almost all slide texts and dialogues. Only use kind: "speaking" for explicit oral drills.\n' +
   '5. OUTPUT STRUCTURE:\n' +
   '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
@@ -2269,6 +2392,49 @@ function _extractJsonFromGemini(fixedText, wantArray) {
       }
     }
     throw new Error('No valid JSON structure found in AI response.');
+  }
+}
+
+async function _aiGradeAnswer(p) {
+  const question = String(p.question || '').trim();
+  const studentAnswer = String(p.studentAnswer || '').trim();
+  const expectedAnswer = String(p.expectedAnswer || '').trim();
+  const tipsMode = p.tipsMode === true || p.tipsMode === 'true';
+  const aiInstructions = String(p.aiInstructions || '').trim();
+  
+  if (!studentAnswer) return { success: false, message: 'Missing student answer.' };
+  
+  let prompt = 'You are an expert AI teacher grading a student\'s answer.\n';
+  prompt += 'Question Context: ' + question + '\n';
+  if (expectedAnswer) {
+    prompt += 'Reference/Expected Correct Answer(s): ' + expectedAnswer + '\n';
+  }
+  if (aiInstructions) {
+    prompt += 'TEACHER INSTRUCTIONS FOR GRADING:\n"""\n' + aiInstructions + '\n"""\n';
+  }
+  prompt += '\nSTUDENT\'S ANSWER: ' + studentAnswer + '\n\n';
+  
+  prompt += 'YOUR TASK:\n';
+  prompt += '1. Evaluate if the student\'s answer is correct based on the reference answer and the teacher\'s instructions.\n';
+  prompt += '   If no reference answer is provided, use your intelligence to determine if the student\'s answer is factually and logically correct for the question context.\n';
+  prompt += '2. If the answer is correct, provide brief praise in the feedback.\n';
+  if (tipsMode) {
+    prompt += '3. If the answer is incorrect or partially correct, DO NOT GIVE THE DIRECT ANSWER. Instead, provide an educational hint or tip to guide the student to figure it out themselves.\n';
+  } else {
+    prompt += '3. If the answer is incorrect, provide brief feedback explaining why it is wrong.\n';
+  }
+  
+  try {
+    const aiText = await _callGemini(
+      'You are a strict JSON output AI. Output ONLY a valid JSON object. DO NOT output markdown code blocks or <think> tags. Schema: { "isCorrect": boolean, "feedback": "string" }',
+      [{ role: 'user', parts: [{ text: prompt }] }],
+      { maxOutputTokens: 2000, temperature: 0.3 }
+    );
+    const result = _extractJsonFromGemini(aiText, false);
+    return { success: true, ...result };
+  } catch (err) {
+    console.error('aiGradeAnswer error:', err);
+    return { success: false, message: 'AI failed to evaluate: ' + err.message };
   }
 }
 
@@ -2705,6 +2871,85 @@ async function _getPublicSessionContent(p) {
   };
 }
 
+async function _importExternalMedia(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  let url = String(p.url || '').trim();
+  if (!url) return { success: false, message: 'No URL provided' };
+
+  // If it's a Dropbox URL, force it to the raw direct download domain
+  if (url.includes('dropbox.com/') || url.includes('dropboxusercontent.com/')) {
+    url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    url = url.replace('dropbox.com', 'dl.dropboxusercontent.com');
+    if (url.match(/[?&]dl=[01]/)) {
+      url = url.replace(/([?&])dl=[01]/, '$1raw=1');
+    } else if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1';
+    }
+  }
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch external media (HTTP ${res.status})`);
+    }
+
+    const contentType = res.headers.get('content-type') || 'application/octet-stream';
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const isMedia = contentType.startsWith('audio/') || contentType.startsWith('video/');
+    const ceiling = isMedia ? MAX_MEDIA_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
+
+    if (buffer.length > ceiling) {
+      return {
+        success: false,
+        message: `File is too large (${Math.round(buffer.length / 1024 / 1024)}MB). Max allowed is ${Math.round(ceiling / 1024 / 1024)}MB.`
+      };
+    }
+
+    // Attempt to extract a filename from Content-Disposition or fallback
+    let filename = 'imported_media';
+    const contentDisposition = res.headers.get('content-disposition');
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+    } else {
+      const urlPath = new URL(url).pathname;
+      const parts = urlPath.split('/');
+      if (parts.length > 0 && parts[parts.length - 1].includes('.')) {
+        filename = parts[parts.length - 1];
+      }
+    }
+    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    const key = Date.now() + '_' + filename;
+    
+    const { error: upErr } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(key, buffer, { contentType });
+    
+    if (upErr) throw new Error(upErr.message);
+
+    const { data: pubData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+    const publicUrl = pubData && pubData.publicUrl ? pubData.publicUrl : '';
+
+    const { error: insErr } = await supabase.from('media').insert({
+      id: key,
+      url: publicUrl,
+      mime_type: contentType,
+      filename: filename
+    });
+    if (insErr) throw new Error(insErr.message);
+
+    return { success: true, url: publicUrl, fileId: key };
+  } catch (err) {
+    console.error('importExternalMedia error:', err);
+    return { success: false, message: 'Import failed: ' + err.message };
+  }
+}
+
 // =====================================================================
 // Dispatcher
 // =====================================================================
@@ -2725,7 +2970,10 @@ const actions = {
   getLessonContent: _getLessonContent,
   unlockSession: _unlockSession,
   getPreviewToken: _getPreviewToken,
+  getMediaUploadUrl: _getMediaUploadUrl,
+  finalizeMediaUpload: _finalizeMediaUpload,
   uploadMedia: _uploadMedia,
+  importExternalMedia: _importExternalMedia,
   getMedia: _getMedia,
   createPost: _createPost,
   getPosts: _getPosts,
@@ -2776,7 +3024,8 @@ const actions = {
   createPaymobLink: _createPaymobLink,
   listPaymobLinks: _listPaymobLinks,
   deletePaymobLink: _deletePaymobLink,
-  getPublicSessionContent: _getPublicSessionContent
+  getPublicSessionContent: _getPublicSessionContent,
+  aiGradeAnswer: _aiGradeAnswer
 };
 
 module.exports = async function handler(req, res) {

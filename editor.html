@@ -301,6 +301,39 @@ const editTempId = urlParams.get('editTempId');
 const editPublicId = urlParams.get('editPublicId');
 const editTestId = urlParams.get('editTestId');
 
+// ---------- fonts ----------
+const FONT_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: "'Nunito', sans-serif", label: 'Nunito' },
+  { value: "'Baloo 2', sans-serif", label: 'Baloo 2 (Rounded)' },
+  { value: "'Poppins', sans-serif", label: 'Poppins' },
+  { value: "'Fredoka', sans-serif", label: 'Fredoka (Playful)' },
+  { value: "'Comic Neue', cursive", label: 'Comic Neue (Playful)' },
+  { value: "'Cairo', sans-serif", label: 'Cairo (Arabic)' },
+  { value: "'Tajawal', sans-serif", label: 'Tajawal (Arabic)' },
+  { value: "Georgia, serif", label: 'Georgia (Serif)' },
+  { value: "'Courier New', monospace", label: 'Courier New (Mono)' }
+];
+
+function fontSelectHTML(currentValue, onChangeJs) {
+  const opts = FONT_OPTIONS.map(f =>
+    `<option value="${escAttr(f.value)}" ${((currentValue || '') === f.value) ? 'selected' : ''}>${esc(f.label)}</option>`
+  ).join('');
+  return `<select onchange="${onChangeJs}" style="font-family:${escAttr(currentValue || 'inherit')};">${opts}</select>`;
+}
+
+const ELEM_LABELS = {
+  paragraph: { icon: 'fa-paragraph', label: 'Paragraph' },
+  speaking: { icon: 'fa-comments', label: 'Speaking Prompt' },
+  image: { icon: 'fa-image', label: 'Image' },
+  video: { icon: 'fa-video', label: 'Video (URL)' },
+  audio: { icon: 'fa-music', label: 'Audio' },
+  matching: { icon: 'fa-link', label: 'Matching (Interactive)' },
+  sorting: { icon: 'fa-list-ol', label: 'Sorting (Interactive)' },
+  question: { icon: 'fa-question-circle', label: 'Question (Fill / Options)' },
+  raw: { icon: 'fa-code', label: 'Raw HTML' },
+  link: { icon: 'fa-link', label: 'Hyperlink' }
+};
 async function loadTestSessionContent(testId) {
   setStatus('Loading test session...', 'info');
   try {
@@ -331,7 +364,7 @@ async function savePublicSessionContent() {
   btn.disabled = true;
   setStatus('Saving...', 'info');
   try {
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
     const body = new URLSearchParams({ action: 'updatePublicSessionContent', token: sessionToken, publicId: editPublicId, slidesJson });
     const result = await callBackend(body);
@@ -351,7 +384,7 @@ async function saveTestSessionContent() {
   btn.disabled = true;
   setStatus('Saving...', 'info');
   try {
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
     const body = new URLSearchParams({ action: 'updateTestSessionContent', token: sessionToken, testId: editTestId, slidesJson });
     const result = await callBackend(body);
@@ -379,7 +412,7 @@ async function publishTestSession() {
   try {
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
 
     const body = new URLSearchParams({
@@ -445,17 +478,19 @@ if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
         slides = JSON.parse(draft);
         sessionStorage.removeItem('editorDraft');
         if (slides.length > 0) {
-          selectedSlideId = slides[0].id;
           setStatus('Loaded preview from importer.', 'success');
-        } else {
-          slides = [blankSlide('content')];
-          selectedSlideId = slides[0].id;
         }
-        renderSlideList(); renderElements(); updatePreview();
       } catch(e) {
-        console.error(e);
+        console.error('Failed to parse draft:', e);
       }
     }
+    if (!slides || !Array.isArray(slides) || slides.length === 0) {
+      slides = [blankSlide('content')];
+    }
+    selectedSlideId = slides[0].id;
+    renderSlideList();
+    renderElements();
+    updatePreview();
   }
 }
 
@@ -565,6 +600,25 @@ function driveEmbedUrl(url) {
   return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
 }
 // Fast, reliable thumbnail source for the editor's own UI (sidebar previews, etc).
+// Normalize any media URL to a browser-playable form.
+// For Dropbox: force dl.dropboxusercontent.com to avoid 302 tracking-prevention blocks in Edge.
+function normalizeMediaUrl(url) {
+  if (!url || typeof url !== 'string') return url || '';
+  // Dropbox /scl/fi/ and old /s/ share links
+  if (url.includes('dropbox.com/')) {
+    url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    url = url.replace('dropbox.com', 'dl.dropboxusercontent.com');
+    
+    // dl=0 or dl=1 can be replaced with raw=1, though dl.dropboxusercontent.com serves it raw natively
+    if (url.match(/[?&]dl=[01]/)) {
+      url = url.replace(/([?&])dl=[01]/, '$1raw=1');
+    } else if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1';
+    }
+  }
+  return url;
+}
+
 function driveThumbUrl(url, size) {
   const id = extractDriveFileId(url);
   return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w${size || 300}` : url;
@@ -744,6 +798,16 @@ function normalizeSlide(slide) {
     if (el.pos && (typeof el.pos.top !== 'string' || typeof el.pos.left !== 'string')) {
       el.pos = null;
     }
+    // Sanitize url — must always be a string to prevent crashes in compileSlide/escAttr
+    if (el.url !== undefined && typeof el.url !== 'string') {
+      if (Array.isArray(el.url)) {
+        el.url = el.url[0] ? String(el.url[0]) : '';
+      } else if (el.url && typeof el.url === 'object' && (el.url.url || el.url.href || el.url.src)) {
+        el.url = String(el.url.url || el.url.href || el.url.src);
+      } else {
+        el.url = el.url ? String(el.url) : '';
+      }
+    }
     return el;
   }).filter(Boolean);
   return slide;
@@ -833,26 +897,59 @@ function compileSlide(slide, forExport = true) {
         if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'video') {
-      if (el.url) {
+      if (el.url && typeof el.url === 'string') {
         let videoHtml = '';
         const driveId = extractDriveFileId(el.url);
+        const normalizedUrl = normalizeMediaUrl(el.url);
+        
+        let ytId = '';
+        if (normalizedUrl.includes('youtu.be/')) {
+          ytId = normalizedUrl.split('youtu.be/')[1].split('?')[0];
+        } else if (normalizedUrl.includes('youtube.com/watch')) {
+          const m = normalizedUrl.match(/[?&]v=([^&]+)/);
+          if (m) ytId = m[1];
+        }
+        
         if (driveId) {
           videoHtml = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" width="100%" height="400" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;" allow="autoplay" allowfullscreen></iframe>`;
+        } else if (ytId) {
+          videoHtml = `<iframe src="https://www.youtube.com/embed/${ytId}" width="100%" height="400" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+        } else {
+          videoHtml = `<video class="video" src="${escAttr(normalizedUrl)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>`;
         }
-        if (!videoHtml) videoHtml = `<video class="video" src="${escAttr(el.url)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>`;
+        
         chunk += videoHtml + '\n';
         if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
     } else if (el.kind === 'audio') {
-      if (el.url) {
-        let audioHtml = '';
-        // Use Drive's own inline preview player for hosted audio — far faster and
-        // more reliable than round-tripping the whole file through the backend as base64.
+      if (el.url && typeof el.url === 'string') {
         const driveId = extractDriveFileId(el.url);
+        const normalizedUrl = normalizeMediaUrl(el.url);
+        const mb = el.caption ? '6px' : '16px';
+        
+        let audioHtml = '';
         if (driveId) {
-          audioHtml = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" width="100%" height="80" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};" allow="autoplay"></iframe>`;
+          // Google Drive: use the proven iframe embed player
+          audioHtml = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" width="100%" height="80" frameborder="0" style="border-radius:16px;margin-bottom:${mb};" allow="autoplay"></iframe>`;
+        } else {
+          // All other URLs (Dropbox, direct MP3, etc)
+          if (forExport) {
+            // Player mode: use the custom z-audio component (initialized by player.html JS)
+            audioHtml = `<div class="z-audio" data-src="${escAttr(normalizedUrl)}" style="margin-bottom:${mb};">
+  <button class="z-audio-btn" title="Play/Pause">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+  </button>
+  <div class="z-audio-info">
+    <div class="z-audio-track"><div class="z-audio-fill"></div></div>
+    <div class="z-audio-time">0:00 / 0:00</div>
+  </div>
+  <audio src="${escAttr(normalizedUrl)}" preload="none" style="display:none;"></audio>
+</div>`;
+          } else {
+            // Editor preview mode: use standard audio controls since custom JS doesn't run in the iframe
+            audioHtml = `<audio class="audio" src="${escAttr(normalizedUrl)}" controls style="width:100%;border-radius:24px;margin-bottom:${mb};background:#f5f7f9;"></audio>`;
+          }
         }
-        if (!audioHtml) audioHtml = `<audio src="${escAttr(el.url)}" controls style="width:100%;margin-bottom:${el.caption ? '6px' : '16px'};"></audio>`;
         chunk += audioHtml + '\n';
         if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
       }
@@ -912,7 +1009,10 @@ function compileSlide(slide, forExport = true) {
             const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
           } else {
-            inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+            const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+            const tipsAttr = b.tips ? ' data-tips="true"' : '';
+            const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+            inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr}>`;
           }
 
           if (b.pos) {
@@ -971,7 +1071,10 @@ function compileSlide(slide, forExport = true) {
           const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
         } else {
-          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}>`;
+          const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+          const tipsAttr = b.tips ? ' data-tips="true"' : '';
+          const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr}>`;
         }
         if (b.pos) {
           floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="0" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
@@ -1080,7 +1183,7 @@ async function runMigrateAllSessions() {
 
         for (const sl of parsedSlides) await migrateInlineDataUrls(sl);
 
-        const compiledSlides = parsedSlides.map(compileSlide);
+        const compiledSlides = parsedSlides.map(s => compileSlide(s, true));
         const slidesJson = JSON.stringify(compiledSlides);
         const saveResult = await callBackend(new URLSearchParams({
           action: 'setLessonContent', token: sessionToken,
@@ -1105,31 +1208,43 @@ async function runMigrateAllSessions() {
   }
 }
   
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const bstr = atob(parts[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  const blob = new Blob([u8arr], { type: mime });
+  blob.name = 'migrated_' + uid() + '.' + (mime.split('/')[1] || 'bin');
+  return blob;
+}
+
 async function migrateInlineDataUrls(slide) {
   if (slide._migratedMedia) return slide;
   let didWork = false;
   for (const el of slide.elements) {
     if ((el.kind === 'image' || el.kind === 'video' || el.kind === 'audio') &&
         el.url && el.url.startsWith('data:')) {
-      const match = /^data:([^;]+);base64,(.+)$/.exec(el.url);
-      if (!match) continue;
-      const [, mimeType, base64] = match;
       try {
-        const body = new URLSearchParams({
-          action: 'uploadMedia', token: sessionToken,
-          filename: 'migrated_' + el.id + '.' + (mimeType.split('/')[1] || 'bin'),
-          mimeType, dataBase64: base64
-        });
-        const result = await callBackend(body);
-        if (result.success) { el.url = result.url; didWork = true; }
-        else console.error('Migration upload failed for', el.id, result.message);
+        const blob = dataUrlToBlob(el.url);
+        const result = await uploadDirectFile(blob, null);
+        if (result && result.success && result.url) {
+          el.url = result.url;
+          didWork = true;
+        } else {
+          console.error('Migration upload failed for', el.id, result ? result.message : 'Unknown error');
+        }
       } catch (e) {
         console.error('Could not migrate inline media for element', el.id, e);
       }
     }
   }
   slide._migratedMedia = true; // stops this from re-running on future loads of this slide
-  return didWork ? slide : slide;
+  return slide;
 }
   
 function parseLegacySlideHTML(html) {
@@ -1292,7 +1407,12 @@ function duplicateSlide(id) {
 function deleteSlide(id) {
   if (!confirm('Delete this slide?')) return;
   slides = slides.filter(s => s.id !== id);
-  if (selectedSlideId === id) selectedSlideId = slides.length ? slides[0].id : null;
+  if (slides.length === 0) {
+    slides = [blankSlide('content')];
+  }
+  if (selectedSlideId === id || !slides.some(s => s.id === selectedSlideId)) {
+    selectedSlideId = slides[0].id;
+  }
   renderSlideList(); renderElements(); updatePreview();
 }
 function selectSlide(id) {
@@ -1300,39 +1420,6 @@ function selectSlide(id) {
   renderSlideList(); renderElements(); updatePreview();
 }
 function getSelectedSlide() { return slides.find(s => s.id === selectedSlideId) || null; }
-
-// ---------- fonts ----------
-const FONT_OPTIONS = [
-  { value: '', label: 'Default' },
-  { value: "'Nunito', sans-serif", label: 'Nunito' },
-  { value: "'Baloo 2', sans-serif", label: 'Baloo 2 (Rounded)' },
-  { value: "'Poppins', sans-serif", label: 'Poppins' },
-  { value: "'Fredoka', sans-serif", label: 'Fredoka (Playful)' },
-  { value: "'Comic Neue', cursive", label: 'Comic Neue (Playful)' },
-  { value: "'Cairo', sans-serif", label: 'Cairo (Arabic)' },
-  { value: "'Tajawal', sans-serif", label: 'Tajawal (Arabic)' },
-  { value: "Georgia, serif", label: 'Georgia (Serif)' },
-  { value: "'Courier New', monospace", label: 'Courier New (Mono)' }
-];
-function fontSelectHTML(currentValue, onChangeJs) {
-  const opts = FONT_OPTIONS.map(f =>
-    `<option value="${escAttr(f.value)}" ${((currentValue || '') === f.value) ? 'selected' : ''}>${esc(f.label)}</option>`
-  ).join('');
-  return `<select onchange="${onChangeJs}" style="font-family:${escAttr(currentValue || 'inherit')};">${opts}</select>`;
-}
-
-// ---------- element list rendering ----------
-const ELEM_LABELS = {
-  paragraph: { icon: 'fa-paragraph', label: 'Paragraph' },
-  speaking: { icon: 'fa-comments', label: 'Speaking Prompt' },
-  image: { icon: 'fa-image', label: 'Image' },
-  video: { icon: 'fa-video', label: 'Video (URL)' },
-  audio: { icon: 'fa-volume-high', label: 'Audio (URL)' },
-  question: { icon: 'fa-circle-question', label: 'Question' },
-  list: { icon: 'fa-list', label: 'List / Agenda' },
-  raw: { icon: 'fa-code', label: 'Raw HTML' },
-  link: { icon: 'fa-link', label: 'Hyperlink' }
-};
 
 function renderElements() {
   const col = document.getElementById('elementsCol');
@@ -1636,9 +1723,27 @@ function elemCardHTML(el, i, total) {
             <div class="field"><label>Scrambled Words (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Full Sentence</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
           ` : `
-            <div class="field"><label>Correct Answer</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+            <div class="field"><label>Correct Answer(s)</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)" placeholder="Enter correct answer(s)"></div>
+            
+            <div style="margin-top:12px; padding:10px; border:1px dashed var(--purple-ink); border-radius:6px; background:#fff;">
+              <div style="font-size:13px; font-weight:bold; color:var(--purple-ink); margin-bottom:8px;">
+                <i class="fas fa-robot"></i> Z-AI Answer Checking
+              </div>
+              <div class="field" style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+                 <input type="checkbox" id="strict_${el.id}_${i}" ${b.strict !== false ? 'checked' : ''} onchange="updateElBlank('${el.id}', ${i}, 'strict', this.checked)">
+                 <label for="strict_${el.id}_${i}" style="margin:0; font-size:13px;">Strict Mode (Exact match required)</label>
+              </div>
+              <div class="field" style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                 <input type="checkbox" id="tips_${el.id}_${i}" ${b.tips ? 'checked' : ''} onchange="updateElBlank('${el.id}', ${i}, 'tips', this.checked)">
+                 <label for="tips_${el.id}_${i}" style="margin:0; font-size:13px;">Tips Mode (AI gives hints if incorrect)</label>
+              </div>
+              <div class="field">
+                <label style="font-size:12px;">AI Instructions (Optional rules for grading/hints)</label>
+                <textarea oninput="updateElBlank('${el.id}', ${i}, 'aiInstructions', this.value)" placeholder="e.g. Accept any answer that mentions Paris..." style="height:60px; font-size:13px;">${esc(b.aiInstructions || '')}</textarea>
+              </div>
+            </div>
           `}
-          <div class="field"><label>Other accepted answers (synonyms)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\n'))}</textarea></div>
+          <div class="field" style="margin-top:10px;"><label>Other exact accepted answers (synonyms)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\n'))}</textarea></div>
           <div class="field" style="margin-top:8px;">
             <label class="checkbox-field">
               <input type="checkbox" ${b.pos ? 'checked' : ''} onchange="updateElBlankPosToggle('${el.id}', ${i}, this.checked)">
@@ -1787,6 +1892,193 @@ function refreshThumb(elId) {
   if (img) { img.onerror = null; img.src = driveThumbUrl(el.url) || el.url; img.onerror = function(){ this.src = el.url; this.onerror = function(){ this.style.display='none'; }; }; img.style.display = el.url ? 'block' : 'none'; }
 }
 
+// Called on blur of audio/video URL inputs — auto-fixes Dropbox & other known URL patterns
+async function normalizeElUrl(elId, inputEl) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId); if (!el) return;
+  if (el.kind !== 'audio' && el.kind !== 'video') return;
+  
+  const raw = (inputEl ? inputEl.value : el.url) || '';
+  if (!raw) return;
+
+  // Intercept Dropbox URLs and import them directly to Supabase via backend
+  if (raw.includes('dropbox.com/') || raw.includes('dropboxusercontent.com/')) {
+    const statusEl = document.getElementById('uploadStatus-' + elId);
+    
+    if (statusEl) {
+      statusEl.textContent = 'Importing from Dropbox...';
+      statusEl.style.color = 'var(--accent, #3b82f6)';
+    }
+
+    try {
+      const res = await callBackend({
+        action: 'importExternalMedia',
+        token: sessionToken,
+        url: raw
+      });
+
+      if (res && res.success && res.url) {
+        if (statusEl) {
+          statusEl.textContent = 'Imported successfully ✓';
+          statusEl.style.color = 'var(--success)';
+        }
+        el.url = res.url;
+        if (inputEl) inputEl.value = res.url;
+        updatePreview();
+      } else {
+        throw new Error(res.message || 'Unknown import error');
+      }
+    } catch (err) {
+      if (statusEl) {
+        statusEl.textContent = 'Dropbox import failed: ' + err.message;
+        statusEl.style.color = 'var(--danger)';
+      }
+      // If it fails, fallback to standard normalization just in case
+      const fixed = normalizeMediaUrl(raw);
+      if (fixed !== raw) {
+        el.url = fixed;
+        if (inputEl) inputEl.value = fixed;
+        updatePreview();
+      }
+    }
+    return;
+  }
+
+  // Standard normalization for non-Dropbox links
+  const fixed = normalizeMediaUrl(raw);
+  if (fixed !== raw) {
+    el.url = fixed;
+    if (inputEl) inputEl.value = fixed;
+    updatePreview();
+  }
+}
+
+async function uploadDirectFile(file, statusEl) {
+  if (statusEl) {
+    statusEl.textContent = 'Preparing upload...';
+    statusEl.style.color = 'var(--ink-soft)';
+  }
+
+  // 1. Get signed upload URL from backend (tiny payload, bypassing Vercel body limit)
+  let signedRes = null;
+  try {
+    signedRes = await callBackend({
+      action: 'getMediaUploadUrl',
+      token: sessionToken,
+      filename: file.name || 'upload',
+      mimeType: file.type || 'application/octet-stream',
+      fileSize: file.size || 0
+    });
+  } catch (err) {
+    console.warn('getMediaUploadUrl failed, checking fallback:', err);
+    signedRes = { success: false, message: err.message };
+  }
+
+  // 2. If signed upload URL received, upload directly to Supabase Storage
+  if (signedRes && signedRes.success && signedRes.signedUrl) {
+    if (statusEl) {
+      statusEl.textContent = 'Uploading 0%...';
+      statusEl.style.color = 'var(--accent, #3b82f6)';
+    }
+
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', signedRes.signedUrl, true);
+
+      if (xhr.upload && statusEl) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && e.total > 0) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            statusEl.textContent = `Uploading ${pct}%...`;
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          // If FormData failed, try raw binary PUT as fallback
+          const xhr2 = new XMLHttpRequest();
+          xhr2.open('PUT', signedRes.signedUrl, true);
+          xhr2.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          if (xhr2.upload && statusEl) {
+            xhr2.upload.onprogress = (e) => {
+              if (e.lengthComputable && e.total > 0) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                statusEl.textContent = `Uploading ${pct}%...`;
+              }
+            };
+          }
+          xhr2.onload = () => {
+            if (xhr2.status >= 200 && xhr2.status < 300) {
+              resolve();
+            } else {
+              reject(new Error('Storage upload HTTP ' + xhr2.status + ': ' + (xhr2.responseText || '').slice(0, 150)));
+            }
+          };
+          xhr2.onerror = () => reject(new Error('Network error uploading file to storage.'));
+          xhr2.send(file);
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error uploading file to storage.'));
+
+      // Supabase Storage expects FormData with key "" and cacheControl
+      const formData = new FormData();
+      formData.append('cacheControl', '3600');
+      formData.append('', file);
+      xhr.send(formData);
+    });
+
+    if (statusEl) {
+      statusEl.textContent = 'Finalizing...';
+      statusEl.style.color = 'var(--ink-soft)';
+    }
+
+    // 3. Finalize upload with backend to register DB media record
+    const finalRes = await callBackend({
+      action: 'finalizeMediaUpload',
+      token: sessionToken,
+      fileId: signedRes.fileId,
+      url: signedRes.publicUrl,
+      filename: file.name || 'upload',
+      mimeType: file.type || 'application/octet-stream',
+      fileSize: file.size || 0
+    });
+
+    if (!finalRes.success) {
+      throw new Error(finalRes.message || 'Failed to register media upload.');
+    }
+
+    return { success: true, url: finalRes.url || signedRes.publicUrl, fileId: signedRes.fileId };
+  }
+
+  // Fallback for smaller files (< 3MB) if getMediaUploadUrl failed
+  if (file.size && file.size <= 3 * 1024 * 1024) {
+    if (statusEl) {
+      statusEl.textContent = 'Uploading (fallback)...';
+      statusEl.style.color = 'var(--ink-soft)';
+    }
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const legacyRes = await callBackend({
+      action: 'uploadMedia',
+      token: sessionToken,
+      filename: file.name,
+      mimeType: file.type,
+      dataBase64: base64
+    });
+    return legacyRes;
+  }
+
+  throw new Error((signedRes && signedRes.message) || 'File upload failed. Please verify storage configuration.');
+}
+
 async function processUploads(elId, input, maxMB) {
   const files = Array.from(input.files);
   if (!files.length) return;
@@ -1818,32 +2110,28 @@ async function processUploads(elId, input, maxMB) {
       statusEl.textContent = `Too large (max ${maxMB}MB).`; statusEl.style.color = 'var(--danger)';
       continue;
     }
-    
-    statusEl.textContent = 'Uploading...'; statusEl.style.color = 'var(--ink-soft)';
 
     try {
-      const base64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(file);
-      });
+      const result = await uploadDirectFile(file, statusEl);
       
-      const body = new URLSearchParams({ action: 'uploadMedia', token: sessionToken, filename: file.name, mimeType: file.type, dataBase64: base64 });
-      const result = await callBackend(body);
-      
-      if (!result.success) { statusEl.textContent = result.message || 'Upload failed.'; statusEl.style.color = 'var(--danger)'; continue; }
+      if (!result || !result.success) {
+        statusEl.textContent = (result && result.message) || 'Upload failed.';
+        statusEl.style.color = 'var(--danger)';
+        continue;
+      }
       
       const targetEl = slide.elements.find(e => e.id === targetElId);
       if (targetEl) targetEl.url = result.url;
       
-      statusEl.textContent = 'Uploaded ✓'; statusEl.style.color = 'var(--success)';
+      statusEl.textContent = 'Uploaded ✓';
+      statusEl.style.color = 'var(--success)';
       renderElemCards(slide);
       updatePreview();
       
-      // Delay slightly between multiple uploads to avoid tripping Google's anti-abuse rate limiter
-      if (i < files.length - 1) await new Promise(r => setTimeout(r, 1500));
+      if (i < files.length - 1) await new Promise(r => setTimeout(r, 500));
     } catch (err) {
-      statusEl.textContent = 'Upload failed: ' + err.message; statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'Upload failed: ' + err.message;
+      statusEl.style.color = 'var(--danger)';
     }
   }
 }
@@ -1853,7 +2141,7 @@ function uploadImage(elId, input) {
 }
 
 function uploadMediaFile(elId, input, kind) {
-  const maxMB = kind === 'image' ? 8 : 64;
+  const maxMB = kind === 'image' ? 8 : 150;
   processUploads(elId, input, maxMB);
 }
 
@@ -1983,6 +2271,12 @@ const PREVIEW_CSS = `
   ol.agenda li .time{ margin-left:auto; font-weight:800; color:var(--ink-soft); font-size:12px; background:#f0f4f8; padding:2px 8px; border-radius:6px; }
   .video{ position:relative; }
   .editor-pos-el{ z-index:5; }
+  .z-audio { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 2px solid #DCE6EC; border-radius: 20px; padding: 12px 18px 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .z-audio-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .z-audio-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex: 0 0 auto; }
+  .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; margin-top: 2px; }
+  .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); pointer-events: none; }
+  .z-audio-time { font-size: 13px; color: #5C6C79; font-weight: 800; min-width: 70px; text-align: right; }
 `;
 
 function updatePreview() {
@@ -2012,21 +2306,72 @@ if (loadBtn) loadBtn.onclick = loadSession;
 const saveBtn = document.getElementById('saveBtn');
 if (saveBtn) saveBtn.onclick = saveSession;
 
+window.getPreviewSessionSlides = function() {
+  if (!slides || !Array.isArray(slides) || slides.length === 0) {
+    return [compileSlide(blankSlide('content'), true)];
+  }
+  return slides.map(s => {
+    normalizeSlide(s);
+    return compileSlide(s, true);
+  });
+};
+
 const previewBtn = document.getElementById('previewSessionBtn');
 if (previewBtn) {
   previewBtn.onclick = () => {
-    if (!slides || slides.length === 0) {
-      setStatus('Add at least one slide to preview.', 'error');
-      return;
+    try {
+      if (!slides || !Array.isArray(slides) || slides.length === 0) {
+        slides = [blankSlide('content')];
+        selectedSlideId = slides[0].id;
+        renderSlideList();
+        renderElements();
+        updatePreview();
+      }
+      slides.forEach(s => normalizeSlide(s));
+      // DEBUG: log what elements are in each slide
+      console.group('%c[Preview] Slide dump', 'color:#1f7bfe;font-weight:bold');
+      slides.forEach((s, i) => {
+        const elSummary = (s.elements || []).map(el => `${el.kind}${el.url ? '(url='+el.url.slice(0,60)+'...)' : ''}`).join(', ');
+        console.log(`Slide ${i+1} [${s.id}]: ${elSummary || '(no elements)'}`);
+      });
+      console.groupEnd();
+      let compiledSlides;
+      try {
+        compiledSlides = slides.map((s, i) => {
+          const html = compileSlide(s, false);
+          const hasAudio = html.includes('z-audio') || html.includes('<audio');
+          if (hasAudio) console.log(`%c[Preview] Slide ${i+1} HAS audio in compiled HTML`, 'color:green');
+          else if ((s.elements||[]).some(el => el.kind === 'audio')) console.warn(`[Preview] Slide ${i+1} has audio element but NOT in compiled HTML!`);
+          return html;
+        });
+      } catch (compileErr) {
+        console.error('compileSlide error:', compileErr);
+        alert('Preview failed during slide compilation:\n' + compileErr.message);
+        setStatus('Preview compile error: ' + compileErr.message, 'error');
+        return;
+      }
+      try {
+        sessionStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
+      } catch (e) {
+        console.warn('sessionStorage preview write warning:', e);
+      }
+      try {
+        localStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
+      } catch (e) {
+        console.warn('localStorage preview write warning:', e);
+      }
+      const _pv = 'player.html?preview=1&_v=' + Date.now();
+      const newWin = window.open(_pv, '_blank');
+      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        // Popup was blocked — navigate current tab instead
+        setStatus('Popup blocked. Opening preview in this tab...', 'info');
+        window.location.href = _pv;
+      }
+    } catch (err) {
+      console.error('Preview error:', err);
+      alert('Preview error:\n' + err.message);
+      setStatus('Failed to open preview: ' + err.message, 'error');
     }
-    const compiledSlides = slides.map(s => compileSlide(s, false));
-    try {
-      sessionStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
-    } catch (e) {}
-    try {
-      localStorage.setItem('zenglish_preview_session', JSON.stringify(compiledSlides));
-    } catch (e) {}
-    window.open('player.html?preview=1', '_blank');
   };
 }
 refreshCustomTypeButtons();
@@ -2091,7 +2436,7 @@ async function saveTempSessionContent() {
   btn.disabled = true;
   setStatus('Saving...', 'info');
   try {
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
 
     const body = new URLSearchParams({ action: 'updateTempSessionContent', token: sessionToken, tempId: editTempId, slidesJson });
@@ -2115,7 +2460,7 @@ async function saveSession() {
   btn.disabled = true;
   setStatus('Saving...', 'info');
   try {
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
     console.log('Saving payload size (bytes):', new Blob([slidesJson]).size);
     const body = new URLSearchParams({ action: 'setLessonContent', token: sessionToken, track, level, sessionNumber, slidesJson });
@@ -2604,7 +2949,7 @@ async function publishTempSession() {
   try {
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
 
     const body = new URLSearchParams({
@@ -2642,7 +2987,7 @@ async function publishPublicSession() {
   try {
     if (!sessionToken) { setStatus('Not signed in.', 'error'); return; }
 
-    const compiledSlides = slides.map(compileSlide);
+    const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
 
     const body = new URLSearchParams({
@@ -2975,9 +3320,38 @@ async function parsePptxFile(file) {
         const relDoc = parser.parseFromString(relsXml, 'application/xml');
         relDoc.querySelectorAll('Relationship').forEach(r => {
           const target = r.getAttribute('Target') || '';
-          const filename = target.split('/').pop();
-          if (mediaMap[filename]) slideMedia.push(mediaMap[filename]);
-          else if (mediaMap[target]) slideMedia.push(mediaMap[target]);
+          const targetMode = r.getAttribute('TargetMode');
+          
+          if (targetMode === 'External' && target.startsWith('http')) {
+             const tLower = target.toLowerCase();
+             let vType = null;
+             if (tLower.includes('youtube.com') || tLower.includes('youtu.be') || tLower.includes('vimeo.com') || tLower.includes('.mp4') || tLower.includes('.webm') || tLower.includes('.mov') || tLower.includes('drive.google.com/file/') || tLower.includes('drive.google.com/open') || tLower.includes('dropbox.com/scl/fi/')) {
+                 vType = 'video';
+             } else if (tLower.includes('soundcloud.com') || tLower.includes('.mp3') || tLower.includes('.m4a') || tLower.includes('.wav') || tLower.includes('.ogg')) {
+                 vType = 'audio';
+             }
+             
+             if (vType) {
+                const normalizedTarget = normalizeMediaUrl(target);
+                if (!slideMedia.find(m => m.dataUrl === normalizedTarget)) {
+                   const virtualMedia = {
+                      name: normalizedTarget,
+                      type: vType,
+                      dataUrl: normalizedTarget,
+                      mimeType: vType === 'video' ? 'video/mp4' : 'audio/mp3',
+                      base64: ''
+                   };
+                   slideMedia.push(virtualMedia);
+                   if (!allMedia.find(m => m.dataUrl === normalizedTarget)) {
+                       allMedia.push(virtualMedia);
+                   }
+                }
+             }
+          } else {
+             const filename = target.split('/').pop();
+             if (mediaMap[filename]) slideMedia.push(mediaMap[filename]);
+             else if (mediaMap[target]) slideMedia.push(mediaMap[target]);
+          }
         });
       } catch (re) {}
     }
@@ -3325,8 +3699,37 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
   // 1. Map audio/video elements from extracted slide media
   convertedSlide.elements.forEach(el => {
     if (el.kind === 'audio' || el.kind === 'video') {
-      const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || el.url.startsWith('[')));
-      if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
+      // Handle [MEDIA:url] tag format from AI
+      const mediaTagMatch = (el.url || '').match(/\[MEDIA:([^\]]+)\]/i);
+      if (mediaTagMatch) {
+        // AI gave us [MEDIA:actual_url] - extract the real URL directly
+        const extractedUrl = mediaTagMatch[1].trim();
+        // Find exact match in slideMedia first
+        const exactMatch = slideMedia.find(m => m.dataUrl === extractedUrl || m.name === extractedUrl);
+        el.url = (exactMatch && exactMatch.dataUrl) ? exactMatch.dataUrl : extractedUrl;
+      } else {
+        // Try to match by name/type
+        const matchMedia = slideMedia.find(m => m.type === el.kind && (!el.url || el.url.includes(m.name) || m.name.includes(el.url) || el.url.startsWith('[')));
+        if (matchMedia && matchMedia.dataUrl) el.url = matchMedia.dataUrl;
+      }
+    }
+  });
+
+  // 1b. Inject any audio/video from the original PPTX slide that the AI completely omitted
+  const aiAudioVideo = convertedSlide.elements.filter(el => el.kind === 'audio' || el.kind === 'video');
+  slideMedia.forEach(m => {
+    if ((m.type === 'audio' || m.type === 'video') && m.dataUrl) {
+      // Check if this media is already represented in the AI output
+      const alreadyIn = aiAudioVideo.some(el => el.url === m.dataUrl || (el.url && m.name && el.url.includes(m.name)));
+      if (!alreadyIn) {
+        // AI dropped this media item — add it back
+        convertedSlide.elements.unshift({
+          id: 'el_' + Math.random().toString(36).substr(2, 9),
+          kind: m.type,
+          url: m.dataUrl,
+          caption: ''
+        });
+      }
     }
   });
 
@@ -3369,6 +3772,21 @@ function mapMediaToConvertedSlide(convertedSlide, originalSlide) {
       if (!el.url || el.url.startsWith('[') || el.url.trim() === '') return false;
     }
     return true;
+  });
+
+  // 4. Sanitize unwanted speaking prompts:
+  // If the slide is NOT explicitly titled or instructed for speaking/oral drill, convert any accidental 'speaking' elements to 'paragraph'
+  const titleLower = (convertedSlide.title || '').toLowerCase();
+  const isExplicitSpeaking = titleLower.includes('speaking') || titleLower.includes('pronunciation') || titleLower.includes('oral') || titleLower.includes('say aloud');
+  convertedSlide.elements.forEach(el => {
+    if (el.kind === 'speaking' && !isExplicitSpeaking) {
+      const textLower = (el.text || '').toLowerCase();
+      if (!textLower.startsWith('speak') && !textLower.startsWith('practice saying') && !textLower.startsWith('say aloud') && !textLower.startsWith('pronounce') && !textLower.startsWith('repeat')) {
+        el.kind = 'paragraph';
+        el.size = el.size || 16;
+        delete el.bgColor;
+      }
+    }
   });
 
   return normalizeSlide(convertedSlide);

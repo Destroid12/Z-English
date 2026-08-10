@@ -484,9 +484,9 @@ async function loadLesson(){
     }
 
     if (tempId) {
-      url = `${BACKEND_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+      url = `${BACKEND_URL}?action=getLessonContent&tempId=${encodeURIComponent(tempId)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}&_t=${Date.now()}`;
     } else {
-      url = `${BACKEND_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}`;
+      url = `${BACKEND_URL}?action=getLessonContent&track=${encodeURIComponent(track)}&level=${encodeURIComponent(level)}&sessionNumber=${encodeURIComponent(sessionNumber)}&lt=${encodeURIComponent(accessToken)}&userToken=${encodeURIComponent(userToken)}&guestId=${encodeURIComponent(guestId)}&_t=${Date.now()}`;
     }
     }
     console.log('Fetching lesson from:', url);
@@ -534,6 +534,10 @@ function shuffleArray(array) {
 function initDeck(slides){
   gateOverlay.style.display = 'none';
   deckWrap.style.visibility = 'visible';
+  if (!slides || !Array.isArray(slides) || slides.length === 0) {
+    showBlocked("This session does not contain any slides yet.");
+    return;
+  }
   if (isPreview) {
     document.getElementById('lessonLabel').textContent = `Live Session Preview (Editor)`;
     document.title = `Z-English — Live Preview`;
@@ -547,12 +551,19 @@ function initDeck(slides){
   }
 
   const stage = document.getElementById('stage');
+  stage.innerHTML = '';
   slides.forEach((html, i) => {
     const sec = document.createElement('div');
     sec.className = 'slide';
     sec.dataset.index = i;
-    sec.innerHTML = html;
-    
+    sec.innerHTML = typeof html === 'string' ? html : (html ? String(html) : '');
+
+    // DEBUG
+    const hasAudio = sec.querySelector('.z-audio, audio');
+    const hasQ = sec.querySelector('.question-card, .mc-option');
+    console.log(`[Player] Slide ${i+1}: audio=${!!hasAudio} questions=${!!hasQ} htmlLen=${(html||'').length}`);
+    if (hasAudio) console.log(`%c[Player] Slide ${i+1} HAS audio element ✓`, 'color:green;font-weight:bold');
+
     if (isTestMode) {
       const checkBtn = sec.querySelector('.check-btn');
       if (checkBtn) checkBtn.style.display = 'none';
@@ -770,10 +781,14 @@ function initDeck(slides){
     });
   };
 
-  window.checkAnswers = function(btn) {
+  window.checkAnswers = async function(btn) {
     const slide = btn.closest('.slide');
+    const originalBtnText = btn.innerHTML;
+    const aiPromises = [];
+
     const inputs = slide.querySelectorAll('.interactive-input, .interactive-select');
     inputs.forEach(input => {
+      const isSelect = input.classList.contains('interactive-select');
       const answer = input.dataset.answer.toLowerCase().trim();
       let val = input.value.toLowerCase().trim();
       if (val.endsWith('?')) val = val.slice(0, -1).trim();
@@ -787,13 +802,73 @@ function initDeck(slides){
         });
       }
 
-      const isCorrect = val !== '' && candidates.includes(val);
+      const isExactCorrect = val !== '' && candidates.includes(val);
 
-      input.classList.remove('correct', 'incorrect');
+      input.classList.remove('correct', 'incorrect', 'ai-loading');
       void input.offsetWidth;
+      
+      const prevFeedback = input.parentNode.querySelector('.ai-feedback-msg');
+      if (prevFeedback) prevFeedback.remove();
+
       if (val !== "") {
-        if (isCorrect) input.classList.add('correct');
-        else input.classList.add('incorrect');
+        let needsAiCheck = false;
+        if (!isSelect) {
+            const strictMode = input.dataset.strict !== 'false';
+            const tipsMode = input.dataset.tips === 'true';
+            // If they failed exact match, we check AI if strict=false OR tips=true
+            // If they passed exact match, we skip AI (they got it right already).
+            if (!isExactCorrect && (!strictMode || tipsMode)) {
+               needsAiCheck = true;
+            }
+        }
+        
+        if (needsAiCheck) {
+           input.style.opacity = '0.6';
+           
+           // We extract the slide's visible text to give the AI context about the question
+           const questionContext = slide.innerText.substring(0, 1000);
+           
+           const p = fetch('/api/backend', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                 action: 'aiGradeAnswer',
+                 question: questionContext,
+                 studentAnswer: input.value,
+                 expectedAnswer: input.dataset.answer,
+                 aiInstructions: input.dataset.aiinstructions || '',
+                 tipsMode: input.dataset.tips === 'true'
+              })
+           }).then(r => r.json()).then(res => {
+              input.style.opacity = '1';
+              if (res.success) {
+                 if (res.isCorrect) input.classList.add('correct');
+                 else input.classList.add('incorrect');
+                 
+                 if (res.feedback) {
+                    const fb = document.createElement('div');
+                    fb.className = 'ai-feedback-msg';
+                    fb.style.cssText = `font-size:13.5px; margin-top:8px; padding:12px; border-radius:12px; background:${res.isCorrect ? '#f1f8e9' : '#fff8e1'}; color:${res.isCorrect ? '#2e7d32' : '#f57f17'}; border:1px solid ${res.isCorrect ? '#c5e1a5' : '#ffe082'}; font-weight:600; line-height:1.4; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);`;
+                    fb.innerHTML = `<i class="fas fa-robot" style="margin-right:6px; font-size:16px; opacity:0.8;"></i> ${res.feedback.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+                    
+                    if (input.parentNode.classList.contains('editor-pos-blank')) {
+                        input.parentNode.appendChild(fb);
+                    } else {
+                        input.after(fb);
+                    }
+                 }
+              } else {
+                 input.classList.add('incorrect');
+              }
+           }).catch(err => {
+              input.style.opacity = '1';
+              input.classList.add('incorrect');
+           });
+           aiPromises.push(p);
+        } else {
+           if (isExactCorrect) input.classList.add('correct');
+           else input.classList.add('incorrect');
+        }
       }
     });
 
@@ -882,6 +957,14 @@ function initDeck(slides){
       if (isCorrect) container.classList.add('correct');
       else container.classList.add('incorrect');
     });
+
+    if (aiPromises.length > 0) {
+       btn.disabled = true;
+       btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Z-AI Checking...';
+       await Promise.all(aiPromises);
+       btn.disabled = false;
+       btn.innerHTML = originalBtnText;
+    }
   };
 
   window.triggerSpin = function(btn) {
@@ -1463,9 +1546,16 @@ function initCustomAudio(container) {
   const timeDisplay = container.querySelector('.z-audio-time');
   const rawId = container.getAttribute('data-drive-id') || container.getAttribute('data-src') || container.getAttribute('data-id') || '';
   
-  // Extract file ID if a URL is provided
-  const driveMatch = rawId.match(/\/file\/d\/([-\w]+)/) || rawId.match(/id=([-\w]+)/) || rawId.match(/([-\w]{25,})/);
-  const driveId = driveMatch ? (driveMatch[1] || driveMatch[0]) : rawId;
+  // If rawId is already a full URL, use it directly — do NOT run the ID-extraction
+  // regex on it, which would incorrectly extract a filename substring like "WhatsApp-Audio-..."
+  let driveId;
+  if (rawId.startsWith('http://') || rawId.startsWith('https://') || rawId.startsWith('data:')) {
+    driveId = rawId;
+  } else {
+    // Extract Google Drive file ID from a partial ID or Drive URL
+    const driveMatch = rawId.match(/\/file\/d\/([-\w]+)/) || rawId.match(/id=([-\w]+)/) || rawId.match(/([-\w]{25,})/);
+    driveId = driveMatch ? (driveMatch[1] || driveMatch[0]) : rawId;
+  }
 
   let audio = null;
   let isPlaying = false;
@@ -1525,19 +1615,18 @@ function initCustomAudio(container) {
 
   async function loadAudioSource() {
     if (audio && isReady) return true;
-    if (!driveId) {
-      const innerAudio = container.querySelector('audio');
-      if (innerAudio && innerAudio.src) {
-        audio = innerAudio;
-        attachAudioEvents(audio);
-        isReady = true;
-        return true;
-      }
-      return false;
+    // Prefer the inner <audio> element if the editor provided one, as it bypasses
+    // some strict JS tracking-prevention blocks in Edge/Safari
+    const innerAudio = container.querySelector('audio');
+    if (innerAudio && innerAudio.src) {
+      audio = innerAudio;
+      attachAudioEvents(audio);
+      isReady = true;
+      return true;
     }
 
-    // Direct HTTP or data URL
-    if (driveId.startsWith('http://') || driveId.startsWith('https://') || driveId.startsWith('data:')) {
+    // Direct HTTP or data URL via JS Audio object
+    if (driveId && (driveId.startsWith('http://') || driveId.startsWith('https://') || driveId.startsWith('data:'))) {
       audio = new Audio(driveId);
       audio.preload = 'auto';
       attachAudioEvents(audio);
@@ -1610,19 +1699,19 @@ function initCustomAudio(container) {
           setPlayingState(false);
         }
       } else {
-        // Fallback: render Google Drive preview iframe inside container so audio plays directly
+        // Could not load audio — keep the play button visible but show error state
         container.classList.remove('loading');
-        btn.innerHTML = iconPlay;
-        const fallbackFrame = document.createElement('iframe');
-        fallbackFrame.src = `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview`;
-        fallbackFrame.style.width = '100%';
-        fallbackFrame.style.height = '60px';
-        fallbackFrame.style.border = 'none';
-        fallbackFrame.style.borderRadius = '12px';
-        fallbackFrame.style.marginTop = '6px';
-        fallbackFrame.setAttribute('allow', 'autoplay');
-        container.innerHTML = '';
-        container.appendChild(fallbackFrame);
+        if (btn) btn.innerHTML = iconPlay;
+        if (timeDisplay) timeDisplay.textContent = 'Cannot load';
+        // Only use Drive iframe fallback if we have a real Drive file ID (not a full URL)
+        if (driveId && !driveId.startsWith('http') && !driveId.startsWith('data:')) {
+          const fallbackFrame = document.createElement('iframe');
+          fallbackFrame.src = `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview`;
+          fallbackFrame.style.cssText = 'width:100%;height:60px;border:none;border-radius:12px;margin-top:6px;';
+          fallbackFrame.setAttribute('allow', 'autoplay');
+          container.innerHTML = '';
+          container.appendChild(fallbackFrame);
+        }
       }
     });
   }
