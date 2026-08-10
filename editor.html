@@ -1512,6 +1512,7 @@ function renderElements() {
           <button onclick="addElement('video')"><i class="fas fa-video"></i> Video (URL)</button>
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
+          <button onclick="addElement('voicequestion')"><i class="fas fa-microphone"></i> Voice Question</button>
           <button onclick="addElement('audiocreator')"><i class="fas fa-headphones"></i> Audio Creator</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
           <button onclick="addElement('speaking')"><i class="fas fa-comments"></i> Speaking Prompt</button>
@@ -4293,7 +4294,10 @@ window.toggleAudioCreator = function(btn) {
   if (!blocksB64) return;
   let blocks = [];
   try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(e){}
-  if (blocks.length === 0) return;
+  if (blocks.length === 0) {
+    alert("Please add at least one dialogue block to this Audio Creator element.");
+    return;
+  }
   
   let currentIndex = parseInt(container.dataset.currentIndex || '0');
   if (currentIndex >= blocks.length) currentIndex = 0;
@@ -4375,6 +4379,10 @@ window.updateAudioBlock = function(elId, idx, field, val) {
     el.blocks[idx][field] = val;
     updatePreview();
   }
+};
+
+window.startVoiceQuestion = function(btn) {
+  alert("Voice recognition features (like the Z-AI microphone) can only be tested when you play the presentation in the Player. Please click 'Play' to test it!");
 };
 </script>
 </body>
