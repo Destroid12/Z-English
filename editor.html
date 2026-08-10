@@ -336,7 +336,9 @@ const ELEM_LABELS = {
   sorting: { icon: 'fa-list-ol', label: 'Sorting (Interactive)' },
   question: { icon: 'fa-question-circle', label: 'Question (Fill / Options)' },
   raw: { icon: 'fa-code', label: 'Raw HTML' },
-  link: { icon: 'fa-link', label: 'Hyperlink' }
+  link: { icon: 'fa-link', label: 'Hyperlink' },
+  audiocreator: { icon: 'fa-headphones', label: 'Audio Creator' },
+  list: { icon: 'fa-list', label: 'List / Agenda' }
 };
 async function loadTestSessionContent(testId) {
   setStatus('Loading test session...', 'info');
@@ -1802,7 +1804,7 @@ function elemCardHTML(el, i, total) {
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
   } else if (el.kind === 'audiocreator') {
-    const voices = ['US English (Male)', 'US English (Female)', 'UK English (Male)', 'UK English (Female)', 'Australian (Male)', 'Australian (Female)'];
+    const voices = ['Z-AI Voice (Default)', 'US English (Male)', 'US English (Female)', 'UK English (Male)', 'UK English (Female)', 'Australian (Male)', 'Australian (Female)'];
     let blocksHtml = (el.blocks || []).map((blk, idx) => `
       <div style="margin-bottom:12px; padding:12px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -4250,6 +4252,32 @@ async function convertPptxDeckToSession() {
     if (directBtn) directBtn.disabled = false;
   }
 }
+// Audio Creator Helpers
+window.addAudioBlock = function(elId) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId);
+  if (el && el.kind === 'audiocreator') {
+    if (!el.blocks) el.blocks = [];
+    el.blocks.push({ voice: 'Z-AI Voice (Default)', text: '' });
+    renderElemCards(slide); updatePreview();
+  }
+};
+window.removeAudioBlock = function(elId, idx) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId);
+  if (el && el.kind === 'audiocreator' && el.blocks) {
+    el.blocks.splice(idx, 1);
+    renderElemCards(slide); updatePreview();
+  }
+};
+window.updateAudioBlock = function(elId, idx, field, val) {
+  const slide = getSelectedSlide(); if (!slide) return;
+  const el = slide.elements.find(e => e.id === elId);
+  if (el && el.kind === 'audiocreator' && el.blocks && el.blocks[idx]) {
+    el.blocks[idx][field] = val;
+    updatePreview();
+  }
+};
 </script>
 </body>
 </html>
