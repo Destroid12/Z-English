@@ -1505,7 +1505,6 @@ function renderElements() {
           <button onclick="addElement('video')"><i class="fas fa-video"></i> Video (URL)</button>
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
-          <button onclick="addElement('voicequestion')"><i class="fas fa-microphone"></i> Voice Question</button>
           <button onclick="addElement('audiocreator')"><i class="fas fa-headphones"></i> Audio Creator</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
           <button onclick="addElement('speaking')"><i class="fas fa-comments"></i> Speaking Prompt</button>
@@ -1531,9 +1530,19 @@ function positionAddElemDropdown() {
   const dropdown = document.getElementById('addElemDropdown');
   if (!btn || !dropdown) return;
   const rect = btn.getBoundingClientRect();
-  dropdown.style.top = (rect.bottom + 6) + 'px';
-  // Anchor to the button's right edge (via `right`) so it never overflows off the right
-  // side of the narrow column, and clamp so it never goes off the left edge either.
+  
+  dropdown.style.display = 'block';
+  const dropHeight = dropdown.offsetHeight;
+  dropdown.style.display = '';
+  
+  if (rect.bottom + 6 + dropHeight > window.innerHeight) {
+    dropdown.style.top = 'auto';
+    dropdown.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  } else {
+    dropdown.style.bottom = 'auto';
+    dropdown.style.top = (rect.bottom + 6) + 'px';
+  }
+  
   let right = window.innerWidth - rect.right;
   if (right < 8) right = 8;
   dropdown.style.right = right + 'px';
@@ -1792,6 +1801,34 @@ function elemCardHTML(el, i, total) {
       <div class="field"><label>Font</label>${fontSelectHTML(el.font, `updateElField('${el.id}','font',this.value)`)}</div>`;
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
+  } else if (el.kind === 'audiocreator') {
+    const voices = ['US English (Male)', 'US English (Female)', 'UK English (Male)', 'UK English (Female)', 'Australian (Male)', 'Australian (Female)'];
+    let blocksHtml = (el.blocks || []).map((blk, idx) => `
+      <div style="margin-bottom:12px; padding:12px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h5 style="margin:0; font-size:12px; color:var(--ink-soft);">Block ${idx + 1}</h5>
+          <button class="btn btn-outline" style="padding:2px 6px; font-size:10px; border-color:#ef4444; color:#ef4444;" onclick="removeAudioBlock('${el.id}', ${idx})"><i class="fas fa-trash"></i></button>
+        </div>
+        <div class="field">
+          <label>Voice</label>
+          <select onchange="updateAudioBlock('${el.id}', ${idx}, 'voice', this.value)">
+            ${voices.map(v => `<option value="${v}" ${blk.voice === v ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Dialogue / Text</label>
+          <textarea style="height:60px;" oninput="updateAudioBlock('${el.id}', ${idx}, 'text', this.value)">${esc(blk.text || '')}</textarea>
+        </div>
+      </div>
+    `).join('');
+    
+    fields = `
+      <div class="hint" style="margin-bottom:10px;">Creates a playable audio element that reads dialogue blocks sequentially.</div>
+      <div id="audioBlocks_${el.id}">
+        ${blocksHtml}
+      </div>
+      <button class="btn btn-outline" style="width:100%; margin-top:8px;" onclick="addAudioBlock('${el.id}')"><i class="fas fa-plus"></i> Add Dialogue Block</button>
+    `;
   } else if (el.kind === 'link') {
     fields = `
       <div class="field"><label>URL</label><input type="url" value="${escAttr(el.url)}" oninput="updateElField('${el.id}','url',this.value)" placeholder="https://..."></div>
