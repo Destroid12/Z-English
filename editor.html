@@ -1014,6 +1014,11 @@ function compileSlide(slide, forExport = true) {
             const shuffled = [...(b.options || [])];
             const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
+          } else if (b.qtype === 'voice') {
+            const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+            const tipsAttr = b.tips ? ' data-tips="true"' : '';
+            const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+            inputHtml = `<button class="interactive-voice btn btn-outline" data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr} onclick="startVoiceQuestion(this)"><i class="fas fa-microphone"></i> <span>Tap to Speak</span></button>`;
           } else {
             const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
             const tipsAttr = b.tips ? ' data-tips="true"' : '';
@@ -4273,6 +4278,79 @@ async function convertPptxDeckToSession() {
   }
 }
 // Audio Creator Helpers
+window.toggleAudioCreator = function(btn) {
+  const container = btn.closest('.audiocreator-player');
+  const isPlaying = container.dataset.playing === 'true';
+  if (isPlaying) {
+    window.speechSynthesis.cancel();
+    container.dataset.playing = 'false';
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.classList.remove('playing');
+    return;
+  }
+  
+  const blocksB64 = container.dataset.blocks;
+  if (!blocksB64) return;
+  let blocks = [];
+  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(e){}
+  if (blocks.length === 0) return;
+  
+  let currentIndex = parseInt(container.dataset.currentIndex || '0');
+  if (currentIndex >= blocks.length) currentIndex = 0;
+  
+  container.dataset.playing = 'true';
+  btn.innerHTML = '<i class="fas fa-pause"></i>';
+  btn.classList.add('playing');
+  
+  const textEl = container.querySelector('.audiocreator-text');
+  const barEl = container.querySelector('.audiocreator-bar');
+  
+  function playNextBlock() {
+    if (container.dataset.playing !== 'true') return;
+    if (currentIndex >= blocks.length) {
+      container.dataset.playing = 'false';
+      btn.innerHTML = '<i class="fas fa-play"></i>';
+      btn.classList.remove('playing');
+      textEl.innerText = 'Finished.';
+      barEl.style.width = '100%';
+      container.dataset.currentIndex = '0';
+      return;
+    }
+    
+    const block = blocks[currentIndex];
+    textEl.innerText = `Speaking: Block ${currentIndex + 1}/${blocks.length}`;
+    barEl.style.width = `${(currentIndex / blocks.length) * 100}%`;
+    
+    const utterance = new SpeechSynthesisUtterance(block.text || ' ');
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice = null;
+    if (block.voice && block.voice !== 'Z-AI Voice (Default)') {
+       selectedVoice = voices.find(v => v.name.includes(block.voice) || (block.voice.includes('US') && v.lang === 'en-US'));
+    }
+    if (selectedVoice) utterance.voice = selectedVoice;
+    
+    utterance.onend = () => {
+      currentIndex++;
+      container.dataset.currentIndex = currentIndex.toString();
+      playNextBlock();
+    };
+    utterance.onerror = () => {
+      currentIndex++;
+      container.dataset.currentIndex = currentIndex.toString();
+      playNextBlock();
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  }
+  
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = playNextBlock;
+    setTimeout(playNextBlock, 1000);
+  } else {
+    playNextBlock();
+  }
+};
+
 window.addAudioBlock = function(elId) {
   const slide = getSelectedSlide(); if (!slide) return;
   const el = slide.elements.find(e => e.id === elId);

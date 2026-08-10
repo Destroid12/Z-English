@@ -2245,7 +2245,10 @@ window.toggleAudioCreator = function(btn) {
     
     const utterance = new SpeechSynthesisUtterance(block.text || ' ');
     const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = voices.find(v => v.name.includes(block.voice) || (block.voice.includes('US') && v.lang === 'en-US'));
+    let selectedVoice = null;
+    if (block.voice && block.voice !== 'Z-AI Voice (Default)') {
+       selectedVoice = voices.find(v => v.name.includes(block.voice) || (block.voice.includes('US') && v.lang === 'en-US'));
+    }
     if (selectedVoice) utterance.voice = selectedVoice;
     
     utterance.onend = () => {
