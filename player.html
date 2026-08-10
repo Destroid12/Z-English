@@ -2036,7 +2036,7 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
         setVoiceState('thinking');
         directVoiceRecognizer.stop();
         sendDirectVoice(document.getElementById('voiceTranscript').innerText);
-      }, 3500);
+      }, 1500);
     }
   };
   
@@ -2248,10 +2248,22 @@ window.toggleAudioCreator = function(btn) {
     const utterance = new SpeechSynthesisUtterance(block.text || ' ');
     const voices = window.speechSynthesis.getVoices();
     let selectedVoice = null;
-    if (block.voice && block.voice !== 'Z-AI Voice (Default)') {
-       selectedVoice = voices.find(v => v.name.includes(block.voice) || (block.voice.includes('US') && v.lang === 'en-US'));
+    
+    if (block.voice === 'Z-AI Voice (Default)') {
+       selectedVoice = typeof pickVoice === 'function' ? pickVoice('en-US') : null;
+    } else if (block.voice) {
+       const isUK = block.voice.includes('UK');
+       const isAU = block.voice.includes('Australian');
+       const isFemale = block.voice.includes('Female');
+       selectedVoice = voices.find(v => 
+         v.name.includes(block.voice) || 
+         ((isUK ? v.lang === 'en-GB' : isAU ? v.lang === 'en-AU' : v.lang === 'en-US') && 
+          (isFemale ? /female|woman|girl/i.test(v.name) : /male|man|boy/i.test(v.name)))
+       );
     }
+    
     if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.rate = 0.95; // Slightly slower for better pacing
     
     utterance.onend = () => {
       currentIndex++;
@@ -2274,6 +2286,46 @@ window.toggleAudioCreator = function(btn) {
     playNextBlock();
   }
 };
+
+window.seekAudioCreator = function(e, track) {
+  const container = track.closest('.audiocreator-player');
+  const blocksB64 = container.dataset.blocks;
+  if (!blocksB64) return;
+  let blocks = [];
+  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(err){}
+  if (blocks.length === 0) return;
+  
+  const rect = track.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, x / rect.width));
+  
+  const targetIndex = Math.floor(pct * blocks.length);
+  const newIndex = Math.min(targetIndex, blocks.length - 1);
+  
+  container.dataset.currentIndex = newIndex.toString();
+  
+  // If it's already playing, we need to restart playback from the new index
+  if (container.dataset.playing === 'true') {
+    window.speechSynthesis.cancel();
+    // Re-trigger the toggle to start playing from the new index
+    container.dataset.playing = 'false';
+    window.toggleAudioCreator(container.querySelector('.audiocreator-btn'));
+  } else {
+    // Just update the visual state
+    const barEl = container.querySelector('.audiocreator-bar');
+    const textEl = container.querySelector('.audiocreator-text');
+    barEl.style.width = `${(newIndex / blocks.length) * 100}%`;
+    textEl.innerText = `Paused at Block ${newIndex + 1}/${blocks.length}`;
+  }
+};
+
+// Global delegate for older presentations that lack the onclick attribute
+document.addEventListener('click', function(e) {
+  const progress = e.target.closest('.audiocreator-progress');
+  if (progress && !progress.hasAttribute('onclick')) {
+    window.seekAudioCreator(e, progress);
+  }
+});
 
 // --- Interactive Voice Logic ---
 let voiceQuestionRecognizer = null;
@@ -2299,7 +2351,7 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
       voiceQuestionTimer = setTimeout(() => {
         voiceQuestionRecognizer.stop();
         submitVoiceQuestion(transcript);
-      }, 3500);
+      }, 1500);
     }
   };
   
@@ -2425,7 +2477,7 @@ async function submitVoiceQuestion(transcript) {
       btn.disabled = false;
       btn.style = '';
       btn.innerHTML = `<i class="fas fa-microphone"></i> <span>Tap to Speak</span>`;
-    }, 4000);
+    }, 2000);
   }
 }
 </script>

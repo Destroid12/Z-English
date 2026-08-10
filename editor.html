@@ -1109,7 +1109,7 @@ function compileSlide(slide, forExport = true) {
       chunk = `
         <div class="audiocreator-player" data-blocks="${b64}">
           <button class="audiocreator-btn" onclick="toggleAudioCreator(this)"><i class="fas fa-play"></i></button>
-          <div class="audiocreator-progress">
+          <div class="audiocreator-progress" onclick="seekAudioCreator(event, this)" style="cursor:pointer;">
             <div class="audiocreator-bar" style="width:0%"></div>
           </div>
           <div class="audiocreator-text">Click play to listen...</div>
