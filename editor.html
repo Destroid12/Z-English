@@ -201,8 +201,12 @@
     <select id="sel-level"></select>
     <select id="sel-session"></select>
 
-    <button class="btn btn-outline" id="loadBtn"><i class="fas fa-cloud-arrow-down"></i> Load</button>
-    <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+    <button class="btn btn-outline" id="loadBtn" title="Load from Server"><i class="fas fa-cloud-arrow-down"></i> Load</button>
+    <button class="btn btn-primary" id="saveBtn" title="Save to Server"><i class="fas fa-floppy-disk"></i> Save to Session</button>
+    <div style="width: 1px; height: 24px; background: #e2e8f0; margin: 0 4px;"></div>
+    <button class="btn btn-outline" onclick="exportSessionToPC()" title="Backup session to your PC"><i class="fas fa-download"></i> Save to PC</button>
+    <button class="btn btn-outline" onclick="importSessionFromPC()" title="Load session from your PC"><i class="fas fa-upload"></i> Load from PC</button>
+    <input type="file" id="importSessionFile" style="display:none" accept=".json" onchange="handleImportSession(event)">
     <button class="btn btn-primary" id="saveTempBtn" onclick="saveTempSessionContent()" style="display:none;"><i class="fas fa-floppy-disk"></i> Save Temp Session</button>
     <button class="btn btn-secondary" id="publishTempBtn" onclick="openTempSessionModal()"><i class="fas fa-link"></i> Publish Temp Link</button>
     <button class="btn btn-primary" id="savePublicBtn" onclick="savePublicSessionContent()" style="display:none;"><i class="fas fa-floppy-disk"></i> Save Public Session</button>
@@ -823,7 +827,7 @@ function compileSlide(slide, forExport = true) {
       dataComment = '';
     }
   }
-  const tagText = getTypeLabel(slide.type).toUpperCase();
+  const tagText = (getTypeLabel(slide.type || 'content') || 'CONTENT').toUpperCase();
   const h1Class = slide.type === 'activity' ? 't-activity' : 't-content';
 
   let titleStyle = '';
@@ -2474,6 +2478,49 @@ async function saveSession() {
   } finally {
     btn.disabled = false;
   }
+}
+
+function exportSessionToPC() {
+  if (slides.length === 0) { setStatus('Nothing to save.', 'error'); return; }
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(slides, null, 2));
+  const dlAnchorElem = document.createElement('a');
+  dlAnchorElem.setAttribute("href", dataStr);
+  const track = document.getElementById('sel-track').value || 'track';
+  const level = document.getElementById('sel-level').value || 'level';
+  const sess = document.getElementById('sel-session').value || 'session';
+  dlAnchorElem.setAttribute("download", `zenglish_${track}_${level}_${sess}.json`);
+  document.body.appendChild(dlAnchorElem);
+  dlAnchorElem.click();
+  document.body.removeChild(dlAnchorElem);
+  setStatus('Saved to PC ✓', 'success');
+}
+
+function importSessionFromPC() {
+  document.getElementById('importSessionFile').click();
+}
+
+function handleImportSession(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importedSlides = JSON.parse(e.target.result);
+      if (Array.isArray(importedSlides)) {
+         saveUndoState();
+         slides = importedSlides;
+         renderSlideList();
+         if (slides.length > 0) selectSlide(slides[0].id);
+         setStatus('Session loaded from PC ✓', 'success');
+      } else {
+         setStatus('Invalid session file.', 'error');
+      }
+    } catch(err) {
+      setStatus('Failed to load file.', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 function saveUndoState() {
