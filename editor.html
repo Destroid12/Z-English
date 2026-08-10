@@ -1512,7 +1512,6 @@ function renderElements() {
           <button onclick="addElement('video')"><i class="fas fa-video"></i> Video (URL)</button>
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
-          <button onclick="addElement('voicequestion')"><i class="fas fa-microphone"></i> Voice Question</button>
           <button onclick="addElement('audiocreator')"><i class="fas fa-headphones"></i> Audio Creator</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
           <button onclick="addElement('speaking')"><i class="fas fa-comments"></i> Speaking Prompt</button>
@@ -1911,7 +1910,9 @@ function updateElField(elId, field, value) {
     let numBlanks = promptParts.length > 1 ? promptParts.length - 1 : 1;
     if (!el.blanks) el.blanks = [];
     while (el.blanks.length < numBlanks) {
-      el.blanks.push({ qtype: 'text', answer: '', altAnswers: [], options: [] });
+      const lastBlank = el.blanks[el.blanks.length - 1];
+      const inheritedQtype = (lastBlank && lastBlank.qtype) ? lastBlank.qtype : 'text';
+      el.blanks.push({ qtype: inheritedQtype, answer: '', altAnswers: [], options: [], strict: lastBlank ? lastBlank.strict : true, tips: lastBlank ? lastBlank.tips : false });
     }
     if (el.blanks.length > numBlanks) {
       el.blanks = el.blanks.slice(0, numBlanks);
