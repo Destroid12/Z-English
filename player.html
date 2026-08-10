@@ -2088,28 +2088,36 @@ function sendDirectVoice(text) {
     slideContext = JSON.stringify(slides[currentSlideIndex]).substring(0, 1500);
   }
 
-  google.script.run
-    .withSuccessHandler(res => {
+  const payload = {
+    action: 'askTutor',
+    track: sessionTrack,
+    level: sessionLevel,
+    sessionNumber: sessionNumber,
+    tutorToken: tutorToken,
+    question: text,
+    slideContext: slideContext,
+    history: tutorHistory
+  };
+
+  fetch('/api/backend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
       if (!directVoiceActive) return;
-      const data = JSON.parse(res);
       if (data.success) {
         tutorHistory.push({ role: 'assistant', content: data.reply });
         directVoiceSpeak(data.reply);
       } else {
         directVoiceSpeak("Error: " + data.message);
       }
-    })
-    .withFailureHandler(err => {
+  })
+  .catch(err => {
       if (!directVoiceActive) return;
-      directVoiceSpeak("Connection failed.");
-    })
-    .runAction({
-      action: 'askTutor',
-      tutorToken: tutorToken,
-      question: text,
-      history: JSON.stringify(tutorHistory.slice(-6)),
-      slideContext: slideContext
-    });
+      directVoiceSpeak("Network error.");
+  });
 }
 
 function directVoiceSpeak(text) {
