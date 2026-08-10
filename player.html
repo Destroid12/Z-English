@@ -825,7 +825,7 @@ function initDeck(slides){
         if (needsAiCheck) {
            input.style.opacity = '0.6';
            
-           // We extract the slide's visible text to give the AI context about the question
+           const failCount = parseInt(input.dataset.failCount || '0');
            const questionContext = slide.innerText.substring(0, 1000);
            
            const p = fetch('/api/backend', {
@@ -837,13 +837,19 @@ function initDeck(slides){
                  studentAnswer: input.value,
                  expectedAnswer: input.dataset.answer,
                  aiInstructions: input.dataset.aiinstructions || '',
-                 tipsMode: input.dataset.tips === 'true'
+                 tipsMode: input.dataset.tips === 'true',
+                 failCount: failCount
               })
            }).then(r => r.json()).then(res => {
               input.style.opacity = '1';
               if (res.success) {
-                 if (res.isCorrect) input.classList.add('correct');
-                 else input.classList.add('incorrect');
+                 if (res.isCorrect) {
+                     input.classList.add('correct');
+                     input.dataset.failCount = '0';
+                 } else {
+                     input.classList.add('incorrect');
+                     input.dataset.failCount = (failCount + 1).toString();
+                 }
                  
                  if (res.feedback) {
                     const fb = document.createElement('div');
@@ -859,15 +865,22 @@ function initDeck(slides){
                  }
               } else {
                  input.classList.add('incorrect');
+                 input.dataset.failCount = (failCount + 1).toString();
               }
            }).catch(err => {
               input.style.opacity = '1';
               input.classList.add('incorrect');
+              input.dataset.failCount = (failCount + 1).toString();
            });
            aiPromises.push(p);
         } else {
-           if (isExactCorrect) input.classList.add('correct');
-           else input.classList.add('incorrect');
+           if (isExactCorrect) {
+               input.classList.add('correct');
+               input.dataset.failCount = '0';
+           } else {
+               input.classList.add('incorrect');
+               input.dataset.failCount = (parseInt(input.dataset.failCount || '0') + 1).toString();
+           }
         }
       }
     });

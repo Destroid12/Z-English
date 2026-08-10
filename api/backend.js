@@ -2401,6 +2401,7 @@ async function _aiGradeAnswer(p) {
   const expectedAnswer = String(p.expectedAnswer || '').trim();
   const tipsMode = p.tipsMode === true || p.tipsMode === 'true';
   const aiInstructions = String(p.aiInstructions || '').trim();
+  const failCount = parseInt(p.failCount || '0', 10);
   
   if (!studentAnswer) return { success: false, message: 'Missing student answer.' };
   
@@ -2412,7 +2413,11 @@ async function _aiGradeAnswer(p) {
   if (aiInstructions) {
     prompt += 'TEACHER INSTRUCTIONS FOR GRADING:\n"""\n' + aiInstructions + '\n"""\n';
   }
-  prompt += '\nSTUDENT\'S ANSWER: ' + studentAnswer + '\n\n';
+  prompt += '\nSTUDENT\'S ANSWER: ' + studentAnswer + '\n';
+  if (failCount > 0) {
+    prompt += `NOTE: The student has already attempted to answer and failed ${failCount} times.\n`;
+  }
+  prompt += '\n';
   
   prompt += 'YOUR TASK:\n';
   prompt += '1. Evaluate if the student\'s answer is correct based on the reference answer and the teacher\'s instructions.\n';
@@ -2420,6 +2425,9 @@ async function _aiGradeAnswer(p) {
   prompt += '2. If the answer is correct, provide brief praise in the feedback.\n';
   if (tipsMode) {
     prompt += '3. If the answer is incorrect or partially correct, DO NOT GIVE THE DIRECT ANSWER. Instead, provide an educational hint or tip to guide the student to figure it out themselves.\n';
+    if (expectedAnswer) {
+        prompt += '   Use the Reference Correct Answer to shape your hint, helping the student deduce it naturally.\n';
+    }
   } else {
     prompt += '3. If the answer is incorrect, provide brief feedback explaining why it is wrong.\n';
   }
