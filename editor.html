@@ -1759,6 +1759,26 @@ function elemCardHTML(el, i, total) {
           ` : b.qtype === 'wordbank' ? `
             <div class="field"><label>Scrambled Words (one per line)</label><textarea oninput="updateElBlank('${el.id}', ${i}, 'options', this.value)">${esc((b.options || []).join('\n'))}</textarea></div>
             <div class="field"><label>Correct Full Sentence</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)"></div>
+          ` : b.qtype === 'voice' ? `
+            <div class="field"><label>Expected Speech (for AI Checking)</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)" placeholder="Enter expected speech..."></div>
+            <div class="field"><label>Alt Answers (one per line)</label><textarea style="min-height:50px" oninput="updateElBlank('${el.id}', ${i}, 'altAnswers', this.value)">${esc((b.altAnswers || []).join('\n'))}</textarea></div>
+            <div style="margin-top:12px; padding:10px; border:1px dashed var(--purple-ink); border-radius:6px; background:#fff;">
+              <div style="font-size:13px; font-weight:bold; color:var(--purple-ink); margin-bottom:8px;">
+                <i class="fas fa-robot"></i> Z-AI Voice Checking Settings
+              </div>
+              <div class="field" style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+                 <input type="checkbox" id="strict_${el.id}_${i}" ${b.strict !== false ? 'checked' : ''} onchange="updateElBlank('${el.id}', ${i}, 'strict', this.checked)">
+                 <label for="strict_${el.id}_${i}" style="margin:0; font-weight:normal;">Strict grading (no spelling mistakes allowed)</label>
+              </div>
+              <div class="field" style="display:flex; gap:10px; align-items:center;">
+                 <input type="checkbox" id="tips_${el.id}_${i}" ${b.tips ? 'checked' : ''} onchange="updateElBlank('${el.id}', ${i}, 'tips', this.checked)">
+                 <label for="tips_${el.id}_${i}" style="margin:0; font-weight:normal;">Provide a hint if they pronounce wrong</label>
+              </div>
+              <div class="field" style="margin-top:10px;">
+                 <label>Custom Z-AI Instructions (Optional)</label>
+                 <textarea style="min-height:50px;" oninput="updateElBlank('${el.id}', ${i}, 'aiInstructions', this.value)" placeholder="e.g. Check for grammar, exact phrasing...">${esc(b.aiInstructions || '')}</textarea>
+              </div>
+            </div>
           ` : `
             <div class="field"><label>Correct Answer(s)</label><input type="text" value="${escAttr(b.answer)}" oninput="updateElBlank('${el.id}', ${i}, 'answer', this.value)" placeholder="Enter correct answer(s)"></div>
             
