@@ -332,6 +332,32 @@
   .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); transition: width 0.1s linear; pointer-events: none; }
   .z-audio-time { font-size: 13px; color: var(--ink-soft); font-weight: 800; font-family: 'Nunito', sans-serif; min-width: 70px; text-align: right; }
   .z-audio.loading .z-audio-btn svg { animation: spin 1s linear infinite; }
+/* Audiocreator */
+.audiocreator-player {
+  display: flex; align-items: center; gap: 12px;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;
+  margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.audiocreator-btn {
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: #6a1b9a; color: white; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.audiocreator-btn.playing { background: #d32f2f; }
+.audiocreator-progress { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+.audiocreator-bar { height: 100%; background: #6a1b9a; width: 0%; transition: width 0.2s linear; }
+.audiocreator-text { font-size: 14px; color: #475569; font-weight: 500; min-width: 140px; }
+
+/* Interactive Voice */
+.interactive-voice {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: white; border: 2px solid #6a1b9a; color: #6a1b9a;
+  padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s;
+}
+.interactive-voice:hover { background: #faf5ff; }
+.interactive-voice.listening { background: #d32f2f; color: white; border-color: #d32f2f; animation: pulseVoice 1.5s infinite; }
+@keyframes pulseVoice { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -1984,22 +2010,28 @@ function stopVolumeMeter() {
 if (window.SpeechRecognition || window.webkitSpeechRecognition) {
   const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
   directVoiceRecognizer = new Ctor();
-  directVoiceRecognizer.continuous = false;
+  directVoiceRecognizer.continuous = true;
   directVoiceRecognizer.interimResults = true;
   
+  let directVoiceSilenceTimer = null;
+
   directVoiceRecognizer.onresult = (e) => {
     if (!directVoiceActive) return;
-    let finalTranscript = '';
-    let interimTranscript = '';
-    for (let i = e.resultIndex; i < e.results.length; ++i) {
-      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
-      else interimTranscript += e.results[i][0].transcript;
+    let transcript = '';
+    for (let i = 0; i < e.results.length; ++i) {
+      transcript += e.results[i][0].transcript;
     }
-    document.getElementById('voiceTranscript').innerText = finalTranscript || interimTranscript;
     
-    if (finalTranscript) {
-      setVoiceState('thinking');
-      sendDirectVoice(finalTranscript);
+    document.getElementById('voiceTranscript').innerText = transcript;
+    
+    clearTimeout(directVoiceSilenceTimer);
+    if (transcript.trim().length > 0) {
+      directVoiceSilenceTimer = setTimeout(() => {
+        if (!directVoiceActive || directVoiceState !== 'listening') return;
+        setVoiceState('thinking');
+        directVoiceRecognizer.stop();
+        sendDirectVoice(document.getElementById('voiceTranscript').innerText);
+      }, 3500);
     }
   };
   
@@ -2160,6 +2192,231 @@ function directVoiceSpeak(text) {
   };
   
   window.speechSynthesis.speak(utter);
+}
+</script>
+// --- Audio Creator Element Logic ---
+window.toggleAudioCreator = function(btn) {
+  const container = btn.closest('.audiocreator-player');
+  const isPlaying = container.dataset.playing === 'true';
+  if (isPlaying) {
+    window.speechSynthesis.cancel();
+    container.dataset.playing = 'false';
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.classList.remove('playing');
+    return;
+  }
+  
+  const blocksB64 = container.dataset.blocks;
+  if (!blocksB64) return;
+  let blocks = [];
+  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(e){}
+  if (blocks.length === 0) return;
+  
+  let currentIndex = parseInt(container.dataset.currentIndex || '0');
+  if (currentIndex >= blocks.length) currentIndex = 0;
+  
+  container.dataset.playing = 'true';
+  btn.innerHTML = '<i class="fas fa-pause"></i>';
+  btn.classList.add('playing');
+  
+  const textEl = container.querySelector('.audiocreator-text');
+  const barEl = container.querySelector('.audiocreator-bar');
+  
+  function playNextBlock() {
+    if (container.dataset.playing !== 'true') return;
+    if (currentIndex >= blocks.length) {
+      container.dataset.playing = 'false';
+      btn.innerHTML = '<i class="fas fa-play"></i>';
+      btn.classList.remove('playing');
+      textEl.innerText = 'Finished.';
+      barEl.style.width = '100%';
+      container.dataset.currentIndex = '0';
+      return;
+    }
+    
+    const block = blocks[currentIndex];
+    textEl.innerText = `Speaking: Block ${currentIndex + 1}/${blocks.length}`;
+    barEl.style.width = `${(currentIndex / blocks.length) * 100}%`;
+    
+    const utterance = new SpeechSynthesisUtterance(block.text || ' ');
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice = voices.find(v => v.name.includes(block.voice) || (block.voice.includes('US') && v.lang === 'en-US'));
+    if (selectedVoice) utterance.voice = selectedVoice;
+    
+    utterance.onend = () => {
+      currentIndex++;
+      container.dataset.currentIndex = currentIndex.toString();
+      playNextBlock();
+    };
+    utterance.onerror = () => {
+      currentIndex++;
+      container.dataset.currentIndex = currentIndex.toString();
+      playNextBlock();
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  }
+  
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = playNextBlock;
+    setTimeout(playNextBlock, 1000);
+  } else {
+    playNextBlock();
+  }
+};
+
+// --- Interactive Voice Logic ---
+let voiceQuestionRecognizer = null;
+let currentVoiceBtn = null;
+let voiceQuestionTimer = null;
+
+if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  voiceQuestionRecognizer = new Ctor();
+  voiceQuestionRecognizer.continuous = true;
+  voiceQuestionRecognizer.interimResults = true;
+  
+  voiceQuestionRecognizer.onresult = (e) => {
+    if (!currentVoiceBtn) return;
+    let transcript = '';
+    for (let i = 0; i < e.results.length; ++i) {
+      transcript += e.results[i][0].transcript;
+    }
+    currentVoiceBtn.querySelector('span').innerText = transcript || "Listening...";
+    
+    clearTimeout(voiceQuestionTimer);
+    if (transcript.trim().length > 0) {
+      voiceQuestionTimer = setTimeout(() => {
+        voiceQuestionRecognizer.stop();
+        submitVoiceQuestion(transcript);
+      }, 3500);
+    }
+  };
+  
+  voiceQuestionRecognizer.onend = () => {
+    if (currentVoiceBtn) {
+      try { voiceQuestionRecognizer.start(); } catch(e){}
+    }
+  };
+}
+
+window.startVoiceQuestion = function(btn) {
+  if (!voiceQuestionRecognizer) {
+    alert("Voice recognition is not supported in this browser.");
+    return;
+  }
+  if (currentVoiceBtn === btn) {
+    clearTimeout(voiceQuestionTimer);
+    const transcript = btn.querySelector('span').innerText;
+    voiceQuestionRecognizer.stop();
+    if (transcript !== 'Listening...' && transcript !== 'Tap to Speak') {
+      submitVoiceQuestion(transcript);
+    } else {
+      resetVoiceQuestionBtn();
+    }
+    return;
+  }
+  
+  if (currentVoiceBtn) resetVoiceQuestionBtn();
+  
+  currentVoiceBtn = btn;
+  btn.classList.add('listening');
+  btn.querySelector('span').innerText = "Listening...";
+  
+  voiceQuestionRecognizer.lang = 'en-US';
+  try { voiceQuestionRecognizer.start(); } catch(e){}
+};
+
+function resetVoiceQuestionBtn() {
+  if (currentVoiceBtn) {
+    currentVoiceBtn.classList.remove('listening');
+    currentVoiceBtn.querySelector('span').innerText = "Tap to Speak";
+    currentVoiceBtn = null;
+    try { voiceQuestionRecognizer.stop(); } catch(e){}
+  }
+}
+
+async function submitVoiceQuestion(transcript) {
+  const btn = currentVoiceBtn;
+  resetVoiceQuestionBtn();
+  if (!btn) return;
+  
+  btn.disabled = true;
+  btn.querySelector('span').innerText = "Checking...";
+  
+  const originalAnswer = btn.dataset.answer || '';
+  const altAnswersAttr = btn.dataset.alt || '';
+  const strict = btn.dataset.strict === 'true';
+  const tips = btn.dataset.tips === 'true';
+  const instructions = btn.dataset.aiinstructions || '';
+  
+  let isCorrect = false;
+  let candidates = [originalAnswer.toLowerCase().trim()];
+  if (altAnswersAttr) {
+     altAnswersAttr.split('|').forEach(a => {
+        const t = a.toLowerCase().trim();
+        if (t) candidates.push(t);
+     });
+  }
+  
+  if (candidates.includes(transcript.toLowerCase().trim())) {
+    isCorrect = true;
+  } else {
+    try {
+      let failCount = parseInt(btn.dataset.failcount || '0');
+      const res = await fetch('/api/backend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'aiGradeAnswer',
+          studentAnswer: transcript,
+          correctAnswer: originalAnswer,
+          strict: strict,
+          tips: tips,
+          aiInstructions: instructions,
+          failCount: failCount
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.isCorrect) isCorrect = true;
+      if (data.success) {
+         failCount++;
+         btn.dataset.failcount = failCount.toString();
+         if (data.feedbackMsg) {
+           const existingFb = btn.parentNode.querySelector('.ai-feedback-msg');
+           if (existingFb) existingFb.remove();
+           const div = document.createElement('div');
+           div.className = 'ai-feedback-msg';
+           div.style.marginTop = '8px';
+           div.style.padding = '10px';
+           div.style.borderRadius = '6px';
+           div.style.fontSize = '14px';
+           div.style.background = isCorrect ? '#dcfce7' : '#fef08a';
+           div.style.color = isCorrect ? '#166534' : '#854d0e';
+           div.style.border = isCorrect ? '1px solid #16a34a' : '1px solid #ca8a04';
+           div.innerHTML = `<i class="fas fa-robot"></i> ${data.feedbackMsg}`;
+           btn.parentNode.appendChild(div);
+         }
+      }
+    } catch(e) {}
+  }
+  
+  if (isCorrect) {
+    btn.style.background = '#dcfce7';
+    btn.style.borderColor = '#16a34a';
+    btn.style.color = '#166534';
+    btn.innerHTML = `<i class="fas fa-check"></i> <span>${transcript}</span>`;
+  } else {
+    btn.style.background = '#fee2e2';
+    btn.style.borderColor = '#ef4444';
+    btn.style.color = '#991b1b';
+    btn.innerHTML = `<i class="fas fa-times"></i> <span>${transcript}</span>`;
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.style = '';
+      btn.innerHTML = `<i class="fas fa-microphone"></i> <span>Tap to Speak</span>`;
+    }, 4000);
+  }
 }
 </script>
 </body>

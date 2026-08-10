@@ -1074,6 +1074,11 @@ function compileSlide(slide, forExport = true) {
           const shuffled = [...(b.options || [])];
           const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
           inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
+        } else if (b.qtype === 'voice') {
+          const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+          const tipsAttr = b.tips ? ' data-tips="true"' : '';
+          const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+          inputHtml = `<button class="interactive-voice btn btn-outline" data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr} onclick="startVoiceQuestion(this)"><i class="fas fa-microphone"></i> <span>Tap to Speak</span></button>`;
         } else {
           const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
           const tipsAttr = b.tips ? ' data-tips="true"' : '';
@@ -1091,6 +1096,18 @@ function compileSlide(slide, forExport = true) {
       let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
       const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
       chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
+    } else if (el.kind === 'audiocreator') {
+      let b64 = '';
+      try { b64 = b64EncodeUnicode(JSON.stringify(el.blocks || [])); } catch(e){}
+      chunk = `
+        <div class="audiocreator-player" data-blocks="${b64}">
+          <button class="audiocreator-btn" onclick="toggleAudioCreator(this)"><i class="fas fa-play"></i></button>
+          <div class="audiocreator-progress">
+            <div class="audiocreator-bar" style="width:0%"></div>
+          </div>
+          <div class="audiocreator-text">Click play to listen...</div>
+        </div>
+      `;
     } else if (el.kind === 'raw') {
       chunk = (el.html || '') + '\n';
       if (chunk.includes('interactive-input') || chunk.includes('interactive-select') || chunk.includes('interactive-radio') || chunk.includes('interactive-checkbox') || chunk.includes('interactive-match') || chunk.includes('interactive-schedule') || chunk.includes('interactive-wordbank')) {
@@ -1488,6 +1505,8 @@ function renderElements() {
           <button onclick="addElement('video')"><i class="fas fa-video"></i> Video (URL)</button>
           <button onclick="addElement('audio')"><i class="fas fa-volume-high"></i> Audio (URL)</button>
           <button onclick="addElement('question')"><i class="fas fa-circle-question"></i> Question</button>
+          <button onclick="addElement('voicequestion')"><i class="fas fa-microphone"></i> Voice Question</button>
+          <button onclick="addElement('audiocreator')"><i class="fas fa-headphones"></i> Audio Creator</button>
           <button onclick="addElement('list')"><i class="fas fa-list"></i> List / Agenda</button>
           <button onclick="addElement('speaking')"><i class="fas fa-comments"></i> Speaking Prompt</button>
           <button onclick="addElement('raw')"><i class="fas fa-code"></i> Raw HTML</button>
@@ -1551,6 +1570,8 @@ function addElement(kind) {
   if (kind === 'video') el = { ...el, url: '', caption: '' };
   if (kind === 'audio') el = { ...el, url: '', caption: '' };
   if (kind === 'question') el = { ...el, blanks: [{ qtype: 'text', answer: '', altAnswers: [], options: [] }], prompt: '' };
+  if (kind === 'voicequestion') { el.kind = 'question'; el = { ...el, blanks: [{ qtype: 'voice', answer: '', altAnswers: [], options: [], strict: false, tips: false }], prompt: '' }; }
+  if (kind === 'audiocreator') el = { ...el, blocks: [{ voice: '', text: '' }] };
   if (kind === 'list') el = { ...el, items: [{ text: '', time: '' }] };
   if (kind === 'raw') el = { ...el, html: '' };
   if (kind === 'link') el = { ...el, url: '', text: '', bgColor: '#007BFF', color: '#FFFFFF' };
@@ -1711,6 +1732,7 @@ function elemCardHTML(el, i, total) {
               <option value="match" ${b.qtype === 'match' ? 'selected' : ''}>Matching Pairs</option>
               <option value="schedule" ${b.qtype === 'schedule' ? 'selected' : ''}>List Reordering (Schedule)</option>
               <option value="wordbank" ${b.qtype === 'wordbank' ? 'selected' : ''}>Sentence Word Bank</option>
+              <option value="voice" ${b.qtype === 'voice' ? 'selected' : ''}>Voice Recording (AI Checked)</option>
             </select>
           </div>
           ${b.qtype === 'select' || b.qtype === 'radio' ? `
@@ -2462,8 +2484,10 @@ async function saveSession() {
   const sessionNumber = document.getElementById('sel-session').value;
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
-  setStatus('Saving...', 'info');
+  setStatus('Uploading media...', 'info');
   try {
+    for (const s of slides) await migrateInlineDataUrls(s);
+    setStatus('Saving...', 'info');
     const compiledSlides = slides.map(s => compileSlide(s, true));
     const slidesJson = JSON.stringify(compiledSlides);
     console.log('Saving payload size (bytes):', new Blob([slidesJson]).size);
