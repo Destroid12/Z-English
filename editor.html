@@ -4390,9 +4390,14 @@ window.toggleAudioCreator = function(btn) {
   const barEl = container.querySelector('.audiocreator-bar');
   const total = _audioTotalChars(blocks);
 
+  function updateProgress(globalChar) {
+    const gc = Math.max(0, Math.min(total, globalChar));
+    barEl.style.width = total > 0 ? `${(gc / total) * 100}%` : '0%';
+    textEl.innerText = `${fmtTime(gc * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
+  }
+
   function setBarFor(blockIndex, offset) {
-    const before = _audioCharsBefore(blocks, blockIndex);
-    barEl.style.width = total > 0 ? `${Math.min(100, ((before + offset) / total) * 100)}%` : '0%';
+    updateProgress(_audioCharsBefore(blocks, blockIndex) + offset);
   }
 
   function speakBlock(blockIndex, offset) {
@@ -4401,8 +4406,7 @@ window.toggleAudioCreator = function(btn) {
       container.dataset.playing = 'false';
       btn.innerHTML = '<i class="fas fa-play"></i>';
       btn.classList.remove('playing');
-      textEl.innerText = 'Finished.';
-      barEl.style.width = '100%';
+      updateProgress(total);
       container.dataset.currentIndex = '0';
       container.dataset.charOffset = '0';
       return;
@@ -4416,7 +4420,6 @@ window.toggleAudioCreator = function(btn) {
       return;
     }
     const remain = text.substring(offset);
-    textEl.innerText = `Speaking: Block ${blockIndex + 1}/${blocks.length}`;
     setBarFor(blockIndex, offset);
     container.dataset.currentIndex = blockIndex.toString();
     container.dataset.charOffset = offset.toString();
@@ -4430,14 +4433,30 @@ window.toggleAudioCreator = function(btn) {
     const before = _audioCharsBefore(blocks, blockIndex);
     const blockEndChar = before + offset + remain.length;
     let refChar = before + offset;
-    let refTime = performance.now();
+    let refTime = 0;
 
+    // Only move the progress bar / clock while the audio is actually speaking
+    utterance.onstart = () => {
+      refChar = before + offset;
+      refTime = performance.now();
+      updateProgress(refChar);
+      if (container._audioRaf) cancelAnimationFrame(container._audioRaf);
+      const tick = (now) => {
+        if (container.dataset.playing !== 'true') { container._audioRaf = null; return; }
+        const estChar = refChar + (now - refTime) / MS_PER_CHAR;
+        const globalChar = Math.max(refChar, Math.min(blockEndChar, estChar));
+        updateProgress(globalChar);
+        if (globalChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
+        else container._audioRaf = null;
+      };
+      container._audioRaf = requestAnimationFrame(tick);
+    };
     utterance.onboundary = (ev) => {
       if (ev && typeof ev.charIndex === 'number') {
         refChar = before + offset + ev.charIndex;
         refTime = performance.now();
         container.dataset.charOffset = (offset + ev.charIndex).toString();
-        barEl.style.width = total > 0 ? `${Math.min(100, (refChar / total) * 100)}%` : '0%';
+        updateProgress(refChar);
       }
     };
     utterance.onend = () => {
@@ -4454,19 +4473,6 @@ window.toggleAudioCreator = function(btn) {
     };
 
     window.speechSynthesis.speak(utterance);
-
-    // Smooth MP3-style progress bar (estimate runs between word-boundary updates)
-    const estMsPerChar = 70;
-    if (container._audioRaf) cancelAnimationFrame(container._audioRaf);
-    const tick = (now) => {
-      if (container.dataset.playing !== 'true') { container._audioRaf = null; return; }
-      const estChar = refChar + (now - refTime) / estMsPerChar;
-      const globalChar = Math.max(refChar, Math.min(blockEndChar, estChar));
-      barEl.style.width = total > 0 ? `${Math.min(100, (globalChar / total) * 100)}%` : '0%';
-      if (globalChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
-      else container._audioRaf = null;
-    };
-    container._audioRaf = requestAnimationFrame(tick);
   }
 
   let started = false;
@@ -4509,6 +4515,12 @@ function _audioLocate(blocks, charIdx) {
   }
   return { blockIndex: Math.max(0, blocks.length - 1), charOffset: 0 };
 }
+const MS_PER_CHAR = 70;
+function fmtTime(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
 
 let _suppressAudioSeekUntil = 0;
 
@@ -4533,7 +4545,7 @@ window.seekAudioCreator = function(e, track) {
     container.dataset.playing = 'false';
     window.toggleAudioCreator(container.querySelector('.audiocreator-btn'));
   } else {
-    textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
+    textEl.innerText = `${fmtTime((_audioCharsBefore(blocks, loc.blockIndex) + loc.charOffset) * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
   }
 };
 
@@ -4560,6 +4572,7 @@ function _wireAudioCreatorDrag(doc) {
     container.dataset.currentIndex = loc.blockIndex.toString();
     container.dataset.charOffset = loc.charOffset.toString();
     barEl.style.width = `${Math.min(100, pct * 100)}%`;
+    textEl.innerText = `${fmtTime((_audioCharsBefore(blocks, loc.blockIndex) + loc.charOffset) * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
     return loc;
   };
 
@@ -4581,7 +4594,7 @@ function _wireAudioCreatorDrag(doc) {
     if (wasPlaying) {
       window.toggleAudioCreator(btn);
     } else {
-      textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
+      textEl.innerText = `${fmtTime((_audioCharsBefore(blocks, loc.blockIndex) + loc.charOffset) * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
     }
     _suppressAudioSeekUntil = Date.now() + 350;
   };
