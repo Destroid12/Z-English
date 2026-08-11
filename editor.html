@@ -2295,6 +2295,7 @@ function attachPosDragHandlers() {
   let doc;
   try { doc = frame.contentDocument; } catch (e) { return; }
   if (!doc) return;
+  if (window._wireAudioCreatorDrag) window._wireAudioCreatorDrag(doc);
   const frameEl = doc.querySelector('.frame');
   if (!frameEl) return;
   frameEl.style.position = frameEl.style.position || 'relative';
@@ -2384,6 +2385,11 @@ const PREVIEW_CSS = `
   .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; margin-top: 2px; }
   .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); pointer-events: none; }
   .z-audio-time { font-size: 13px; color: #5C6C79; font-weight: 800; min-width: 70px; text-align: right; }
+  .audiocreator-player{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.85); border:2px solid #DCE6EC; border-radius:20px; padding:12px 18px 12px 12px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:16px; }
+  .audiocreator-btn{ width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg,#1f7bfe,#9b51e0); color:#fff; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .audiocreator-progress{ flex:1; width:auto; height:10px; background:rgba(0,0,0,0.08); border-radius:5px; overflow:hidden; margin-top:2px; cursor:pointer; touch-action:none; }
+  .audiocreator-bar{ height:100%; background:linear-gradient(90deg,#1f7bfe,#9b51e0); width:0%; transition:width .05s linear; pointer-events:none; }
+  .audiocreator-text{ font-size:13px; color:#5C6C79; font-weight:800; font-family:'Nunito',sans-serif; min-width:140px; text-align:left; }
 `;
 
 function updatePreview() {
@@ -2394,7 +2400,10 @@ function updatePreview() {
     const compiled = compileSlide(slide, false);
     frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-      <style>${PREVIEW_CSS}</style></head><body>${compiled}</body></html>`;
+      <style>${PREVIEW_CSS}</style></head><body>${compiled}<script>
+window.toggleAudioCreator = function(btn){ return window.parent.toggleAudioCreator(btn); };
+window.seekAudioCreator = function(e, t){ return window.parent.seekAudioCreator(e, t); };
+<\/script></body></html>`;
     frame.onload = attachPosDragHandlers;
   } catch (err) {
     console.error('updatePreview error:', err);
@@ -4354,74 +4363,233 @@ window.toggleAudioCreator = function(btn) {
   const container = btn.closest('.audiocreator-player');
   const isPlaying = container.dataset.playing === 'true';
   if (isPlaying) {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
     window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
     btn.innerHTML = '<i class="fas fa-play"></i>';
     btn.classList.remove('playing');
     return;
   }
-  
-  const blocksB64 = container.dataset.blocks;
-  if (!blocksB64) return;
-  let blocks = [];
-  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(e){}
+
+  const blocks = _audioBlocks(container);
   if (blocks.length === 0) {
     alert("Please add at least one dialogue block to this Audio Creator element.");
     return;
   }
-  
-  let currentIndex = parseInt(container.dataset.currentIndex || '0');
-  if (currentIndex >= blocks.length) currentIndex = 0;
-  
+
+  let currentIndex = parseInt(container.dataset.currentIndex || '0', 10);
+  if (currentIndex >= blocks.length || currentIndex < 0) currentIndex = 0;
+  let charOffset = parseInt(container.dataset.charOffset || '0', 10);
+  if (isNaN(charOffset) || charOffset < 0) charOffset = 0;
+
   container.dataset.playing = 'true';
   btn.innerHTML = '<i class="fas fa-pause"></i>';
   btn.classList.add('playing');
-  
+
   const textEl = container.querySelector('.audiocreator-text');
   const barEl = container.querySelector('.audiocreator-bar');
-  
-  function playNextBlock() {
+  const total = _audioTotalChars(blocks);
+
+  function setBarFor(blockIndex, offset) {
+    const before = _audioCharsBefore(blocks, blockIndex);
+    barEl.style.width = total > 0 ? `${Math.min(100, ((before + offset) / total) * 100)}%` : '0%';
+  }
+
+  function speakBlock(blockIndex, offset) {
     if (container.dataset.playing !== 'true') return;
-    if (currentIndex >= blocks.length) {
+    if (blockIndex >= blocks.length) {
       container.dataset.playing = 'false';
       btn.innerHTML = '<i class="fas fa-play"></i>';
       btn.classList.remove('playing');
       textEl.innerText = 'Finished.';
       barEl.style.width = '100%';
       container.dataset.currentIndex = '0';
+      container.dataset.charOffset = '0';
       return;
     }
-    
-    const block = blocks[currentIndex];
-    textEl.innerText = `Speaking: Block ${currentIndex + 1}/${blocks.length}`;
-    barEl.style.width = `${(currentIndex / blocks.length) * 100}%`;
-    
-    const utterance = new SpeechSynthesisUtterance(block.text || ' ');
+    const block = blocks[blockIndex];
+    const text = block.text || '';
+    if (offset >= text.length) {
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
+      return;
+    }
+    const remain = text.substring(offset);
+    textEl.innerText = `Speaking: Block ${blockIndex + 1}/${blocks.length}`;
+    setBarFor(blockIndex, offset);
+    container.dataset.currentIndex = blockIndex.toString();
+    container.dataset.charOffset = offset.toString();
+
+    const utterance = new SpeechSynthesisUtterance(remain);
     const voices = window.speechSynthesis.getVoices();
     const selectedVoice = window.pickAudioCreatorVoice(block.voice, voices);
     if (selectedVoice) utterance.voice = selectedVoice;
-    
+    utterance.rate = 0.95;
+
+    const before = _audioCharsBefore(blocks, blockIndex);
+    const blockEndChar = before + offset + remain.length;
+    let refChar = before + offset;
+    let refTime = performance.now();
+
+    utterance.onboundary = (ev) => {
+      if (ev && typeof ev.charIndex === 'number') {
+        refChar = before + offset + ev.charIndex;
+        refTime = performance.now();
+        container.dataset.charOffset = (offset + ev.charIndex).toString();
+        barEl.style.width = total > 0 ? `${Math.min(100, (refChar / total) * 100)}%` : '0%';
+      }
+    };
     utterance.onend = () => {
-      currentIndex++;
-      container.dataset.currentIndex = currentIndex.toString();
-      playNextBlock();
+      if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
     };
     utterance.onerror = () => {
-      currentIndex++;
-      container.dataset.currentIndex = currentIndex.toString();
-      playNextBlock();
+      if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
     };
-    
+
     window.speechSynthesis.speak(utterance);
+
+    // Smooth MP3-style progress bar (estimate runs between word-boundary updates)
+    const estMsPerChar = 70;
+    if (container._audioRaf) cancelAnimationFrame(container._audioRaf);
+    const tick = (now) => {
+      if (container.dataset.playing !== 'true') { container._audioRaf = null; return; }
+      const estChar = refChar + (now - refTime) / estMsPerChar;
+      const globalChar = Math.max(refChar, Math.min(blockEndChar, estChar));
+      barEl.style.width = total > 0 ? `${Math.min(100, (globalChar / total) * 100)}%` : '0%';
+      if (globalChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
+      else container._audioRaf = null;
+    };
+    container._audioRaf = requestAnimationFrame(tick);
   }
-  
+
+  let started = false;
+  const kick = () => {
+    if (started) return;
+    started = true;
+    speakBlock(currentIndex, charOffset);
+  };
   if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.onvoiceschanged = playNextBlock;
-    setTimeout(playNextBlock, 1000);
+    window.speechSynthesis.onvoiceschanged = kick;
+    setTimeout(kick, 1000);
   } else {
-    playNextBlock();
+    kick();
   }
 };
+
+function _audioBlocks(container) {
+  const b64 = container.dataset.blocks;
+  if (!b64) return [];
+  try { return JSON.parse(decodeURIComponent(escape(atob(b64)))); } catch(e){ return []; }
+}
+function _audioTotalChars(blocks) {
+  let t = 0;
+  for (let i = 0; i < blocks.length; i++) t += (blocks[i].text || '').length + 1;
+  return t;
+}
+function _audioCharsBefore(blocks, idx) {
+  let t = 0;
+  for (let i = 0; i < idx && i < blocks.length; i++) t += (blocks[i].text || '').length + 1;
+  return t;
+}
+function _audioLocate(blocks, charIdx) {
+  let remaining = charIdx;
+  for (let i = 0; i < blocks.length; i++) {
+    const len = (blocks[i].text || '').length + 1;
+    if (remaining < len) {
+      return { blockIndex: i, charOffset: Math.max(0, Math.min(remaining, (blocks[i].text || '').length)) };
+    }
+    remaining -= len;
+  }
+  return { blockIndex: Math.max(0, blocks.length - 1), charOffset: 0 };
+}
+
+let _suppressAudioSeekUntil = 0;
+
+window.seekAudioCreator = function(e, track) {
+  if (Date.now() < _suppressAudioSeekUntil) return;
+  const container = track.closest('.audiocreator-player');
+  const blocks = _audioBlocks(container);
+  if (blocks.length === 0) return;
+  const rect = track.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const total = _audioTotalChars(blocks);
+  const charIdx = pct >= 0.999 ? Math.max(0, total - 1) : Math.floor(pct * total);
+  const loc = _audioLocate(blocks, charIdx);
+  container.dataset.currentIndex = loc.blockIndex.toString();
+  container.dataset.charOffset = loc.charOffset.toString();
+  const barEl = container.querySelector('.audiocreator-bar');
+  const textEl = container.querySelector('.audiocreator-text');
+  barEl.style.width = `${Math.min(100, pct * 100)}%`;
+  if (container.dataset.playing === 'true') {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+    window.speechSynthesis.cancel();
+    container.dataset.playing = 'false';
+    window.toggleAudioCreator(container.querySelector('.audiocreator-btn'));
+  } else {
+    textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
+  }
+};
+
+// MP3-style drag-to-seek on the Audio Creator progress bar
+function _wireAudioCreatorDrag(doc) {
+  doc.addEventListener('pointerdown', function(e) {
+  const progress = e.target.closest('.audiocreator-progress');
+  if (!progress) return;
+  const container = progress.closest('.audiocreator-player');
+  const blocks = _audioBlocks(container);
+  if (blocks.length === 0) return;
+  e.preventDefault();
+  const rect = progress.getBoundingClientRect();
+  const total = _audioTotalChars(blocks);
+  const btn = container.querySelector('.audiocreator-btn');
+  const barEl = container.querySelector('.audiocreator-bar');
+  const textEl = container.querySelector('.audiocreator-text');
+  const wasPlaying = container.dataset.playing === 'true';
+
+  const locFromX = (clientX) => {
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const charIdx = pct >= 0.999 ? Math.max(0, total - 1) : Math.floor(pct * total);
+    const loc = _audioLocate(blocks, charIdx);
+    container.dataset.currentIndex = loc.blockIndex.toString();
+    container.dataset.charOffset = loc.charOffset.toString();
+    barEl.style.width = `${Math.min(100, pct * 100)}%`;
+    return loc;
+  };
+
+  // Pause the audio while scrubbing, like a real player
+  if (wasPlaying) {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+    window.speechSynthesis.cancel();
+    container.dataset.playing = 'false';
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.classList.remove('playing');
+  }
+
+  const onMove = (ev) => { ev.preventDefault(); locFromX(ev.clientX); };
+  const onUp = (ev) => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    const loc = locFromX(ev.clientX);
+    if (wasPlaying) {
+      window.toggleAudioCreator(btn);
+    } else {
+      textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
+    }
+    _suppressAudioSeekUntil = Date.now() + 350;
+  };
+  doc.addEventListener('pointermove', onMove);
+  doc.addEventListener('pointerup', onUp);
+  doc.addEventListener('pointercancel', onUp);
+  });
+}
 
 window.addAudioBlock = function(elId) {
   const slide = getSelectedSlide(); if (!slide) return;

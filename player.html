@@ -349,8 +349,8 @@
 .audiocreator-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(155, 81, 224, 0.3); }
 .audiocreator-btn.playing { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 .audiocreator-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.audiocreator-progress { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; margin-top:2px; }
-.audiocreator-bar { height: 100%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); width: 0%; transition: width 0.2s linear; pointer-events: none; }
+.audiocreator-progress { flex: 1; width: auto; height: 10px; background: rgba(0,0,0,0.08); border-radius: 5px; overflow: hidden; margin-top:2px; cursor: pointer; touch-action: none; }
+.audiocreator-bar { height: 100%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); width: 0%; transition: width 0.05s linear; pointer-events: none; }
 .audiocreator-text { font-size: 13px; color: var(--ink-soft); font-weight: 800; font-family: 'Nunito', sans-serif; min-width: 140px; text-align: left; }
 
 /* Interactive Voice */
@@ -2280,108 +2280,234 @@ window.toggleAudioCreator = function(btn) {
   const container = btn.closest('.audiocreator-player');
   const isPlaying = container.dataset.playing === 'true';
   if (isPlaying) {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
     window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
     btn.innerHTML = '<i class="fas fa-play"></i>';
     btn.classList.remove('playing');
     return;
   }
-  
-  const blocksB64 = container.dataset.blocks;
-  if (!blocksB64) return;
-  let blocks = [];
-  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(e){}
+
+  const blocks = _audioBlocks(container);
   if (blocks.length === 0) {
     alert("Please add at least one dialogue block to this Audio Creator element.");
     return;
   }
-  
-  let currentIndex = parseInt(container.dataset.currentIndex || '0');
-  if (currentIndex >= blocks.length) currentIndex = 0;
-  
+
+  let currentIndex = parseInt(container.dataset.currentIndex || '0', 10);
+  if (currentIndex >= blocks.length || currentIndex < 0) currentIndex = 0;
+  let charOffset = parseInt(container.dataset.charOffset || '0', 10);
+  if (isNaN(charOffset) || charOffset < 0) charOffset = 0;
+
   container.dataset.playing = 'true';
   btn.innerHTML = '<i class="fas fa-pause"></i>';
   btn.classList.add('playing');
-  
+
   const textEl = container.querySelector('.audiocreator-text');
   const barEl = container.querySelector('.audiocreator-bar');
-  
-  function playNextBlock() {
+  const total = _audioTotalChars(blocks);
+
+  function setBarFor(blockIndex, offset) {
+    const before = _audioCharsBefore(blocks, blockIndex);
+    barEl.style.width = total > 0 ? `${Math.min(100, ((before + offset) / total) * 100)}%` : '0%';
+  }
+
+  function speakBlock(blockIndex, offset) {
     if (container.dataset.playing !== 'true') return;
-    if (currentIndex >= blocks.length) {
+    if (blockIndex >= blocks.length) {
       container.dataset.playing = 'false';
       btn.innerHTML = '<i class="fas fa-play"></i>';
       btn.classList.remove('playing');
       textEl.innerText = 'Finished.';
       barEl.style.width = '100%';
       container.dataset.currentIndex = '0';
+      container.dataset.charOffset = '0';
       return;
     }
-    
-    const block = blocks[currentIndex];
-    textEl.innerText = `Speaking: Block ${currentIndex + 1}/${blocks.length}`;
-    barEl.style.width = `${(currentIndex / blocks.length) * 100}%`;
-    
-    const utterance = new SpeechSynthesisUtterance(block.text || ' ');
+    const block = blocks[blockIndex];
+    const text = block.text || '';
+    if (offset >= text.length) {
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
+      return;
+    }
+    const remain = text.substring(offset);
+    textEl.innerText = `Speaking: Block ${blockIndex + 1}/${blocks.length}`;
+    setBarFor(blockIndex, offset);
+    container.dataset.currentIndex = blockIndex.toString();
+    container.dataset.charOffset = offset.toString();
+
+    const utterance = new SpeechSynthesisUtterance(remain);
     const voices = window.speechSynthesis.getVoices();
     const selectedVoice = window.pickAudioCreatorVoice(block.voice, voices);
-    
     if (selectedVoice) utterance.voice = selectedVoice;
-    utterance.rate = 0.95; // Slightly slower for better pacing
-    
+    utterance.rate = 0.95;
+
+    const before = _audioCharsBefore(blocks, blockIndex);
+    const blockEndChar = before + offset + remain.length;
+    let refChar = before + offset;
+    let refTime = performance.now();
+
+    utterance.onboundary = (ev) => {
+      if (ev && typeof ev.charIndex === 'number') {
+        refChar = before + offset + ev.charIndex;
+        refTime = performance.now();
+        container.dataset.charOffset = (offset + ev.charIndex).toString();
+        barEl.style.width = total > 0 ? `${Math.min(100, (refChar / total) * 100)}%` : '0%';
+      }
+    };
     utterance.onend = () => {
-      currentIndex++;
-      container.dataset.currentIndex = currentIndex.toString();
-      playNextBlock();
+      if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
     };
     utterance.onerror = () => {
-      currentIndex++;
-      container.dataset.currentIndex = currentIndex.toString();
-      playNextBlock();
+      if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      container.dataset.currentIndex = (blockIndex + 1).toString();
+      container.dataset.charOffset = '0';
+      speakBlock(blockIndex + 1, 0);
     };
-    
+
     window.speechSynthesis.speak(utterance);
+
+    // Smooth MP3-style progress bar (estimate runs between word-boundary updates)
+    const estMsPerChar = 70;
+    if (container._audioRaf) cancelAnimationFrame(container._audioRaf);
+    const tick = (now) => {
+      if (container.dataset.playing !== 'true') { container._audioRaf = null; return; }
+      const estChar = refChar + (now - refTime) / estMsPerChar;
+      const globalChar = Math.max(refChar, Math.min(blockEndChar, estChar));
+      barEl.style.width = total > 0 ? `${Math.min(100, (globalChar / total) * 100)}%` : '0%';
+      if (globalChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
+      else container._audioRaf = null;
+    };
+    container._audioRaf = requestAnimationFrame(tick);
   }
-  
+
+  let started = false;
+  const kick = () => {
+    if (started) return;
+    started = true;
+    speakBlock(currentIndex, charOffset);
+  };
   if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.onvoiceschanged = playNextBlock;
-    setTimeout(playNextBlock, 1000);
+    window.speechSynthesis.onvoiceschanged = kick;
+    setTimeout(kick, 1000);
   } else {
-    playNextBlock();
+    kick();
   }
 };
 
+function _audioBlocks(container) {
+  const b64 = container.dataset.blocks;
+  if (!b64) return [];
+  try { return JSON.parse(decodeURIComponent(escape(atob(b64)))); } catch(e){ return []; }
+}
+function _audioTotalChars(blocks) {
+  let t = 0;
+  for (let i = 0; i < blocks.length; i++) t += (blocks[i].text || '').length + 1;
+  return t;
+}
+function _audioCharsBefore(blocks, idx) {
+  let t = 0;
+  for (let i = 0; i < idx && i < blocks.length; i++) t += (blocks[i].text || '').length + 1;
+  return t;
+}
+function _audioLocate(blocks, charIdx) {
+  let remaining = charIdx;
+  for (let i = 0; i < blocks.length; i++) {
+    const len = (blocks[i].text || '').length + 1;
+    if (remaining < len) {
+      return { blockIndex: i, charOffset: Math.max(0, Math.min(remaining, (blocks[i].text || '').length)) };
+    }
+    remaining -= len;
+  }
+  return { blockIndex: Math.max(0, blocks.length - 1), charOffset: 0 };
+}
+
+let _suppressAudioSeekUntil = 0;
+
 window.seekAudioCreator = function(e, track) {
+  if (Date.now() < _suppressAudioSeekUntil) return;
   const container = track.closest('.audiocreator-player');
-  const blocksB64 = container.dataset.blocks;
-  if (!blocksB64) return;
-  let blocks = [];
-  try { blocks = JSON.parse(decodeURIComponent(escape(atob(blocksB64)))); } catch(err){}
+  const blocks = _audioBlocks(container);
   if (blocks.length === 0) return;
-  
   const rect = track.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const pct = Math.max(0, Math.min(1, x / rect.width));
-  
-  const targetIndex = Math.floor(pct * blocks.length);
-  const newIndex = Math.min(targetIndex, blocks.length - 1);
-  
-  container.dataset.currentIndex = newIndex.toString();
-  
-  // If it's already playing, we need to restart playback from the new index
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const total = _audioTotalChars(blocks);
+  const charIdx = pct >= 0.999 ? Math.max(0, total - 1) : Math.floor(pct * total);
+  const loc = _audioLocate(blocks, charIdx);
+  container.dataset.currentIndex = loc.blockIndex.toString();
+  container.dataset.charOffset = loc.charOffset.toString();
+  const barEl = container.querySelector('.audiocreator-bar');
+  const textEl = container.querySelector('.audiocreator-text');
+  barEl.style.width = `${Math.min(100, pct * 100)}%`;
   if (container.dataset.playing === 'true') {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
     window.speechSynthesis.cancel();
-    // Re-trigger the toggle to start playing from the new index
     container.dataset.playing = 'false';
     window.toggleAudioCreator(container.querySelector('.audiocreator-btn'));
   } else {
-    // Just update the visual state
-    const barEl = container.querySelector('.audiocreator-bar');
-    const textEl = container.querySelector('.audiocreator-text');
-    barEl.style.width = `${(newIndex / blocks.length) * 100}%`;
-    textEl.innerText = `Paused at Block ${newIndex + 1}/${blocks.length}`;
+    textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
   }
 };
+
+// MP3-style drag-to-seek on the Audio Creator progress bar
+function _wireAudioCreatorDrag(doc) {
+  doc.addEventListener('pointerdown', function(e) {
+  const progress = e.target.closest('.audiocreator-progress');
+  if (!progress) return;
+  const container = progress.closest('.audiocreator-player');
+  const blocks = _audioBlocks(container);
+  if (blocks.length === 0) return;
+  e.preventDefault();
+  const rect = progress.getBoundingClientRect();
+  const total = _audioTotalChars(blocks);
+  const btn = container.querySelector('.audiocreator-btn');
+  const barEl = container.querySelector('.audiocreator-bar');
+  const textEl = container.querySelector('.audiocreator-text');
+  const wasPlaying = container.dataset.playing === 'true';
+
+  const locFromX = (clientX) => {
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const charIdx = pct >= 0.999 ? Math.max(0, total - 1) : Math.floor(pct * total);
+    const loc = _audioLocate(blocks, charIdx);
+    container.dataset.currentIndex = loc.blockIndex.toString();
+    container.dataset.charOffset = loc.charOffset.toString();
+    barEl.style.width = `${Math.min(100, pct * 100)}%`;
+    return loc;
+  };
+
+  // Pause the audio while scrubbing, like a real player
+  if (wasPlaying) {
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+    window.speechSynthesis.cancel();
+    container.dataset.playing = 'false';
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.classList.remove('playing');
+  }
+
+  const onMove = (ev) => { ev.preventDefault(); locFromX(ev.clientX); };
+  const onUp = (ev) => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    const loc = locFromX(ev.clientX);
+    if (wasPlaying) {
+      window.toggleAudioCreator(btn);
+    } else {
+      textEl.innerText = `Paused at Block ${loc.blockIndex + 1}/${blocks.length}`;
+    }
+    _suppressAudioSeekUntil = Date.now() + 350;
+  };
+  doc.addEventListener('pointermove', onMove);
+  doc.addEventListener('pointerup', onUp);
+  doc.addEventListener('pointercancel', onUp);
+  });
+}
+_wireAudioCreatorDrag(document);
 
 // Global delegate for older presentations that lack the onclick attribute
 document.addEventListener('click', function(e) {
