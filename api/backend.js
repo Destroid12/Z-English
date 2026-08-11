@@ -2402,6 +2402,7 @@ async function _aiGradeAnswer(p) {
   const tipsMode = p.tipsMode === true || p.tipsMode === 'true' || p.tips === true || p.tips === 'true';
   const aiInstructions = String(p.aiInstructions || '').trim();
   const failCount = parseInt(p.failCount || '0', 10);
+  const isVoice = p.inputMode === 'voice' || p.isVoice === true || p.isVoice === 'true';
   
   if (!studentAnswer) return { success: false, message: 'Missing student answer.' };
   
@@ -2416,6 +2417,9 @@ async function _aiGradeAnswer(p) {
   prompt += '\nSTUDENT\'S ANSWER: ' + studentAnswer + '\n';
   if (failCount > 0) {
     prompt += `NOTE: The student has already attempted to answer and failed ${failCount} times.\n`;
+  }
+  if (isVoice) {
+    prompt += 'NOTE: The student answered by VOICE (speech-to-text). Do NOT correct or comment on capitalization, punctuation, or spacing (e.g. "use a space after your period"), and ignore fillers/stutters the transcriber added. Grade only the spoken words and their grammar/meaning.\n';
   }
   prompt += '\n';
   

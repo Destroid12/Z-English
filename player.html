@@ -1207,27 +1207,13 @@ function pickVoice(lang) {
     if (egVoice) return egVoice;
   }
 
-  const isHighQuality = v => {
-    const n = (v.name || '').toLowerCase();
-    return /natural|neural|online|premium|google|aria|jenny|guy|daniel|samantha|aaron|fred|libby|sonia|ava|heera|klarissa|aarav|aditi|alice|anna|geraint|michael|neerja|serena|tessa|fiona|karen|moira|thomas|tina|veena|victoria|samantha/i.test(n);
-  };
-  const hqPool = pool.filter(isHighQuality);
-
   const preferred = isAr
-    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google', 'ar-eg']
-    : ['Google UK English Male', 'Google US English',
-       'Microsoft Aria Online', 'Microsoft Guy Online', 'Microsoft Jenny Online',
-       'Microsoft Andrew Online', 'Microsoft Emma Online', 'Microsoft Christopher Online',
-       'Microsoft David Online', 'Microsoft Zira Online',
-       'Microsoft Guy', 'Daniel', 'Microsoft David'];
-  const searchPool = hqPool.length ? hqPool : pool;
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
-    const m = searchPool.find(v => v.name.includes(name));
+    const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-  // Prefer an online/neural voice over a legacy local one before giving up.
-  const online = pool.find(v => v.localService === false);
-  if (online) return online;
   return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 window.pickVoice = pickVoice;
@@ -2235,6 +2221,42 @@ function directVoiceSpeak(text) {
   window.speechSynthesis.speak(utter);
 }
 // --- Audio Creator Element Logic ---
+window.pickAudioCreatorVoice = function(blockVoice, voices) {
+  const all = voices || window.speechSynthesis.getVoices() || [];
+  if (!blockVoice || blockVoice === 'Z-AI (Female)' || blockVoice === 'Z-AI Voice (Default)') {
+    return typeof pickVoice === 'function' ? pickVoice('en-US') : null;
+  }
+  const isUK = blockVoice.includes('UK');
+  const isAU = blockVoice.includes('Australian');
+  const isFemale = blockVoice.includes('Female');
+  const lang = isAU ? 'en-AU' : isUK ? 'en-GB' : 'en-US';
+  const langPool = all.filter(v => (v.lang || '').toLowerCase().startsWith(lang));
+  const preferred = [];
+  if (isAU) {
+    preferred.push(...(isFemale
+      ? ['Microsoft Annette Online', 'Microsoft Natasha Online', 'Microsoft Elsie Online', 'Microsoft Annette', 'Microsoft Natasha', 'Microsoft Elsie']
+      : ['Microsoft William Online', 'Microsoft Callum Online', 'Microsoft Tristan Online', 'Microsoft Tony Online', 'Microsoft Alfred Online', 'Microsoft William', 'Microsoft Callum']));
+  } else if (isUK) {
+    preferred.push(...(isFemale
+      ? ['Google UK English Female', 'Microsoft Libby Online', 'Microsoft Hazel Online', 'Microsoft Susan Online', 'Microsoft Libby', 'Microsoft Hazel', 'Microsoft Susan']
+      : ['Google UK English Male', 'Microsoft Ryan Online', 'Microsoft Roger Online', 'Microsoft George Online', 'Microsoft Ryan', 'Microsoft Roger', 'Microsoft George']));
+  } else {
+    preferred.push(...(isFemale
+      ? ['Google US English Female', 'Microsoft Aria Online', 'Microsoft Jenny Online', 'Microsoft Michelle Online', 'Microsoft Zira', 'Microsoft Aria', 'Microsoft Jenny']
+      : ['Google US English', 'Microsoft Guy Online', 'Microsoft Andrew Online', 'Microsoft Christopher Online', 'Microsoft Eric Online', 'Microsoft David', 'Microsoft Guy']));
+  }
+  for (const name of preferred) {
+    const m = all.find(v => v.name.includes(name));
+    if (m) return m;
+  }
+  const genderRe = isFemale
+    ? /female|woman|girl|aria|jenny|zira|samantha|emma|susan|hazel|libby|natasha|elsie|annette|michelle|ava|sonia|neerja/i
+    : /male|man|boy|guy|david|daniel|mark|andrew|christopher|eric|ryan|roger|george|william|callum|tristan|tony|alfred|thomas/i;
+  const gendered = langPool.find(v => genderRe.test(v.name));
+  if (gendered) return gendered;
+  return langPool[0] || null;
+};
+
 window.toggleAudioCreator = function(btn) {
   const container = btn.closest('.audiocreator-player');
   const isPlaying = container.dataset.playing === 'true';
@@ -2283,23 +2305,7 @@ window.toggleAudioCreator = function(btn) {
     
     const utterance = new SpeechSynthesisUtterance(block.text || ' ');
     const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = null;
-    
-    if (!block.voice || block.voice === 'Z-AI Voice (Default)') {
-       selectedVoice = typeof pickVoice === 'function' ? pickVoice('en-US') : null;
-    } else if (block.voice) {
-       const isUK = block.voice.includes('UK');
-       const isAU = block.voice.includes('Australian');
-       const isFemale = block.voice.includes('Female');
-       selectedVoice = voices.find(v => 
-         v.name.includes(block.voice) || 
-         ((isUK ? v.lang === 'en-GB' : isAU ? v.lang === 'en-AU' : v.lang === 'en-US') && 
-          (isFemale ? /female|woman|girl|aria|jenny|zira|samantha|emma|susan/i.test(v.name) : /male|man|boy|guy|david|daniel|mark/i.test(v.name)))
-       );
-       if (!selectedVoice && typeof pickVoice === 'function') {
-         selectedVoice = pickVoice(isUK ? 'en-GB' : isAU ? 'en-AU' : 'en-US');
-       }
-    }
+    const selectedVoice = window.pickAudioCreatorVoice(block.voice, voices);
     
     if (selectedVoice) utterance.voice = selectedVoice;
     utterance.rate = 0.95; // Slightly slower for better pacing
@@ -2546,7 +2552,8 @@ async function submitVoiceQuestion(transcript) {
           expectedAnswer: originalAnswer,
           tipsMode: tips,
           aiInstructions: instructions,
-          failCount: failCount
+          failCount: failCount,
+          inputMode: 'voice'
         })
       });
       const data = await res.json();

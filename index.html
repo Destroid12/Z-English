@@ -2391,27 +2391,13 @@ function pickVoice(lang) {
     if (egVoice) return egVoice;
   }
 
-  const isHighQuality = v => {
-    const n = (v.name || '').toLowerCase();
-    return /natural|neural|online|premium|google|aria|jenny|guy|daniel|samantha|aaron|fred|libby|sonia|ava|heera|klarissa|aarav|aditi|alice|anna|geraint|michael|neerja|serena|tessa|fiona|karen|moira|thomas|tina|veena|victoria|samantha/i.test(n);
-  };
-  const hqPool = pool.filter(isHighQuality);
-
   const preferred = isAr
-    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google', 'ar-eg']
-    : ['Google UK English Male', 'Google US English',
-       'Microsoft Aria Online', 'Microsoft Guy Online', 'Microsoft Jenny Online',
-       'Microsoft Andrew Online', 'Microsoft Emma Online', 'Microsoft Christopher Online',
-       'Microsoft David Online', 'Microsoft Zira Online',
-       'Microsoft Guy', 'Daniel', 'Microsoft David'];
-  const searchPool = hqPool.length ? hqPool : pool;
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
+    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
   for (const name of preferred) {
-    const m = searchPool.find(v => v.name.includes(name));
+    const m = pool.find(v => v.name.includes(name));
     if (m) return m;
   }
-  // Prefer an online/neural voice over a legacy local one before giving up.
-  const online = pool.find(v => v.localService === false);
-  if (online) return online;
   return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 
