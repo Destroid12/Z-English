@@ -2280,11 +2280,17 @@ window.toggleAudioCreator = function(btn) {
   const container = btn.closest('.audiocreator-player');
   const isPlaying = container.dataset.playing === 'true';
   if (isPlaying) {
-    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
-    window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
     btn.innerHTML = ICON_PLAY;
     btn.classList.remove('playing');
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+    if (typeof container._audioChar === 'number') {
+      const blocks = _audioBlocks(container);
+      const loc = _audioLocate(blocks, container._audioChar);
+      container.dataset.currentIndex = loc.blockIndex.toString();
+      container.dataset.charOffset = loc.charOffset.toString();
+    }
+    window.speechSynthesis.cancel();
     return;
   }
 
@@ -2311,6 +2317,7 @@ window.toggleAudioCreator = function(btn) {
     const gc = Math.max(0, Math.min(total, globalChar));
     barEl.style.width = total > 0 ? `${(gc / total) * 100}%` : '0%';
     textEl.innerText = `${fmtTime(gc * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
+    container._audioChar = gc;
   }
 
   function setBarFor(blockIndex, offset) {

@@ -2387,6 +2387,8 @@ function getPreviewCSS() { return `
   .z-audio-time { font-size: 13px; color: #5C6C79; font-weight: 800; min-width: 70px; text-align: right; }
   .audiocreator-player{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.85); border:2px solid #DCE6EC; border-radius:20px; padding:12px 18px 12px 12px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:16px; }
   .audiocreator-btn{ width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg,#1f7bfe,#9b51e0); color:#fff; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .audiocreator-btn:hover{ transform:scale(1.05); box-shadow:0 4px 12px rgba(155,81,224,0.3); }
+  .audiocreator-btn.playing{ background:linear-gradient(135deg,#ef4444,#b91c1c); }
   .audiocreator-progress{ flex:1; width:auto; height:10px; background:rgba(0,0,0,0.08); border-radius:5px; overflow:hidden; margin-top:2px; cursor:pointer; touch-action:none; }
   .audiocreator-bar{ height:100%; background:linear-gradient(90deg,#1f7bfe,#9b51e0); width:0%; transition:width .05s linear; pointer-events:none; }
   .audiocreator-text{ font-size:13px; color:#5C6C79; font-weight:800; font-family:'Nunito',sans-serif; min-width:140px; text-align:left; }
@@ -4363,11 +4365,17 @@ window.toggleAudioCreator = function(btn) {
   const container = btn.closest('.audiocreator-player');
   const isPlaying = container.dataset.playing === 'true';
   if (isPlaying) {
-    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
-    window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
     btn.innerHTML = ICON_PLAY;
     btn.classList.remove('playing');
+    if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+    if (typeof container._audioChar === 'number') {
+      const blocks = _audioBlocks(container);
+      const loc = _audioLocate(blocks, container._audioChar);
+      container.dataset.currentIndex = loc.blockIndex.toString();
+      container.dataset.charOffset = loc.charOffset.toString();
+    }
+    window.speechSynthesis.cancel();
     return;
   }
 
@@ -4394,6 +4402,7 @@ window.toggleAudioCreator = function(btn) {
     const gc = Math.max(0, Math.min(total, globalChar));
     barEl.style.width = total > 0 ? `${(gc / total) * 100}%` : '0%';
     textEl.innerText = `${fmtTime(gc * MS_PER_CHAR)} / ${fmtTime(total * MS_PER_CHAR)}`;
+    container._audioChar = gc;
   }
 
   function setBarFor(blockIndex, offset) {
