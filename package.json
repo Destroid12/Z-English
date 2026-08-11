@@ -5,7 +5,6 @@
   "description": "Z-English static site with a Vercel serverless backend backed by Supabase",
   "scripts": {
     "dev": "vercel dev",
-    "build": "node scripts/check-syntax.js",
     "ci": "node scripts/check-syntax.js",
     "deploy": "vercel --prod"
   },
@@ -16,6 +15,6 @@
     "@supabase/supabase-js": "^2.45.0"
   },
   "devDependencies": {
-    "vercel": "^37.0.0"
+    "vercel": "^58.9.1"
   }
 }
