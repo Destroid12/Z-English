@@ -1123,7 +1123,7 @@ function compileSlide(slide, forExport = true) {
       try { b64 = b64EncodeUnicode(JSON.stringify(el.blocks || [])); } catch(e){}
       chunk = `
         <div class="audiocreator-player" data-blocks="${b64}">
-          <button class="audiocreator-btn" onclick="toggleAudioCreator(this)"><i class="fas fa-play"></i></button>
+          <button class="audiocreator-btn" onclick="toggleAudioCreator(this)">${ICON_PLAY}</button>
           <div class="audiocreator-progress" onclick="seekAudioCreator(event, this)" style="cursor:pointer;">
             <div class="audiocreator-bar" style="width:0%"></div>
           </div>
@@ -4366,7 +4366,7 @@ window.toggleAudioCreator = function(btn) {
     if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
     window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
-    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.innerHTML = ICON_PLAY;
     btn.classList.remove('playing');
     return;
   }
@@ -4383,7 +4383,7 @@ window.toggleAudioCreator = function(btn) {
   if (isNaN(charOffset) || charOffset < 0) charOffset = 0;
 
   container.dataset.playing = 'true';
-  btn.innerHTML = '<i class="fas fa-pause"></i>';
+  btn.innerHTML = ICON_PAUSE;
   btn.classList.add('playing');
 
   const textEl = container.querySelector('.audiocreator-text');
@@ -4404,7 +4404,7 @@ window.toggleAudioCreator = function(btn) {
     if (container.dataset.playing !== 'true') return;
     if (blockIndex >= blocks.length) {
       container.dataset.playing = 'false';
-      btn.innerHTML = '<i class="fas fa-play"></i>';
+      btn.innerHTML = ICON_PLAY;
       btn.classList.remove('playing');
       updateProgress(total);
       container.dataset.currentIndex = '0';
@@ -4533,6 +4533,8 @@ function fmtTime(ms) {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
+const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
 
 let _suppressAudioSeekUntil = 0;
 
@@ -4593,7 +4595,7 @@ function _wireAudioCreatorDrag(doc) {
     if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
     window.speechSynthesis.cancel();
     container.dataset.playing = 'false';
-    btn.innerHTML = '<i class="fas fa-play"></i>';
+    btn.innerHTML = ICON_PLAY;
     btn.classList.remove('playing');
   }
 
