@@ -1209,7 +1209,7 @@ function pickVoice(lang) {
 
   const preferred = isAr
     ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
+    : ['Google US English', 'Microsoft Guy', 'Daniel', 'Microsoft David'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
     if (m) return m;
@@ -2223,7 +2223,19 @@ function directVoiceSpeak(text) {
 // --- Audio Creator Element Logic ---
 window.pickAudioCreatorVoice = function(blockVoice, voices) {
   const all = voices || window.speechSynthesis.getVoices() || [];
-  if (!blockVoice || blockVoice === 'Z-AI (Female)' || blockVoice === 'Z-AI Voice (Default)') {
+  if (!blockVoice || blockVoice === 'Z-AI (Male)' || blockVoice === 'Z-AI Voice (Default)') {
+    return typeof pickVoice === 'function' ? pickVoice('en-US') : null;
+  }
+  if (blockVoice === 'Z-AI (Female)') {
+    const enPool = all.filter(v => (v.lang || '').toLowerCase().startsWith('en') || (v.name || '').toLowerCase().includes('english'));
+    const femalePreferred = ['Google UK English Male', 'Microsoft Aria Online', 'Google US English Female', 'Microsoft Jenny Online', 'Google UK English Female', 'Microsoft Zira', 'Microsoft Aria', 'Microsoft Jenny'];
+    for (const name of femalePreferred) {
+      const m = all.find(v => v.name.includes(name));
+      if (m) return m;
+    }
+    const femaleRe = /female|woman|girl|aria|jenny|zira|samantha|emma|susan|hazel|libby|ava|sonia|michelle|natasha|annette|elsie/i;
+    const fem = enPool.find(v => femaleRe.test(v.name));
+    if (fem) return fem;
     return typeof pickVoice === 'function' ? pickVoice('en-US') : null;
   }
   const isUK = blockVoice.includes('UK');

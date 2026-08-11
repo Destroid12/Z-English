@@ -1829,7 +1829,7 @@ function elemCardHTML(el, i, total) {
   } else if (el.kind === 'raw') {
     fields = `<div class="field"><label>Raw HTML</label><textarea style="min-height:140px; font-family:monospace; font-size:0.78rem;" oninput="updateElField('${el.id}','html',this.value)">${esc(el.html)}</textarea></div>`;
   } else if (el.kind === 'audiocreator') {
-    const voices = ['Z-AI (Female)', 'US English (Male)', 'US English (Female)', 'UK English (Male)', 'UK English (Female)', 'Australian (Male)', 'Australian (Female)'];
+    const voices = ['Z-AI (Male)', 'Z-AI (Female)', 'US English (Male)', 'US English (Female)', 'UK English (Male)', 'UK English (Female)', 'Australian (Male)', 'Australian (Female)'];
     let blocksHtml = (el.blocks || []).map((blk, idx) => `
       <div style="margin-bottom:12px; padding:12px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -1839,7 +1839,7 @@ function elemCardHTML(el, i, total) {
         <div class="field">
           <label>Voice</label>
           <select onchange="updateAudioBlock('${el.id}', ${idx}, 'voice', this.value)">
-            ${voices.map(v => `<option value="${v}" ${(blk.voice === v || (v === 'Z-AI (Female)' && blk.voice === 'Z-AI Voice (Default)')) ? 'selected' : ''}>${v}</option>`).join('')}
+            ${voices.map(v => `<option value="${v}" ${(blk.voice === v || (v === 'Z-AI (Male)' && blk.voice === 'Z-AI Voice (Default)')) ? 'selected' : ''}>${v}</option>`).join('')}
           </select>
         </div>
         <div class="field">
@@ -4283,13 +4283,25 @@ async function convertPptxDeckToSession() {
 window.pickAudioCreatorVoice = function(blockVoice, voices) {
   const all = voices || window.speechSynthesis.getVoices() || [];
   if (!blockVoice) return null;
-  if (blockVoice === 'Z-AI (Female)' || blockVoice === 'Z-AI Voice (Default)') {
+  if (blockVoice === 'Z-AI (Male)' || blockVoice === 'Z-AI Voice (Default)') {
     const enPool = all.filter(v => (v.lang || '').toLowerCase().startsWith('en') || (v.name || '').toLowerCase().includes('english'));
-    const preferred = ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
+    const preferred = ['Google US English', 'Microsoft Guy', 'Daniel', 'Microsoft David'];
     for (const name of preferred) {
       const m = enPool.find(v => v.name.includes(name));
       if (m) return m;
     }
+    return enPool.find(v => /male|guy/i.test(v.name)) || enPool[0] || null;
+  }
+  if (blockVoice === 'Z-AI (Female)') {
+    const enPool = all.filter(v => (v.lang || '').toLowerCase().startsWith('en') || (v.name || '').toLowerCase().includes('english'));
+    const femalePreferred = ['Google UK English Male', 'Microsoft Aria Online', 'Google US English Female', 'Microsoft Jenny Online', 'Google UK English Female', 'Microsoft Zira', 'Microsoft Aria', 'Microsoft Jenny'];
+    for (const name of femalePreferred) {
+      const m = all.find(v => v.name.includes(name));
+      if (m) return m;
+    }
+    const femaleRe = /female|woman|girl|aria|jenny|zira|samantha|emma|susan|hazel|libby|ava|sonia|michelle|natasha|annette|elsie/i;
+    const fem = enPool.find(v => femaleRe.test(v.name));
+    if (fem) return fem;
     return enPool.find(v => /male|guy/i.test(v.name)) || enPool[0] || null;
   }
   const isUK = blockVoice.includes('UK');
@@ -4401,7 +4413,7 @@ window.addAudioBlock = function(elId) {
   const el = slide.elements.find(e => e.id === elId);
   if (el && el.kind === 'audiocreator') {
     if (!el.blocks) el.blocks = [];
-    el.blocks.push({ voice: 'Z-AI (Female)', text: '' });
+    el.blocks.push({ voice: 'Z-AI (Male)', text: '' });
     renderElemCards(slide); updatePreview();
   }
 };

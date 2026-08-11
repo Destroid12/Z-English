@@ -2393,7 +2393,7 @@ function pickVoice(lang) {
 
   const preferred = isAr
     ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
+    : ['Google US English', 'Microsoft Guy', 'Daniel', 'Microsoft David'];
   for (const name of preferred) {
     const m = pool.find(v => v.name.includes(name));
     if (m) return m;

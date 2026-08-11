@@ -2293,7 +2293,12 @@ const FIXER_SHARED_RULES =
   '- "checkbox": multi-select checkboxes. "answer" is comma-separated correct keys. Example: { "qtype": "checkbox", "answer": "dog,cat", "altAnswers": [], "options": ["dog", "cat", "chair", "table"] }\n' +
   '- "match": matching pairs. "options" is array of "left|right". Example: { "qtype": "match", "options": ["Dog | Animal", "Apple | Fruit"] }\n' +
   '- "schedule": drag/drop ordering. Example: { "qtype": "schedule", "options": ["First", "Second", "Third"] }\n' +
-  '- "wordbank": unscramble sentence. Example: { "qtype": "wordbank", "options": ["is", "This", "good"], "answer": "This is good." }\n\n';
+  '- "wordbank": unscramble sentence. Example: { "qtype": "wordbank", "options": ["is", "This", "good"], "answer": "This is good." }\n' +
+  '- "voice": voice-recording question (the student speaks the answer and the AI grades it). Example: { "qtype": "voice", "answer": "My name is Sarah", "altAnswers": ["I am Sarah"], "options": [], "strict": false, "tips": true, "aiInstructions": "Accept any correct introduction" }\n' +
+  '     * For "voice" blanks the student taps a "Tap to Speak" microphone button. Set a clear expected "answer" (and optional "altAnswers" / "aiInstructions") so the AI can check what they say.\n\n' +
+  '### 6. kind: "audiocreator" (AUDIO DIALOGUE / LISTENING PLAYER)\n' +
+  '{ "id": "ai_aud1", "kind": "audiocreator", "pos": null, "blocks": [{ "voice": "Z-AI (Male)", "text": "Hello, welcome to the lesson." }, { "voice": "US English (Female)", "text": "Nice to meet you!" }] }\n' +
+  'Use kind:"audiocreator" for listening activities: spoken dialogues, conversations, pronunciation examples, audio exercises. Each entry in "blocks" has a "voice" (who speaks) and the "text" to be read aloud. Allowed "voice" values: "Z-AI (Male)", "Z-AI (Female)", "US English (Male)", "US English (Female)", "UK English (Male)", "UK English (Female)", "Australian (Male)", "Australian (Female)".\n\n';
 
 const FIXER_SYSTEM_PROMPT =
   'You are an expert educational slide fixer for the Z-English learning platform.\n' +
@@ -2301,11 +2306,12 @@ const FIXER_SYSTEM_PROMPT =
   FIXER_SHARED_RULES +
   '## YOUR TASK RULES\n' +
   '1. Fix grammar, formatting, and layout. Add relevant images using pollinations.ai URLs for vocabulary and topics.\n' +
-  '2. Convert raw text questions into interactive kind:"question" elements.\n' +
-  '3. Use kind: "paragraph" for all normal text. DO NOT use kind: "speaking" unless the slide is explicitly a speaking drill.\n' +
-  '4. Generate unique IDs for new elements using "ai_" followed by 6 random alphanumeric characters.\n' +
-  '5. Preserve existing element IDs where applicable. Keep the slide "id" unchanged.\n' +
-  '6. If the slide is obsolete or user requested deletion, return: { "delete": true }\n\n' +
+  '2. Convert raw text questions into interactive kind:"question" elements. Use "qtype":"voice" for pronunciation/speaking questions (speak-the-answer), and "qtype":"text"/"radio"/etc. for written questions.\n' +
+  '3. Convert dialogues, conversations, or listening passages into a kind:"audiocreator" element (one block per spoken line, with different voices for different speakers). Keep the readable text as kind:"paragraph" too.\n' +
+  '4. Use kind: "paragraph" for all normal text. DO NOT use kind: "speaking" unless the slide is explicitly a speaking drill.\n' +
+  '5. Generate unique IDs for new elements using "ai_" followed by 6 random alphanumeric characters.\n' +
+  '6. Preserve existing element IDs where applicable. Keep the slide "id" unchanged.\n' +
+  '7. If the slide is obsolete or user requested deletion, return: { "delete": true }\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. After that, output ONLY a valid JSON object ```json { ... } ``` or ```json { "delete": true } ```.';
 
 const FIXER_SESSION_SYSTEM_PROMPT =
@@ -2316,7 +2322,8 @@ const FIXER_SESSION_SYSTEM_PROMPT =
   '1. CREATE NEW SLIDES: If the user asks for a new session (e.g. "Create 10 slides about..."), or asks to add practice/quiz/dialogue/reading slides, CREATE AS MANY SLIDES AS REQUESTED OR NEEDED!\n' +
   '2. PICK / GENERATE RELEVANT IMAGES: Include kind:"image" elements with vivid, educational prompts (e.g. "https://image.pollinations.ai/prompt/a%20modern%20doctor%20talking%20to%20a%20patient%20in%20a%20clinic?width=600&height=400&nologo=true") for vocabulary and concepts.\n' +
   '3. INTERACTIVE ACTIVITIES: Create interactive exercises (matching pairs, radio buttons, select dropdowns, wordbank sentence builders, fill-in-the-blanks).\n' +
-  '4. EDIT / EXPAND EXISTING SLIDES: Polish, expand, or reorganize existing slides according to the instructions.\n\n' +
+  '4. VOICE & LISTENING CONTENT: Create kind:"audiocreator" elements for dialogues/conversations/listening practice (one block per spoken line, distinct voices per speaker), and add "qtype":"voice" questions for speak-the-answer pronunciation practice.\n' +
+  '5. EDIT / EXPAND EXISTING SLIDES: Polish, expand, or reorganize existing slides according to the instructions.\n\n' +
   FIXER_SHARED_RULES +
   '## SLIDE STRUCTURE:\n' +
   'Each slide object must have: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n\n' +
@@ -2341,7 +2348,11 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '### 4. kind: "list"\n' +
   '{ "id": "ai_lst1", "kind": "list", "pos": null, "items": [{ "text": "Item 1" }, { "text": "Item 2" }], "font": "" }\n\n' +
   '### 5. kind: "question" (INTERACTIVE EXERCISES)\n' +
-  '{ "id": "ai_q1", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule", "answer": "...", "altAnswers": [], "options": [], "strict": false, "tips": true, "aiInstructions": "" }] }\n\n' +
+  '{ "id": "ai_q1", "kind": "question", "pos": null, "prompt": "Question text with [blank] placeholder", "font": "", "blanks": [{ "qtype": "radio"|"select"|"text"|"match"|"wordbank"|"schedule"|"voice", "answer": "...", "altAnswers": [], "options": [], "strict": false, "tips": true, "aiInstructions": "" }] }\n' +
+  'For "voice" blanks the student records their spoken answer (e.g. { "qtype": "voice", "answer": "My name is Sarah", "altAnswers": [], "options": [], "strict": false, "tips": true, "aiInstructions": "" }). Use it for speak-the-answer pronunciation questions.\n\n' +
+  '### 6. kind: "audiocreator" (SPOKEN DIALOGUES / LISTENING PLAYER)\n' +
+  '{ "id": "ai_aud1", "kind": "audiocreator", "pos": null, "blocks": [{ "voice": "Z-AI (Male)", "text": "Hello, welcome to the lesson." }, { "voice": "US English (Female)", "text": "Nice to meet you!" }] }\n' +
+  'Use it for dialogues and listening practice. Allowed "voice" values: "Z-AI (Male)", "Z-AI (Female)", "US English (Male)", "US English (Female)", "UK English (Male)", "UK English (Female)", "Australian (Male)", "Australian (Female)".\n\n' +
   '## CRITICAL RULES FOR PPTX CONVERSION:\n' +
   '1. USE ACTUAL PRESENTATION MEDIA FIRST:\n' +
   '   - When a slide contains photos, diagrams, character pictures, memes, icons, or illustrations from the PPTX, ALWAYS use kind: "image" with url: "[IMAGE:0]" (or [IMAGE:1], etc.).\n' +
@@ -2352,9 +2363,12 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '     * In this specific case, DO NOT include an image element for this worksheet scan — the transcribed text completely replaces it.\n' +
   '3. INTERACTIVE QUESTIONS & EXERCISES:\n' +
   '   - Convert any quiz, fill-in-the-blank, multiple choice, matching pairs, or word order exercise into native kind: "question" elements.\n' +
-  '4. FORBIDDEN UNNECESSARY SPEAKING BUTTONS:\n' +
+  '   - Convert pronunciation / speak-the-answer exercises into "qtype":"voice" blanks.\n' +
+  '4. DIALOGUES & LISTENING:\n' +
+  '   - Convert dialogues, conversations, and listening passages into a kind:"audiocreator" element (one block per spoken line, distinct voices per speaker). Keep the readable text as kind:"paragraph" too.\n' +
+  '5. FORBIDDEN UNNECESSARY SPEAKING BUTTONS:\n' +
   '   - DO NOT make dialogues or normal sentences into kind: "speaking" elements! Use kind: "paragraph" for almost all slide texts and dialogues. Only use kind: "speaking" for explicit oral drills.\n' +
-  '5. OUTPUT STRUCTURE:\n' +
+  '6. OUTPUT STRUCTURE:\n' +
   '   - For a single slide: return a JSON object: { "id": "slide_xxx", "type": "content"|"activity", "title": "Slide Title", "elements": [...] }\n' +
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON.';
