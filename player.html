@@ -614,6 +614,13 @@ function initDeck(slides){
     shuffleArray(items);
     items.forEach(item => container.appendChild(item));
   });
+  document.querySelectorAll('.interactive-match').forEach(container => {
+    container.querySelectorAll('.match-col').forEach(col => {
+      const items = Array.from(col.children);
+      shuffleArray(items);
+      items.forEach(item => col.appendChild(item));
+    });
+  });
 
   document.querySelectorAll('.z-audio').forEach(initCustomAudio);
 

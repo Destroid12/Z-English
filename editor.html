@@ -588,6 +588,13 @@ function esc(str) {
   return d.innerHTML;
 }
 function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
 // Extracts the Drive file ID from any of the URL shapes our uploader / users produce:
 // ?id=FILEID, /d/FILEID/, /file/d/FILEID/view, /thumbnail?id=FILEID, etc.
@@ -1002,16 +1009,21 @@ function compileSlide(slide, forExport = true) {
                 rights.push({ text: r, originalIdx: rights.length });
               } 
             });
+            const shuffledLefts = [...lefts];
             const shuffledRights = [...rights];
-            const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+            shuffleArray(shuffledLefts);
+            shuffleArray(shuffledRights);
+            const leftHtml = shuffledLefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
             const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
             inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
           } else if (b.qtype === 'schedule') {
             const shuffled = [...(b.options || [])];
+            shuffleArray(shuffled);
             const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
             inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
           } else if (b.qtype === 'wordbank') {
             const shuffled = [...(b.options || [])];
+            shuffleArray(shuffled);
             const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
             inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
           } else if (b.qtype === 'voice') {
@@ -1069,8 +1081,11 @@ function compileSlide(slide, forExport = true) {
               rights.push({ text: r, originalIdx: rights.length });
             } 
           });
+          const shuffledLefts = [...lefts];
           const shuffledRights = [...rights];
-          const leftHtml = lefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+          shuffleArray(shuffledLefts);
+          shuffleArray(shuffledRights);
+          const leftHtml = shuffledLefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
           const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
           inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
         } else if (b.qtype === 'schedule') {
