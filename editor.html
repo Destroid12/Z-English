@@ -2346,7 +2346,7 @@ function attachPosDragHandlers() {
 
 
 // ---------- live preview ----------
-const PREVIEW_CSS = `
+function getPreviewCSS() { return `
   html,body{ height:100%; }
   body{ margin:0; padding:18px; font-family:'Nunito',sans-serif; background:#EFF5F9; box-sizing:border-box;
     --blue:#6DB3E2; --blue-mid:#4CA8DD; --blue-dark:#1E6FA6; --blue-ink:#123B57;
@@ -2390,7 +2390,7 @@ const PREVIEW_CSS = `
   .audiocreator-progress{ flex:1; width:auto; height:10px; background:rgba(0,0,0,0.08); border-radius:5px; overflow:hidden; margin-top:2px; cursor:pointer; touch-action:none; }
   .audiocreator-bar{ height:100%; background:linear-gradient(90deg,#1f7bfe,#9b51e0); width:0%; transition:width .05s linear; pointer-events:none; }
   .audiocreator-text{ font-size:13px; color:#5C6C79; font-weight:800; font-family:'Nunito',sans-serif; min-width:140px; text-align:left; }
-`;
+`; }
 
 function updatePreview() {
   const slide = getSelectedSlide();
@@ -2400,7 +2400,7 @@ function updatePreview() {
     const compiled = compileSlide(slide, false);
     frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-      <style>${PREVIEW_CSS}</style></head><body>${compiled}${'<scr' + 'ipt>'}
+      <style>${getPreviewCSS()}</style></head><body>${compiled}${'<scr' + 'ipt>'}
 window.toggleAudioCreator = function(btn){ return window.parent.toggleAudioCreator(btn); };
 window.seekAudioCreator = function(e, t){ return window.parent.seekAudioCreator(e, t); };
 <\/script></body></html>`;
