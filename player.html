@@ -2390,12 +2390,14 @@ window.toggleAudioCreator = function(btn) {
     };
     utterance.onend = () => {
       if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      if (container.dataset.playing !== 'true') return;
       container.dataset.currentIndex = (blockIndex + 1).toString();
       container.dataset.charOffset = '0';
       speakBlock(blockIndex + 1, 0);
     };
     utterance.onerror = () => {
       if (container._audioRaf) { cancelAnimationFrame(container._audioRaf); container._audioRaf = null; }
+      if (container.dataset.playing !== 'true') return;
       container.dataset.currentIndex = (blockIndex + 1).toString();
       container.dataset.charOffset = '0';
       speakBlock(blockIndex + 1, 0);
