@@ -4432,31 +4432,43 @@ window.toggleAudioCreator = function(btn) {
 
     const before = _audioCharsBefore(blocks, blockIndex);
     const blockEndChar = before + offset + remain.length;
-    let refChar = before + offset;
-    let refTime = 0;
+    let prevChar = before + offset;
+    let prevTime = 0;
+    let displayedChar = before + offset;
+    let msPerChar = MS_PER_CHAR;
 
-    // Only move the progress bar / clock while the audio is actually speaking
+    // Progress only moves while audio actually speaks, and never jumps backwards
     utterance.onstart = () => {
-      refChar = before + offset;
-      refTime = performance.now();
-      updateProgress(refChar);
+      prevChar = before + offset;
+      prevTime = performance.now();
+      displayedChar = prevChar;
+      updateProgress(displayedChar);
       if (container._audioRaf) cancelAnimationFrame(container._audioRaf);
       const tick = (now) => {
         if (container.dataset.playing !== 'true') { container._audioRaf = null; return; }
-        const estChar = refChar + (now - refTime) / MS_PER_CHAR;
-        const globalChar = Math.max(refChar, Math.min(blockEndChar, estChar));
-        updateProgress(globalChar);
-        if (globalChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
+        const estChar = prevChar + (now - prevTime) / msPerChar;
+        displayedChar = Math.max(displayedChar, Math.min(blockEndChar, estChar));
+        updateProgress(displayedChar);
+        if (displayedChar < blockEndChar) container._audioRaf = requestAnimationFrame(tick);
         else container._audioRaf = null;
       };
       container._audioRaf = requestAnimationFrame(tick);
     };
     utterance.onboundary = (ev) => {
       if (ev && typeof ev.charIndex === 'number') {
-        refChar = before + offset + ev.charIndex;
-        refTime = performance.now();
-        container.dataset.charOffset = (offset + ev.charIndex).toString();
-        updateProgress(refChar);
+        const boundaryChar = before + offset + ev.charIndex;
+        const now = performance.now();
+        if (boundaryChar > prevChar && now > prevTime) {
+          const measured = (now - prevTime) / (boundaryChar - prevChar);
+          if (measured > 20 && measured < 250) msPerChar = msPerChar * 0.6 + measured * 0.4;
+        }
+        prevChar = Math.max(prevChar, boundaryChar);
+        prevTime = now;
+        if (boundaryChar > displayedChar) {
+          displayedChar = boundaryChar;
+          container.dataset.charOffset = (offset + ev.charIndex).toString();
+        }
+        updateProgress(displayedChar);
       }
     };
     utterance.onend = () => {
