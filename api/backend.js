@@ -2398,8 +2398,8 @@ function _extractJsonFromGemini(fixedText, wantArray) {
 async function _aiGradeAnswer(p) {
   const question = String(p.question || '').trim();
   const studentAnswer = String(p.studentAnswer || '').trim();
-  const expectedAnswer = String(p.expectedAnswer || '').trim();
-  const tipsMode = p.tipsMode === true || p.tipsMode === 'true';
+  const expectedAnswer = String(p.expectedAnswer || p.correctAnswer || '').trim();
+  const tipsMode = p.tipsMode === true || p.tipsMode === 'true' || p.tips === true || p.tips === 'true';
   const aiInstructions = String(p.aiInstructions || '').trim();
   const failCount = parseInt(p.failCount || '0', 10);
   
@@ -2723,9 +2723,10 @@ async function _createPaymobLink(p) {
   const studentName = String(p.studentName || 'Student').trim();
   const studentContact = String(p.studentContact || '').trim();
   const description = String(p.description || 'Z-English Course Access').trim();
-  const apiKey = p.apiKey || process.env.PAYMOB_API_KEY;
-  const integrationId = p.integrationId || process.env.PAYMOB_INTEGRATION_ID;
-  const iframeId = p.iframeId || process.env.PAYMOB_IFRAME_ID;
+  // Credentials are server-side only — never accept them from the client.
+  const apiKey = process.env.PAYMOB_API_KEY;
+  const integrationId = process.env.PAYMOB_INTEGRATION_ID;
+  const iframeId = process.env.PAYMOB_IFRAME_ID;
 
   if (isNaN(price) || price <= 0 || !expirationIso || !apiKey || !integrationId || !iframeId) {
     return { success: false, message: 'Invalid price or missing Paymob configuration.' };
@@ -3040,7 +3041,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
     res.status(204).end();
@@ -3061,7 +3061,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(result);
   } catch (err) {
     console.error('Z-English backend error:', err);
-    return res.status(200).json({ success: false, message: 'Server error: ' + err.message });
+    return res.status(200).json({ success: false, message: 'Server error' });
   }
 };
 

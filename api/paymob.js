@@ -2,8 +2,7 @@
 // Handles Paymob Auth Token -> Order Registration -> Payment Key -> Iframe URL
 
 module.exports = async (req, res) => {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
+  // Enable CORS (no credentials — this API is auth-free and origin-agnostic)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
@@ -29,12 +28,16 @@ module.exports = async (req, res) => {
     const studentContact = (body.studentContact || '').trim();
     const description = (body.description || 'Z-English Course Access').trim();
 
-    const apiKey = body.apiKey || process.env.PAYMOB_API_KEY || '';
-    const integrationId = body.integrationId || process.env.PAYMOB_INTEGRATION_ID || '5818041';
-    const iframeId = body.iframeId || process.env.PAYMOB_IFRAME_ID || '1066378';
+    // Credentials are server-side only — never accept them from the client.
+    const apiKey = process.env.PAYMOB_API_KEY || '';
+    const integrationId = process.env.PAYMOB_INTEGRATION_ID || '';
+    const iframeId = process.env.PAYMOB_IFRAME_ID || '';
 
     if (!apiKey) {
-      return res.status(400).json({ success: false, message: 'Paymob API key is not configured. Save your Paymob credentials in the Admin panel or set the PAYMOB_API_KEY environment variable.' });
+      return res.status(500).json({ success: false, message: 'Paymob is not configured. Set PAYMOB_API_KEY in your Vercel environment variables.' });
+    }
+    if (!integrationId || !iframeId) {
+      return res.status(500).json({ success: false, message: 'Paymob is not configured. Set PAYMOB_INTEGRATION_ID and PAYMOB_IFRAME_ID in your Vercel environment variables.' });
     }
 
 

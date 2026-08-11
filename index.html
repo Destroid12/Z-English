@@ -879,21 +879,9 @@
 
             <!-- Paymob Credentials Settings (Collapsible) -->
             <div id="paymob-settings-box" style="display: none; background: var(--bg-soft); padding: 18px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border-color);">
-                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;"><i class="fas fa-key" style="color: var(--z-blue);"></i> Paymob API Credentials (Optional)</h4>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Enter your Paymob merchant details below. Credentials are saved in your browser.</p>
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;"><i class="fas fa-key" style="color: var(--z-blue);"></i> Paymob Configuration</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Paymob credentials are kept secure on the server and configured through the Vercel environment variables <code style="font-size: 12px;">PAYMOB_API_KEY</code>, <code style="font-size: 12px;">PAYMOB_INTEGRATION_ID</code> and <code style="font-size: 12px;">PAYMOB_IFRAME_ID</code>. They are never stored in the browser.</p>
                 <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px;">
-                    <div class="input-group">
-                        <label style="font-size: 12px; font-weight: 700;">Paymob API Key / Secret Key</label>
-                        <input type="password" id="paymob-api-key" class="input-control" placeholder="e.g. ZXlKaGJHY2lPaUpTVXpV...">
-                    </div>
-                    <div class="input-group">
-                        <label style="font-size: 12px; font-weight: 700;">Integration ID</label>
-                        <input type="text" id="paymob-integration-id" class="input-control" placeholder="e.g. 5818041">
-                    </div>
-                    <div class="input-group">
-                        <label style="font-size: 12px; font-weight: 700;">Iframe ID / Public Key</label>
-                        <input type="text" id="paymob-iframe-id" class="input-control" placeholder="e.g. 1066378">
-                    </div>
                     <div class="input-group">
                         <label style="font-size: 12px; font-weight: 700;">Vercel Serverless API URL (Optional)</label>
                         <input type="text" id="paymob-vercel-url" class="input-control" placeholder="e.g. https://z-english.vercel.app/api/paymob">
@@ -901,7 +889,7 @@
                 </div>
                 <div class="flex items-center gap-12">
                     <button type="button" class="btn btn-primary btn-sm" onclick="savePaymobConfig(true)" style="padding: 8px 20px; font-weight: 700;">
-                        <i class="fas fa-save" style="margin-right: 6px;"></i> Save API Settings
+                        <i class="fas fa-save" style="margin-right: 6px;"></i> Save Settings
                     </button>
                     <span id="paymob-save-status" style="font-size: 13px; color: #22C55E; font-weight: 700; display: none;">
                         <i class="fas fa-check-circle"></i> Settings Saved!
@@ -1556,12 +1544,6 @@
             document.getElementById('contact-success').classList.remove('show');
         }
 
-        function joinTempSessionByKey() {
-            const key = document.getElementById('tempSessionKeyInput').value.trim();
-            if (!key) return;
-            window.location.href = `player.html?tempId=${encodeURIComponent(key)}`;
-        }
-
         function joinTestSession() {
             const code = document.getElementById('testCodeInput').value.trim().toUpperCase();
             if (!code) return;
@@ -1674,11 +1656,10 @@
             row.id = `row-${key}`;
 
             if (isAdmin) {
-                const hasLink = !!adminSessionsCache[key];
                 row.innerHTML = `
                     <div class="session-label"><i class="fas fa-lock-open" id="icon-${key}" style="color:var(--success);"></i> ${translations[currentLang].sessionWord} ${sessionNum}</div>
                     <div class="session-controls" id="controls-${key}">
-                        <button type="button" class="btn btn-secondary btn-sm" id="preview-btn-${key}" onclick="openAdminPreview('${currentTrack}', ${level}, ${sessionNum})" ${hasLink ? '' : 'disabled'}>
+                        <button type="button" class="btn btn-secondary btn-sm" id="preview-btn-${key}" onclick="openAdminPreview('${currentTrack}', ${level}, ${sessionNum})">
                             <i class="fas fa-arrow-up-right-from-square"></i> Open (Admin)
                         </button>
                     </div>
@@ -2383,7 +2364,17 @@ function detectSpeechLang(text) { return /[\u0600-\u06FF]/.test(text) ? 'ar-EG' 
 // ---- Voice selection (matches player.html) ----
 let cachedVoices = [];
 function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
-if ('speechSynthesis' in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  // Chrome loads voices asynchronously — retry a few times so the first
+  // utterance doesn't fall back to a robotic default voice.
+  let voiceRetries = 0;
+  const voiceRefreshTimer = setInterval(function() {
+    if (cachedVoices.length > 0 || ++voiceRetries > 10) clearInterval(voiceRefreshTimer);
+    else loadVoices();
+  }, 300);
+}
 
 function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
@@ -2400,19 +2391,34 @@ function pickVoice(lang) {
     if (egVoice) return egVoice;
   }
 
+  const isHighQuality = v => {
+    const n = (v.name || '').toLowerCase();
+    return /natural|neural|online|premium|google|aria|jenny|guy|daniel|samantha|aaron|fred|libby|sonia|ava|heera|klarissa|aarav|aditi|alice|anna|geraint|michael|neerja|serena|tessa|fiona|karen|moira|thomas|tina|veena|victoria|samantha/i.test(n);
+  };
+  const hqPool = pool.filter(isHighQuality);
+
   const preferred = isAr
-    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google', 'ar-eg']
+    : ['Google UK English Male', 'Google US English',
+       'Microsoft Aria Online', 'Microsoft Guy Online', 'Microsoft Jenny Online',
+       'Microsoft Andrew Online', 'Microsoft Emma Online', 'Microsoft Christopher Online',
+       'Microsoft David Online', 'Microsoft Zira Online',
+       'Microsoft Guy', 'Daniel', 'Microsoft David'];
+  const searchPool = hqPool.length ? hqPool : pool;
   for (const name of preferred) {
-    const m = pool.find(v => v.name.includes(name));
+    const m = searchPool.find(v => v.name.includes(name));
     if (m) return m;
   }
+  // Prefer an online/neural voice over a legacy local one before giving up.
+  const online = pool.find(v => v.localService === false);
+  if (online) return online;
   return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 
 function speakSiteTutorText(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
+  loadVoices();
   const utter = new SpeechSynthesisUtterance(text);
   const lang = detectSpeechLang(text);
   utter.lang = lang;
@@ -2472,9 +2478,6 @@ document.getElementById('siteTutorLangToggle').addEventListener('click', functio
     this.classList.add('ar');
     siteTutorMicLang = 'ar-EG';
   } else {
-    document.getElementById('editTestSessionLink').style.display = 'inline-flex';
-    document.getElementById('deleteTestSessionBtn').style.display = 'inline-flex';
-    document.getElementById('editTestSessionLink').href = 'editor.html?editTestId=' + encodeURIComponent(tid);
     this.textContent = 'EN';
     this.classList.remove('ar');
     siteTutorMicLang = 'en-US';
@@ -3659,27 +3662,15 @@ function togglePaymobSettings() {
 }
 
 function loadPaymobConfig() {
-    const apiKey = localStorage.getItem('paymob_api_key') || '';
-    const integrationId = localStorage.getItem('paymob_integration_id') || '';
-    const iframeId = localStorage.getItem('paymob_iframe_id') || '';
     const vercelUrl = localStorage.getItem('paymob_vercel_url') || '';
-    
-    if (document.getElementById('paymob-api-key')) document.getElementById('paymob-api-key').value = apiKey;
-    if (document.getElementById('paymob-integration-id')) document.getElementById('paymob-integration-id').value = integrationId;
-    if (document.getElementById('paymob-iframe-id')) document.getElementById('paymob-iframe-id').value = iframeId;
     if (document.getElementById('paymob-vercel-url')) document.getElementById('paymob-vercel-url').value = vercelUrl;
 }
 
 function savePaymobConfig(showToast = false) {
-    const apiKey = (document.getElementById('paymob-api-key')?.value || '').trim();
-    const integrationId = (document.getElementById('paymob-integration-id')?.value || '').trim();
-    const iframeId = (document.getElementById('paymob-iframe-id')?.value || '').trim();
     const vercelUrl = (document.getElementById('paymob-vercel-url')?.value || '').trim();
-    
-    localStorage.setItem('paymob_api_key', apiKey);
-    localStorage.setItem('paymob_integration_id', integrationId);
-    localStorage.setItem('paymob_iframe_id', iframeId);
     localStorage.setItem('paymob_vercel_url', vercelUrl);
+    // Clear any legacy stored secrets from older versions of this panel.
+    ['paymob_api_key', 'paymob_integration_id', 'paymob_iframe_id'].forEach(k => localStorage.removeItem(k));
 
     if (showToast) {
         const statusEl = document.getElementById('paymob-save-status');
@@ -3732,14 +3723,12 @@ async function handleGeneratePaymobLink(e) {
 
         const description = (document.getElementById('paymob-description')?.value || '').trim() || 'Z-English Course Access';
 
-        const apiKey = localStorage.getItem('paymob_api_key') || '';
-        const integrationId = localStorage.getItem('paymob_integration_id') || '';
-        const iframeId = localStorage.getItem('paymob_iframe_id') || '';
         const vercelUrl = localStorage.getItem('paymob_vercel_url') || '';
 
         let paymentUrl = '';
 
-        // 1. Try Vercel Serverless API first if deployed (/api/paymob or custom Vercel URL)
+        // 1. Try Vercel Serverless API first if deployed (/api/paymob or custom Vercel URL).
+        //    Credentials are not sent — the server reads them from its environment.
         const targetVercelEndpoint = vercelUrl || '/api/paymob';
         try {
             const vercelRes = await fetch(targetVercelEndpoint, {
@@ -3750,10 +3739,7 @@ async function handleGeneratePaymobLink(e) {
                     expirationDate: expiryDate.toISOString(),
                     studentName: studentName,
                     studentContact: studentContact,
-                    description: description,
-                    apiKey: apiKey,
-                    integrationId: integrationId,
-                    iframeId: iframeId
+                    description: description
                 })
             });
             if (vercelRes.ok) {
@@ -3766,7 +3752,7 @@ async function handleGeneratePaymobLink(e) {
             console.warn('Vercel API call skipped/unavailable:', vErr);
         }
 
-        // 2. Try the backend payment-link call if the Vercel endpoint didn't respond
+        // 2. Try the backend payment-link call if the Vercel endpoint didn't respond.
         if (!paymentUrl && typeof backendConfigured === 'function' && backendConfigured()) {
             try {
                 const params = new URLSearchParams({
@@ -3776,28 +3762,24 @@ async function handleGeneratePaymobLink(e) {
                     expirationDate: expiryDate.toISOString(),
                     studentName: studentName,
                     studentContact: studentContact,
-                    description: description,
-                    apiKey: apiKey,
-                    integrationId: integrationId,
-                    iframeId: iframeId
+                    description: description
                 });
                 const res = await callBackend(params);
                 if (res && res.success && res.paymentUrl) {
                     paymentUrl = res.paymentUrl;
                 }
             } catch(err) {
-                console.warn('Backend payment link call error, using client fallback:', err);
+                console.warn('Backend payment link call error:', err);
             }
         }
 
-        // Fallback calculation if backend call not available
         if (!paymentUrl) {
-            const priceCents = Math.round(price * 100);
-            if (iframeId) {
-                paymentUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}`;
-            } else {
-                paymentUrl = `https://accept.paymob.com/standalone?amount_cents=${priceCents}&currency=EGP&description=${encodeURIComponent(description)}&merchant_order_id=${Date.now()}`;
+            alert('Could not generate a payment link. Please make sure Paymob is configured on the server (PAYMOB_API_KEY / PAYMOB_INTEGRATION_ID / PAYMOB_IFRAME_ID environment variables) and try again.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnHtml;
             }
+            return;
         }
 
         const resultCard = document.getElementById('paymob-result-card');
@@ -3941,16 +3923,6 @@ function renderPaymobHistory() {
 </script>
 
 <!-- Modals -->
-<div class="modal-overlay" id="tempAccessModal">
-  <div class="modal">
-    <h3>Manage Temporary Session Access</h3>
-    <div id="tempAccessStudentList" style="margin-top: 15px;"></div>
-    <div style="margin-top:20px; text-align:right;">
-      <button class="btn btn-outline" onclick="document.getElementById('tempAccessModal').classList.remove('active')">Close</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="submissionModal">
   <div class="modal" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;">
     <div id="submissionModalBody"></div>

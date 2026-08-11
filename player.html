@@ -1184,6 +1184,13 @@ function loadVoices() { cachedVoices = window.speechSynthesis.getVoices(); }
 if ('speechSynthesis' in window) {
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
+  // Chrome loads voices asynchronously — retry a few times so the first
+  // utterance doesn't fall back to a robotic default voice.
+  let voiceRetries = 0;
+  const voiceRefreshTimer = setInterval(function() {
+    if (cachedVoices.length > 0 || ++voiceRetries > 10) clearInterval(voiceRefreshTimer);
+    else loadVoices();
+  }, 300);
 }
 function pickVoice(lang) {
   if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
@@ -1194,19 +1201,33 @@ function pickVoice(lang) {
     if (isAr) return l.startsWith('ar') || n.includes('arabic') || n.includes('عربي');
     return l.startsWith('en') || n.includes('english');
   });
-  
+
   if (isAr) {
     const egVoice = pool.find(v => (v.lang || '').toLowerCase() === 'ar-eg' && /shakir|maged|male/i.test(v.name)) || pool.find(v => (v.lang || '').toLowerCase() === 'ar-eg');
     if (egVoice) return egVoice;
   }
 
+  const isHighQuality = v => {
+    const n = (v.name || '').toLowerCase();
+    return /natural|neural|online|premium|google|aria|jenny|guy|daniel|samantha|aaron|fred|libby|sonia|ava|heera|klarissa|aarav|aditi|alice|anna|geraint|michael|neerja|serena|tessa|fiona|karen|moira|thomas|tina|veena|victoria|samantha/i.test(n);
+  };
+  const hqPool = pool.filter(isHighQuality);
+
   const preferred = isAr
-    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google']
-    : ['Google UK English Male', 'Google US English', 'Microsoft Guy', 'Daniel'];
+    ? ['Shakir', 'Naayf', 'Hamed', 'Tarik', 'Maged', 'Google', 'ar-eg']
+    : ['Google UK English Male', 'Google US English',
+       'Microsoft Aria Online', 'Microsoft Guy Online', 'Microsoft Jenny Online',
+       'Microsoft Andrew Online', 'Microsoft Emma Online', 'Microsoft Christopher Online',
+       'Microsoft David Online', 'Microsoft Zira Online',
+       'Microsoft Guy', 'Daniel', 'Microsoft David'];
+  const searchPool = hqPool.length ? hqPool : pool;
   for (const name of preferred) {
-    const m = pool.find(v => v.name.includes(name));
+    const m = searchPool.find(v => v.name.includes(name));
     if (m) return m;
   }
+  // Prefer an online/neural voice over a legacy local one before giving up.
+  const online = pool.find(v => v.localService === false);
+  if (online) return online;
   return pool.find(v => /male|guy/i.test(v.name)) || pool[0] || null;
 }
 window.pickVoice = pickVoice;
@@ -1215,6 +1236,7 @@ window.getPreferredVoice = pickVoice;
 function speakText(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
+  loadVoices();
   const utter = new SpeechSynthesisUtterance(text);
   const lang = detectSpeechLang(text);
   utter.lang = lang;
@@ -2086,9 +2108,10 @@ window.startDirectVoice = function() {
     alert("Voice recognition not supported in this browser. Use Chrome or Edge.");
     return;
   }
-  // Initialize tutorToken if needed
+  // The tutor token is issued when the lesson loads. Without it the tutor can't reply.
   if (!tutorToken) {
-     if (typeof initiateTutor === 'function') initiateTutor(); // existing fallback
+    alert("The voice tutor isn't connected yet. Please make sure this lesson was opened from your dashboard, then try again.");
+    return;
   }
   
   directVoiceActive = true;
@@ -2114,27 +2137,36 @@ document.addEventListener('keydown', (e) => {
 
 function sendDirectVoice(text) {
   if (!tutorToken) {
-    directVoiceSpeak("Tutor not connected.");
+    directVoiceSpeak("Tutor not connected. Please open this lesson from your dashboard and try again.");
     return;
   }
-  
-  tutorHistory.push({ role: 'user', content: text });
-  
-  let slideContext = '';
-  if (typeof slides !== 'undefined' && slides[currentSlideIndex]) {
-    slideContext = JSON.stringify(slides[currentSlideIndex]).substring(0, 1500);
+  if (!text || !text.trim()) {
+    setVoiceState('listening');
+    try { directVoiceRecognizer.start(); } catch(e){}
+    return;
   }
+
+  tutorHistory.push({ role: 'user', content: text });
 
   const payload = {
     action: 'askTutor',
-    track: sessionTrack,
-    level: sessionLevel,
+    track: track,
+    level: level,
     sessionNumber: sessionNumber,
     tutorToken: tutorToken,
     question: text,
-    slideContext: slideContext,
-    history: tutorHistory
+    slideContext: getCurrentSlideText(),
+    slideIndex: String((window.currentSlideIndex || 0) + 1),
+    history: JSON.stringify(tutorHistory.slice(-TUTOR_MAX_HISTORY_TURNS))
   };
+
+  let voiceTimedOut = false;
+  const voiceTimeout = setTimeout(() => {
+    voiceTimedOut = true;
+    if (directVoiceActive && directVoiceState === 'thinking') {
+      directVoiceSpeak("The tutor is taking too long. Please try again.");
+    }
+  }, 45000);
 
   fetch('/api/backend', {
     method: 'POST',
@@ -2143,17 +2175,20 @@ function sendDirectVoice(text) {
   })
   .then(r => r.json())
   .then(data => {
-      if (!directVoiceActive) return;
-      if (data.success) {
-        tutorHistory.push({ role: 'assistant', content: data.reply });
-        directVoiceSpeak(data.reply);
-      } else {
-        directVoiceSpeak("Error: " + data.message);
-      }
+    clearTimeout(voiceTimeout);
+    if (!directVoiceActive || voiceTimedOut) return;
+    if (data.success) {
+      tutorHistory.push({ role: 'assistant', content: data.reply });
+      directVoiceSpeak(data.reply);
+    } else {
+      tutorHistory.push({ role: 'assistant', content: data.message || '' });
+      directVoiceSpeak("Error: " + (data.message || "Something went wrong. Please try again."));
+    }
   })
   .catch(err => {
-      if (!directVoiceActive) return;
-      directVoiceSpeak("Network error.");
+    clearTimeout(voiceTimeout);
+    if (!directVoiceActive || voiceTimedOut) return;
+    directVoiceSpeak("Network error. Please try again.");
   });
 }
 
@@ -2167,6 +2202,7 @@ function directVoiceSpeak(text) {
   }
   
   window.speechSynthesis.cancel();
+  loadVoices();
   
   // Use existing text stripper if available, else basic strip
   let cleanText = text;
@@ -2249,7 +2285,7 @@ window.toggleAudioCreator = function(btn) {
     const voices = window.speechSynthesis.getVoices();
     let selectedVoice = null;
     
-    if (block.voice === 'Z-AI Voice (Default)') {
+    if (!block.voice || block.voice === 'Z-AI Voice (Default)') {
        selectedVoice = typeof pickVoice === 'function' ? pickVoice('en-US') : null;
     } else if (block.voice) {
        const isUK = block.voice.includes('UK');
@@ -2258,8 +2294,11 @@ window.toggleAudioCreator = function(btn) {
        selectedVoice = voices.find(v => 
          v.name.includes(block.voice) || 
          ((isUK ? v.lang === 'en-GB' : isAU ? v.lang === 'en-AU' : v.lang === 'en-US') && 
-          (isFemale ? /female|woman|girl/i.test(v.name) : /male|man|boy/i.test(v.name)))
+          (isFemale ? /female|woman|girl|aria|jenny|zira|samantha|emma|susan/i.test(v.name) : /male|man|boy|guy|david|daniel|mark/i.test(v.name)))
        );
+       if (!selectedVoice && typeof pickVoice === 'function') {
+         selectedVoice = pickVoice(isUK ? 'en-GB' : isAU ? 'en-AU' : 'en-US');
+       }
     }
     
     if (selectedVoice) utterance.voice = selectedVoice;
@@ -2398,6 +2437,52 @@ function resetVoiceQuestionBtn() {
   }
 }
 
+// Normalize a spoken/typed answer so it matches regardless of punctuation,
+// casing or contractions the speech recognizer may have introduced.
+function normalizeSpokenAnswer(s) {
+  const contractions = {
+    "he's": 'he is', "she's": 'she is', "it's": 'it is', "that's": 'that is',
+    "what's": 'what is', "there's": 'there is', "here's": 'here is',
+    "let's": 'let us', "don't": 'do not', "doesn't": 'does not',
+    "didn't": 'did not', "isn't": 'is not', "aren't": 'are not',
+    "wasn't": 'was not', "weren't": 'were not', "won't": 'will not',
+    "wouldn't": 'would not', "can't": 'cannot', "couldn't": 'could not',
+    "shouldn't": 'should not', "mustn't": 'must not', "haven't": 'have not',
+    "hasn't": 'has not', "hadn't": 'had not', "i'm": 'i am', "you're": 'you are',
+    "we're": 'we are', "they're": 'they are', "i'll": 'i will', "you'll": 'you will',
+    "we'll": 'we will', "they'll": 'they will', "i've": 'i have', "you've": 'you have',
+    "we've": 'we have', "they've": 'they have', "i'd": 'i would', "he'd": 'he would',
+    "she'd": 'she would', "we'd": 'we would', "they'd": 'they would', "you'd": 'you would'
+  };
+  let t = String(s || '').toLowerCase().trim();
+  t = t.replace(/[.,!?;:'"()[\]{}\-–—/\\]/g, ' ');
+  t = t.replace(/\b\d+\.?\d*\b/g, ' ');
+  t = t.replace(/\b(um+|uh+|er+|erm+|hmm+|like)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  Object.keys(contractions).forEach(c => {
+    t = t.replace(new RegExp('\\b' + c.replace("'", "\\'") + '\\b', 'g'), contractions[c]);
+  });
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+// Simple Levenshtein distance for forgiving short-answer matching.
+function levenshteinDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
 async function submitVoiceQuestion(transcript) {
   const btn = currentVoiceBtn;
   resetVoiceQuestionBtn();
@@ -2413,28 +2498,53 @@ async function submitVoiceQuestion(transcript) {
   const instructions = btn.dataset.aiinstructions || '';
   
   let isCorrect = false;
-  let candidates = [originalAnswer.toLowerCase().trim()];
+  const normTranscript = normalizeSpokenAnswer(transcript);
+  let candidates = [normalizeSpokenAnswer(originalAnswer)];
   if (altAnswersAttr) {
      altAnswersAttr.split('|').forEach(a => {
-        const t = a.toLowerCase().trim();
+        const t = normalizeSpokenAnswer(a);
         if (t) candidates.push(t);
      });
   }
-  
-  if (candidates.includes(transcript.toLowerCase().trim())) {
+
+  // 1) Exact normalized match
+  if (candidates.includes(normTranscript)) {
     isCorrect = true;
-  } else {
+  } else if (!strict && normTranscript) {
+    // 2) Forgiving match: one word contained in another, or fuzzy short-string match
+    for (const cand of candidates) {
+      if (!cand) continue;
+      if (normTranscript.indexOf(cand) !== -1 || cand.indexOf(normTranscript) !== -1) {
+        isCorrect = true;
+        break;
+      }
+      if (cand.length <= 16 && normTranscript.length <= 16) {
+        const dist = levenshteinDistance(cand, normTranscript);
+        if (dist <= Math.max(1, Math.floor(Math.max(cand.length, normTranscript.length) / 5))) {
+          isCorrect = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!isCorrect) {
     try {
       let failCount = parseInt(btn.dataset.failcount || '0');
+      let questionText = btn.dataset.question || '';
+      if (!questionText) {
+        const qEl = btn.closest('.question-card, .content-text, .editor-pos-blank') || btn.parentElement;
+        if (qEl) questionText = (qEl.innerText || '').replace(/\s+/g, ' ').trim().substring(0, 200);
+      }
       const res = await fetch('/api/backend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'aiGradeAnswer',
+          question: questionText,
           studentAnswer: transcript,
-          correctAnswer: originalAnswer,
-          strict: strict,
-          tips: tips,
+          expectedAnswer: originalAnswer,
+          tipsMode: tips,
           aiInstructions: instructions,
           failCount: failCount
         })

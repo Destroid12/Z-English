@@ -16,3 +16,18 @@ update_backend.js
 .vercel
 .env*.local
 node_modules/
+
+# Local env files (never commit secrets)
+.env
+.env.local
+.env.production
+.env.development
+
+# Legacy Google Sheets data exports — contain real user records, hashes & tokens
+sheets/
+
+# Scratch / extracted script artifacts used only for local syntax checks
+script.js
+script[0-9].js
+temp*.js
+test_*.js

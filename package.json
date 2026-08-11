@@ -4,7 +4,10 @@
   "private": true,
   "description": "Z-English static site with a Vercel serverless backend backed by Supabase",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "build": "node scripts/check-syntax.js",
+    "ci": "node scripts/check-syntax.js",
+    "deploy": "vercel --prod"
   },
   "engines": {
     "node": ">=18"
