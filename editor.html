@@ -1221,7 +1221,7 @@ async function runMigrateAllSessions() {
 
         const parsedSlides = (result.slides || []).map(parseSlideHTML);
         const hasInlineMedia = parsedSlides.some(sl => sl.elements.some(el => el.url && el.url.startsWith('data:')));
-        const hasLegacyHTML = (result.slides || []).some(html => !/^<!--EDITOR_DATA:/.test(html));
+        const hasLegacyHTML = (result.slides || []).some(html => !/^<!\x2D\x2DEDITOR_DATA:/.test(html));
         if (!hasInlineMedia && !hasLegacyHTML) continue; // nothing to do for this session
 
         for (const sl of parsedSlides) await migrateInlineDataUrls(sl);
@@ -2400,7 +2400,7 @@ function updatePreview() {
     const compiled = compileSlide(slide, false);
     frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Poppins:wght@400;600;700;800&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Fredoka:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-      <style>${PREVIEW_CSS}</style></head><body>${compiled}<script>
+      <style>${PREVIEW_CSS}</style></head><body>${compiled}${'<scr' + 'ipt>'}
 window.toggleAudioCreator = function(btn){ return window.parent.toggleAudioCreator(btn); };
 window.seekAudioCreator = function(e, t){ return window.parent.seekAudioCreator(e, t); };
 <\/script></body></html>`;
