@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-English — AI Slide Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root{
+  --blue:#6DB3E2; --blue-mid:#4CA8DD; --blue-dark:#1E6FA6; --blue-ink:#123B57;
+  --gold:#FDC846; --gold-dark:#E2A100; --ink:#2B3844; --ink-soft:#5C6C79; --line:#DCE6EC;
+  --success:#4CAF6D; --error:#D9455C; --bg:#EFF5F9; --card:#ffffff;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg); color:var(--ink);
+  font-family:'Nunito',sans-serif; font-size:15px; }
+body{ padding-bottom:60px; }
+h1,h2,h3{ font-family:'Baloo 2',cursive; }
+a{ color:var(--blue-dark); }
+.overlay{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:var(--bg); z-index:50; padding:24px; }
+.overlay .box{ background:var(--card); border:2px solid var(--line); border-radius:18px; padding:36px 44px; max-width:460px; text-align:center; box-shadow:0 12px 30px rgba(18,59,87,.08); }
+.overlay h2{ color:var(--blue-dark); margin:0 0 10px; }
+#app{ display:none; max-width:1060px; margin:0 auto; padding:0 18px; }
+
+header{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:14px 0; border-bottom:2px solid var(--line); margin-bottom:18px; }
+.brand{ font-family:'Baloo 2',cursive; font-size:20px; font-weight:800; color:var(--blue-ink); }
+.brand .z{ color:var(--blue-dark); } .brand .e{ color:var(--gold-dark); }
+.brand small{ display:block; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; color:var(--ink-soft); letter-spacing:.04em; }
+.head-right{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pill{ background:rgba(76,168,221,.12); color:var(--blue-dark); font-weight:800; font-size:13px;
+  padding:6px 12px; border-radius:20px; }
+
+.btn{ font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; padding:9px 16px; border-radius:10px;
+  border:2px solid transparent; cursor:pointer; display:inline-flex; align-items:center; gap:8px; text-decoration:none;
+  transition:transform .12s, box-shadow .12s, background .12s; }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+.btn:not(:disabled):hover{ transform:translateY(-1px); }
+.btn-primary{ background:linear-gradient(135deg,var(--blue-mid),var(--blue-dark)); color:#fff;
+  box-shadow:0 4px 14px rgba(30,111,166,.30); }
+.btn-primary:not(:disabled):hover{ box-shadow:0 6px 20px rgba(30,111,166,.42); }
+.btn-outline{ background:var(--card); border-color:var(--line); color:var(--ink); }
+.btn-outline:hover{ border-color:var(--blue-mid); color:var(--blue-dark); }
+.btn.big{ padding:13px 26px; font-size:16px; border-radius:14px; }
+.btn.icon{ padding:7px 11px; font-size:13px; border-radius:8px; border-color:var(--line); background:var(--card); color:var(--ink-soft); }
+.btn.icon:hover{ border-color:var(--blue-mid); color:var(--blue-dark); }
+.btn.icon.danger:hover{ border-color:var(--error); color:var(--error); }
+.btn.toggle{ padding:7px 12px; font-size:13px; border-radius:8px; }
+.btn.toggle.on{ background:rgba(76,175,109,.12); color:var(--success); border-color:rgba(76,175,109,.45); }
+.btn.toggle.off{ background:rgba(217,69,92,.10); color:var(--error); border-color:rgba(217,69,92,.45); }
+
+.status{ display:none; padding:12px 16px; border-radius:12px; font-weight:800; margin-bottom:16px; border:2px solid var(--line); background:var(--card); }
+.status.show{ display:block; }
+.status.info{ color:var(--blue-dark); border-color:rgba(76,168,221,.5); background:rgba(76,168,221,.08); }
+.status.success{ color:var(--success); border-color:rgba(76,175,109,.5); background:rgba(76,175,109,.08); }
+.status.error{ color:var(--error); border-color:rgba(217,69,92,.5); background:rgba(217,69,92,.08); }
+
+.step{ background:var(--card); border:2px solid var(--line); border-radius:20px; padding:24px 26px; margin-bottom:22px;
+  box-shadow:0 10px 26px rgba(18,59,87,.05); }
+.step h2{ margin:0 0 16px; font-size:22px; color:var(--blue-ink); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.step-num{ display:inline-flex; width:30px; height:30px; border-radius:10px; background:var(--gold); color:var(--blue-ink);
+  align-items:center; justify-content:center; font-size:16px; }
+.step:not(.active){ display:none; }
+.summary{ font-family:'Nunito',sans-serif; font-size:13px; color:var(--ink-soft); font-weight:800; }
+
+textarea{ width:100%; border:2px solid var(--line); border-radius:12px; padding:14px; font-family:'Nunito',sans-serif;
+  font-size:15px; resize:vertical; background:#fbfdfe; color:var(--ink); }
+textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue-mid); box-shadow:0 0 0 3px rgba(76,168,221,.18); }
+
+.chips{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+.chip{ font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:6px 14px; border-radius:20px;
+  border:2px solid var(--line); background:var(--bg); color:var(--blue-dark); cursor:pointer; }
+.chip:hover{ border-color:var(--blue-mid); background:rgba(76,168,221,.10); }
+
+.options{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-top:14px; }
+.options label{ display:flex; flex-direction:column; gap:5px; font-weight:800; font-size:13px; color:var(--ink-soft); }
+.options label.chk{ flex-direction:row; align-items:center; gap:7px; font-size:14px; color:var(--ink); background:var(--bg);
+  border:2px solid var(--line); border-radius:10px; padding:8px 12px; cursor:pointer; }
+.options input[type=number], .options input[type=text], .options select{ border:2px solid var(--line); border-radius:10px;
+  padding:8px 10px; font-family:'Nunito',sans-serif; font-weight:700; font-size:14px; background:#fbfdfe; color:var(--ink); min-width:150px; }
+.options input[type=number]{ min-width:90px; }
+.focus-row{ margin-top:14px; display:flex; flex-direction:column; gap:5px; font-weight:800; font-size:13px; color:var(--ink-soft); }
+.focus-row input{ border:2px solid var(--line); border-radius:10px; padding:9px 12px; font-family:'Nunito',sans-serif;
+  font-weight:700; font-size:14px; background:#fbfdfe; color:var(--ink); }
+
+.gen-row{ margin-top:18px; }
+
+.review-tools{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.review-list{ display:flex; flex-direction:column; gap:16px; }
+
+.slide-card{ border:2px solid var(--line); border-radius:16px; background:#fbfdfe; overflow:hidden; }
+.slide-card.rejected{ opacity:.65; }
+.card-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 14px; border-bottom:2px solid var(--line); background:var(--card); }
+.idx{ font-family:'Baloo 2',cursive; font-weight:800; font-size:15px; color:var(--blue-ink); background:var(--gold);
+  width:30px; height:30px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.badge{ font-family:'Baloo 2',cursive; font-weight:800; font-size:11px; letter-spacing:.06em; padding:4px 10px; border-radius:20px; flex:0 0 auto; }
+.badge.con{ color:var(--blue-mid); background:rgba(76,168,221,.12); }
+.badge.act{ color:var(--gold-dark); background:rgba(253,200,70,.18); }
+.meta{ font-size:12px; font-weight:800; color:var(--ink-soft); }
+.title-input{ flex:1; min-width:180px; border:2px solid var(--line); border-radius:9px; padding:8px 10px;
+  font-family:'Baloo 2',cursive; font-size:15px; font-weight:800; color:var(--blue-ink); background:#fbfdfe; }
+.title-input:focus{ border-color:var(--blue-mid); outline:none; }
+.card-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+.preview-frame{ width:100%; height:340px; border:0; display:block; background:#EFF5F9; }
+
+.note{ font-size:13.5px; font-weight:700; color:var(--ink-soft); background:rgba(253,200,70,.12); border:2px dashed rgba(226,161,0,.4);
+  padding:12px 14px; border-radius:12px; margin-top:14px; line-height:1.55; }
+.save-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.foot{ text-align:center; color:var(--ink-soft); font-weight:700; font-size:13px; margin-top:26px; }
+</style>
+</head>
+<body>
+
+<div id="blocked" class="overlay">
+  <div class="box">
+    <h2>Admin access required</h2>
+    <p style="font-weight:700; color:var(--ink-soft);">Sign in with an admin account from the dashboard to use the AI Slide Agent.</p>
+    <a class="btn btn-primary" href="index.html"><i class="fas fa-arrow-left"></i> Back to Sign In</a>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">Z-English · AI Slide Agent<small>Generate &amp; review full lessons, then save to any session</small></div>
+    <div class="head-right">
+      <span class="pill"><i class="fas fa-shield-halved" style="margin-right:6px;"></i><span id="userName">Admin</span></span>
+      <a class="btn btn-outline" href="editor.html"><i class="fas fa-pen-to-square"></i> Slide Editor</a>
+      <a class="btn btn-outline" href="index.html"><i class="fas fa-table-columns"></i> Admin Panel</a>
+      <button class="btn btn-outline" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign Out</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="status" class="status"></div>
+
+    <section class="step active">
+      <h2><span class="step-num">1</span> Build your lesson brief</h2>
+      <textarea id="brief" rows="6" placeholder="Describe the lesson you want the agent to build. Example: 'A lesson for 12-year-old beginners on daily routines using the present simple. Include a warm-up, vocabulary, two practice exercises, and a short listening dialogue.'"></textarea>
+      <div class="chips">
+        <button class="chip" onclick="fillBrief(0)">Present continuous grammar</button>
+        <button class="chip" onclick="fillBrief(1)">Travel &amp; transport vocabulary</button>
+        <button class="chip" onclick="fillBrief(2)">Ordering food — dialogue</button>
+      </div>
+      <div class="options">
+        <label>Number of slides <input id="slideCount" type="number" min="3" max="20" value="8"></label>
+        <label>Student level
+          <select id="difficulty">
+            <option value="Beginner">Beginner</option>
+            <option value="Elementary" selected>Elementary</option>
+            <option value="Pre-Intermediate">Pre-Intermediate</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Upper-Intermediate">Upper-Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
+        </label>
+        <label>Content mix
+          <select id="contentType">
+            <option value="balanced" selected>Balanced</option>
+            <option value="content">Mostly content</option>
+            <option value="activity">Mostly activities</option>
+          </select>
+        </label>
+        <label>Target language <input id="language" type="text" placeholder="e.g. Arabic / French / English"></label>
+      </div>
+      <div class="options">
+        <label class="chk"><input type="checkbox" id="x-questions" checked> Practice questions</label>
+        <label class="chk"><input type="checkbox" id="x-dialogue" checked> Listening dialogue</label>
+        <label class="chk"><input type="checkbox" id="x-vocab"> Vocabulary list</label>
+        <label class="chk"><input type="checkbox" id="x-speaking"> Speaking drill</label>
+        <label class="chk"><input type="checkbox" id="x-order"> Order activity</label>
+        <label class="chk"><input type="checkbox" id="x-match"> Matching activity</label>
+      </div>
+      <div class="focus-row">
+        <label for="focus">Special focus (optional)</label>
+        <input id="focus" type="text" placeholder="e.g. 'focus on real-life conversations and speaking confidence'">
+      </div>
+      <div class="gen-row">
+        <button id="generateBtn" class="btn btn-primary big" onclick="generateSlides(null)"><i class="fas fa-wand-magic-sparkles"></i> Generate Slides</button>
+      </div>
+    </section>
+
+    <section class="step" id="reviewStep">
+      <h2><span class="step-num">2</span> Review the slides <span id="summary" class="summary"></span></h2>
+      <div class="review-tools">
+        <button class="btn btn-outline" onclick="addBlank()"><i class="fas fa-plus"></i> Add Blank Slide</button>
+        <button class="btn btn-outline" onclick="generateSlides(null)"><i class="fas fa-rotate"></i> Regenerate All</button>
+        <button class="btn btn-outline" onclick="clearAll()"><i class="fas fa-broom"></i> Clear</button>
+      </div>
+      <div id="reviewList" class="review-list"></div>
+    </section>
+
+    <section class="step" id="saveStep">
+      <h2><span class="step-num">3</span> Save to a session</h2>
+      <div class="options">
+        <label>Track
+          <select id="sel-track">
+            <option value="basic" selected>Basic</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </label>
+        <label>Level <select id="sel-level"></select></label>
+        <label>Session <select id="sel-session"></select></label>
+      </div>
+      <p class="note"><i class="fas fa-triangle-exclamation" style="margin-right:6px;"></i>Saving overwrites the current slides of this session with the approved slides above. Students will see the new version immediately. You can still fine-tune anything afterwards in the Slide Editor — the approved slides keep full editing data, so open the editor and <b>Load</b> the same session.</p>
+      <div class="save-row">
+        <button id="saveBtn" class="btn btn-primary big" onclick="save()"><i class="fas fa-floppy-disk"></i> Save Approved Slides to Session</button>
+        <a class="btn btn-outline" href="editor.html" target="_blank" rel="noopener"><i class="fas fa-pen-to-square"></i> Open Slide Editor</a>
+      </div>
+    </section>
+  </main>
+
+  <div class="foot">AI-generated lessons should always be reviewed by a teacher before publishing.</div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const BACKEND_URL = "/api/backend";
+  const LEVELS_PER_TRACK = 10;
+  const SESSIONS_PER_LEVEL = 7;
+
+  let currentUser = null, sessionToken = null;
+  let agentSlides = []; // [{ s: <structured slide>, approved: bool }]
+
+  const EXAMPLE_BRIEFS = [
+    "A grammar lesson for beginner students (age 11-13) on the present continuous tense. Theme: 'What are they doing?'. Start with a clear explanation slide, a list of example sentences, two practice exercises (choose the correct form, fill in the blank), and finish with a short speaking drill.",
+    "A vocabulary lesson for elementary students on travel and transport. Theme: 'Let's travel!'. Include: modes of transport vocabulary list, a matching activity (word to picture meaning), a dialogue at an airport using an audio player, and a wrap-up multiple-choice quiz.",
+    "A conversational lesson for intermediate students on ordering food at a restaurant. Include: key phrases list, a listening dialogue with two speakers, a role-play prompt, and a fill-in-the-blank ordering conversation."
+  ];
+
+  const PREVIEW_RUNTIME_JS =
+`function escHtml(s){var d=document.createElement('div');d.textContent=(s==null?'':String(s));return d.innerHTML;}
+function b64Dec(s){try{return decodeURIComponent(Array.prototype.map.call(atob(s),function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);}).join(''));}catch(e){return '';}}
+function getBlocks(player){var raw=player.getAttribute('data-blocks')||'';if(!raw)return [];try{return JSON.parse(b64Dec(raw));}catch(e){return [];}}
+function toggleAudioCreator(btn){
+  var player=btn.closest('.audiocreator-player'); if(!player) return;
+  var text=player.querySelector('.audiocreator-text'); var bar=player.querySelector('.audiocreator-bar');
+  if(player.dataset.playing==='1'){ if(window.speechSynthesis) window.speechSynthesis.cancel(); player.dataset.playing=''; btn.classList.remove('playing'); if(text)text.textContent='Paused'; return; }
+  var blocks=getBlocks(player); if(!blocks.length){ if(text)text.textContent='No audio blocks'; return; }
+  var txt=blocks.map(function(b){return b.text||'';}).join(' ');
+  var msg=new SpeechSynthesisUtterance(txt);
+  var voiceName=(blocks[0]&&blocks[0].voice)||'';
+  try{
+    var voices=window.speechSynthesis.getVoices()||[];
+    var pick=voices.filter(function(v){return voiceName.toLowerCase().indexOf('female')>=0?/(female|zira|samantha)/i.test(v.name):/(male|david|daniel|mark|george)/i.test(v.name);});
+    if(pick.length) msg.voice=pick[0];
+  }catch(e){}
+  msg.rate=0.92; msg.pitch=1;
+  var dur=Math.max(2500,txt.length*85);
+  player.dataset.playing='1'; btn.classList.add('playing');
+  if(text)text.textContent='Playing...';
+  var t0=Date.now();
+  var timer=setInterval(function(){
+    var p=Math.min(100,((Date.now()-t0)/dur)*100);
+    if(bar)bar.style.width=p+'%';
+    if(p>=100){ clearInterval(timer); player.dataset.playing=''; btn.classList.remove('playing'); if(text)text.textContent='Done'; }
+  },120);
+  msg.onend=function(){ clearInterval(timer); player.dataset.playing=''; btn.classList.remove('playing'); if(text)text.textContent='Done'; };
+  if(window.speechSynthesis) window.speechSynthesis.speak(msg);
+}
+function seekAudioCreator(e,el){ var player=el.closest('.audiocreator-player'); if(!player)return; var r=el.getBoundingClientRect(); var ratio=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)); var bar=player.querySelector('.audiocreator-bar'); if(bar)bar.style.width=(ratio*100)+'%'; }
+window.selectRadio=function(btn){ var g=btn.parentElement; if(!g)return; Array.prototype.forEach.call(g.querySelectorAll('.interactive-radio'),function(b){b.style.outline=b===btn?'3px solid #4CA8DD':'none';}); };
+window.toggleCheckbox=function(btn){ btn.classList.toggle('checked'); };
+window.toggleWord=function(btn){ btn.classList.toggle('picked'); };
+window.moveSched=function(btn,dir){ var li=btn.closest('.schedule-item'); var p=li.parentElement; var arr=Array.prototype.slice.call(p.children); var i=arr.indexOf(li); var j=i+dir; if(j<0||j>=arr.length)return; p.insertBefore(li,dir>0?arr[j].nextSibling:arr[j]); };
+window.selectMatch=function(){ };
+window.startVoiceQuestion=function(btn){ if(btn)btn.style.outline='3px solid #FDC846'; };
+window.startDirectVoice=function(){ };
+window.checkAnswers=function(btn){ if(btn)btn.style.outline='3px solid #4CAF6D'; };
+window.returnWord=function(){ };
+try{ window.speechSynthesis.getVoices(); }catch(e){}
+`;
+
+  // ---------- helpers ----------
+  function $(id){ return document.getElementById(id); }
+
+  function setStatus(msg, type){
+    const el = $('status');
+    el.textContent = msg;
+    el.className = 'status show ' + (type || 'info');
+  }
+
+  function previewDoc(slide){
+    const compiled = compileSlide(slide, false);
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+      '<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">' +
+      '<style>' + getPreviewCSS() + '</style></head><body>' + compiled +
+      '<scr' + 'ipt>' + PREVIEW_RUNTIME_JS + '</scr' + 'ipt></body></html>';
+  }
+
+  function collectExtras(){
+    const m = [];
+    if ($('x-questions').checked) m.push('practice questions (fill-in-the-blank / multiple choice)');
+    if ($('x-dialogue').checked) m.push('a listening dialogue with an audiocreator player (distinct voices per speaker)');
+    if ($('x-vocab').checked) m.push('a vocabulary list');
+    if ($('x-speaking').checked) m.push('a speaking / pronunciation drill');
+    if ($('x-order').checked) m.push('an order / schedule activity');
+    if ($('x-match').checked) m.push('a matching activity');
+    return m;
+  }
+
+  async function callBackend(params){
+    let payload;
+    if (params instanceof URLSearchParams) {
+      const obj = {};
+      for (const [k, v] of params.entries()) obj[k] = v;
+      payload = JSON.stringify(obj);
+    } else {
+      payload = JSON.stringify(params);
+    }
+    let res;
+    try {
+      res = await fetch(BACKEND_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: payload });
+    } catch (networkErr) {
+      throw new Error('Network error reaching the backend: ' + networkErr.message);
+    }
+    const rawText = await res.text();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' from the backend: ' + rawText.slice(0, 300));
+    try { return JSON.parse(rawText); }
+    catch (e) { throw new Error('The backend did not return JSON: ' + rawText.slice(0, 300)); }
+  }
+
+  function restoreSession(){
+    try {
+      const raw = localStorage.getItem('zenglish_session');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      currentUser = parsed.user; sessionToken = parsed.token;
+      return !!(currentUser && sessionToken);
+    } catch (e) { return false; }
+  }
+
+  // ---------- shared compile machinery (kept byte-identical with editor.html) ----------
+// ===== SHARED CORE (auto-filled from editor.html by scripts/build-agent.js) =====
+function uid() { return 'e' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
+function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Extracts the Drive file ID from any of the URL shapes our uploader / users produce:
+// ?id=FILEID, /d/FILEID/, /file/d/FILEID/view, /thumbnail?id=FILEID, etc.
+function extractDriveFileId(url) {
+  if (!url || !url.includes('drive.google.com')) return null;
+  let m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return null;
+}
+// uc?export=view is unreliable for embedding (Drive sometimes serves an interstitial
+// instead of the image). lh3.googleusercontent.com is Google's actual public image CDN.
+function driveEmbedUrl(url) {
+  const id = extractDriveFileId(url);
+  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+}
+// Fast, reliable thumbnail source for the editor's own UI (sidebar previews, etc).
+// Normalize any media URL to a browser-playable form.
+// For Dropbox: force dl.dropboxusercontent.com to avoid 302 tracking-prevention blocks in Edge.
+function normalizeMediaUrl(url) {
+  if (!url || typeof url !== 'string') return url || '';
+  // Dropbox /scl/fi/ and old /s/ share links
+  if (url.includes('dropbox.com/')) {
+    url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    url = url.replace('dropbox.com', 'dl.dropboxusercontent.com');
+    
+    // dl=0 or dl=1 can be replaced with raw=1, though dl.dropboxusercontent.com serves it raw natively
+    if (url.match(/[?&]dl=[01]/)) {
+      url = url.replace(/([?&])dl=[01]/, '$1raw=1');
+    } else if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1';
+    }
+  }
+  return url;
+}
+
+function driveThumbUrl(url, size) {
+  const id = extractDriveFileId(url);
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w${size || 300}` : url;
+}
+
+function b64EncodeUnicode(str) {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+  } catch (e) {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
+}
+function b64DecodeUnicode(str) {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  } catch (e) {
+    try {
+      return decodeURIComponent(escape(atob(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
+}
+
+// ---------- custom slide types ----------
+function getCustomTypes() {
+  try { return JSON.parse(localStorage.getItem('z_editor_custom_types') || '[]'); } catch { return []; }
+}
+function saveCustomTypes(types) {
+  localStorage.setItem('z_editor_custom_types', JSON.stringify(types));
+}
+function addCustomType() {
+  const input = document.getElementById('customTypeInput');
+  const name = (input.value || '').trim();
+  if (!name) return;
+  const slug = name.toLowerCase().replace(/\s+/g, '-');
+  const types = getCustomTypes();
+  if (types.find(t => t.slug === slug) || slug === 'content' || slug === 'activity') {
+    alert('This category already exists.');
+    return;
+  }
+  types.push({ slug, label: name });
+  saveCustomTypes(types);
+  input.value = '';
+  refreshCustomTypeButtons();
+}
+function deleteCustomType(slug) {
+  if (!confirm('Remove this custom category? Existing slides using it will keep their type.')) return;
+  saveCustomTypes(getCustomTypes().filter(t => t.slug !== slug));
+  refreshCustomTypeButtons();
+  renderElemCards();
+}
+function refreshCustomTypeButtons() {
+  const menu = document.getElementById('addSlideMenu');
+  menu.querySelectorAll('.custom-type-btn').forEach(b => b.remove());
+  getCustomTypes().forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline custom-type-btn';
+    btn.innerHTML = `<i class="fas fa-plus"></i> ${esc(t.label)}`;
+    btn.onclick = () => addSlide(t.slug);
+    btn.oncontextmenu = (e) => { e.preventDefault(); deleteCustomType(t.slug); };
+    btn.title = 'Right-click to delete this category';
+    menu.appendChild(btn);
+  });
+}
+function getTypeLabel(type) {
+  if (type === 'content') return 'Content';
+  if (type === 'activity') return 'Activity';
+  const ct = getCustomTypes().find(t => t.slug === type);
+  return ct ? ct.label : type;
+}
+function isCustomType(type) {
+  return type !== 'content' && type !== 'activity';
+}
+
+function blankSlide(type) {
+  const label = getTypeLabel(type);
+  return { id: uid(), type: type, title: type === 'activity' ? 'New Activity' : 'New Slide', elements: [] };
+}
+
+// Browsers normalize inline style colors to rgb(...)/rgba(...) even if the source HTML used hex.
+// The color <input> needs a #rrggbb string, so convert back.
+function cssColorToHex(str) {
+  if (!str) return '';
+  str = str.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(str)) return str.length === 4
+    ? '#' + str[1]+str[1]+str[2]+str[2]+str[3]+str[3]
+    : str;
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(str);
+  if (!m) return '';
+  const toHex = n => Number(n).toString(16).padStart(2, '0');
+  return '#' + toHex(m[1]) + toHex(m[2]) + toHex(m[3]);
+}
+
+// ---------- normalize legacy elements loaded from previously-saved slides ----------
+function normalizeSlide(slide) {
+  if (!slide) return slide;
+  if (!slide.id) slide.id = 'slide_' + uid();
+  const seenIds = new Set();
+  slide.elements = (slide.elements || []).map(el => {
+    if (!el || typeof el !== 'object') return null;
+
+    // Ensure valid, clean string ID without quotes or special chars
+    if (!el.id || typeof el.id !== 'string' || seenIds.has(el.id) || /['"\\<>]/.test(el.id)) {
+      el.id = uid();
+    }
+    seenIds.add(el.id);
+
+    // Map any potential alias kinds from AI / PPTX to native editor kinds
+    if (el.kind === 'text' || el.kind === 'heading' || el.kind === 'title' || el.kind === 'dialogue' || el.kind === 'note' || el.kind === 'subtitle') {
+      el.kind = 'paragraph';
+    } else if (el.kind === 'img' || el.kind === 'photo' || el.kind === 'picture') {
+      el.kind = 'image';
+    } else if (el.kind === 'audio_prompt') {
+      el.kind = 'speaking';
+    } else if (el.kind === 'quiz' || el.kind === 'exercise') {
+      el.kind = 'question';
+    } else if (el.kind === 'bullet' || el.kind === 'bullets' || el.kind === 'items') {
+      el.kind = 'list';
+    }
+
+    // Default kind fallback if still unknown
+    if (typeof ELEM_LABELS !== 'undefined' && !ELEM_LABELS[el.kind]) {
+      if (el.url && (el.url.includes('.mp4') || el.url.includes('.webm') || el.url.includes('youtube') || el.url.includes('vimeo'))) {
+        el.kind = 'video';
+      } else if (el.url && (el.url.includes('.mp3') || el.url.includes('.wav') || el.url.includes('.ogg'))) {
+        el.kind = 'audio';
+      } else if (el.url) {
+        el.kind = 'image';
+      } else if (el.items && Array.isArray(el.items)) {
+        el.kind = 'list';
+      } else if (el.prompt || el.blanks) {
+        el.kind = 'question';
+      } else {
+        el.kind = 'paragraph';
+      }
+    }
+
+    if (el.kind === 'question') {
+      if (!el.prompt && el.question) {
+        el.prompt = el.question;
+      }
+      if (!el.prompt) el.prompt = '';
+
+      if (!el.blanks || el.blanks.length === 0) {
+        const qtype = el.qtype || 'text';
+        const answer = el.answer || '';
+        const altAnswers = Array.isArray(el.altAnswers) ? el.altAnswers : (el.alt ? [el.alt] : []);
+        let options = Array.isArray(el.options) ? el.options : [];
+        if (options.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+          options = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+        }
+        el.blanks = [{
+          qtype: qtype,
+          answer: answer,
+          altAnswers: altAnswers,
+          options: options
+        }];
+        delete el.qtype; delete el.answer; delete el.altAnswers; delete el.options; delete el.alt;
+      } else {
+        el.blanks = el.blanks.map(b => {
+          b.qtype = b.qtype || 'text';
+          b.altAnswers = Array.isArray(b.altAnswers) ? b.altAnswers : [];
+          b.options = Array.isArray(b.options) ? b.options : [];
+          return b;
+        });
+      }
+
+      if (!el.prompt.includes('[blank]')) {
+        el.prompt = (el.prompt ? el.prompt.trim() + ' ' : '') + '[blank]';
+      }
+    }
+    if (el.pos && (typeof el.pos.top !== 'string' || typeof el.pos.left !== 'string')) {
+      el.pos = null;
+    }
+    // Sanitize url — must always be a string to prevent crashes in compileSlide/escAttr
+    if (el.url !== undefined && typeof el.url !== 'string') {
+      if (Array.isArray(el.url)) {
+        el.url = el.url[0] ? String(el.url[0]) : '';
+      } else if (el.url && typeof el.url === 'object' && (el.url.url || el.url.href || el.url.src)) {
+        el.url = String(el.url.url || el.url.href || el.url.src);
+      } else {
+        el.url = el.url ? String(el.url) : '';
+      }
+    }
+    return el;
+  });
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function extractDriveFileId(url) {
+  if (!url || !url.includes('drive.google.com')) return null;
+  let m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return null;
+}
+
+function driveEmbedUrl(url) {
+  const id = extractDriveFileId(url);
+  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+}
+
+function normalizeMediaUrl(url) {
+  if (!url || typeof url !== 'string') return url || '';
+  // Dropbox /scl/fi/ and old /s/ share links
+  if (url.includes('dropbox.com/')) {
+    url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    url = url.replace('dropbox.com', 'dl.dropboxusercontent.com');
+    
+    // dl=0 or dl=1 can be replaced with raw=1, though dl.dropboxusercontent.com serves it raw natively
+    if (url.match(/[?&]dl=[01]/)) {
+      url = url.replace(/([?&])dl=[01]/, '$1raw=1');
+    } else if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1';
+    }
+  }
+  return url;
+}
+
+function b64EncodeUnicode(str) {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+  } catch (e) {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
+}
+
+function b64DecodeUnicode(str) {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  } catch (e) {
+    try {
+      return decodeURIComponent(escape(atob(str)));
+    } catch (e2) {
+      return '';
+    }
+  }
+}
+
+function getCustomTypes() {
+  try { return JSON.parse(localStorage.getItem('z_editor_custom_types') || '[]'); } catch { return []; }
+}
+
+function getTypeLabel(type) {
+  if (type === 'content') return 'Content';
+  if (type === 'activity') return 'Activity';
+  const ct = getCustomTypes().find(t => t.slug === type);
+  return ct ? ct.label : type;
+}
+
+function compileSlide(slide, forExport = true) {
+  let dataComment = '';
+  if (forExport) {
+    try {
+      dataComment = '<!--EDITOR_DATA:' + b64EncodeUnicode(JSON.stringify(slide)) + '-->\n';
+    } catch (e) {
+      dataComment = '';
+    }
+  }
+  const tagText = (getTypeLabel(slide.type || 'content') || 'CONTENT').toUpperCase();
+  const h1Class = slide.type === 'activity' ? 't-activity' : 't-content';
+
+  let titleStyle = '';
+  if (slide.titleColor) titleStyle += `color:${escAttr(slide.titleColor)};`;
+  if (slide.titleSize) titleStyle += `font-size:${escAttr(slide.titleSize)}px;`;
+  if (slide.titleAlign) titleStyle += `text-align:${escAttr(slide.titleAlign)};`;
+  if (slide.titleBold === false) titleStyle += `font-weight:600;`;
+  if (slide.titleFont) titleStyle += `font-family:${escAttr(slide.titleFont)};`;
+  const titleStyleAttr = titleStyle ? ` style="${titleStyle}"` : '';
+
+  let body = `${dataComment}<span class="frame-tag">${esc(tagText)}</span>\n<h1 class="${h1Class}"${titleStyleAttr}>${esc(slide.title || '')}</h1>\n`;
+  let hasQuestion = false;
+
+  slide.elements.forEach(el => {
+    let chunk = '';
+
+    if (el.kind === 'paragraph') {
+      let pStyle = 'font-size:16px;line-height:1.6;color:var(--ink);margin:0 0 16px;';
+      if (el.size) pStyle = pStyle.replace(/font-size:[^;]+;/, `font-size:${escAttr(el.size)}px;`);
+      if (el.color) pStyle += `color:${escAttr(el.color)};`;
+      if (el.bold) pStyle += 'font-weight:800;';
+      if (el.align) pStyle += `text-align:${escAttr(el.align)};`;
+      if (el.font) pStyle += `font-family:${escAttr(el.font)};`;
+      if (el.bgColor) pStyle += `background-color:${escAttr(el.bgColor)};`;
+      if (el.borderWidth) pStyle += `border:${escAttr(el.borderWidth)}px solid ${escAttr(el.borderColor || 'var(--line)')};`;
+      if (el.borderRadius) pStyle += `border-radius:${escAttr(el.borderRadius)}px;`;
+      if (el.padding) pStyle += `padding:${escAttr(el.padding)}px;`;
+      
+      const gap = el.lineGap ? `${escAttr(el.lineGap)}px` : '0px';
+      const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
+      chunk = `<div style="${pStyle} display:flex; flex-direction:column; gap:${gap};">${lines}</div>\n`;
+    } else if (el.kind === 'speaking') {
+      let pStyle = 'font-size:16px;line-height:1.6;margin:0 0 16px;padding:16px;border-radius:12px;display:flex;align-items:center;gap:12px;';
+      if (el.color) pStyle += `color:${escAttr(el.color)};`; else pStyle += `color:#1E6FA6;`;
+      if (el.bgColor) pStyle += `background-color:${escAttr(el.bgColor)};`; else pStyle += `background-color:#EAF4FC;`;
+      if (el.bold !== false) pStyle += 'font-weight:800;';
+      const lines = (el.text || '').split('\n').map(line => `<div>${esc(line)}</div>`).join('');
+      chunk = `<div class="content-text" style="${pStyle}">
+            <div style="font-size:32px;line-height:1;">🗣️</div>
+            <div style="flex:1;">
+                ${lines}
+                <div style="margin-top:16px;">
+                    <button class="btn" style="
+                      background: linear-gradient(135deg, #ff7e29 0%, #e65c00 50%, #ff9a3c 100%);
+                      background-size: 200% 200%;
+                      animation: btn-gradient-shift 3s ease infinite;
+                      color: white; border: none; padding: 12px 28px; border-radius: 50px;
+                      cursor: pointer; font-family: inherit; font-weight: 700; font-size: 15px;
+                      display: inline-flex; align-items: center; gap: 10px;
+                      box-shadow: 0 4px 20px rgba(230, 92, 0, 0.35), 0 1px 3px rgba(0,0,0,0.12);
+                      transition: all 0.3s ease; letter-spacing: 0.3px;
+                      position: relative; overflow: hidden;
+                    " onmouseover="this.style.transform='translateY(-2px) scale(1.03)'; this.style.boxShadow='0 6px 28px rgba(230, 92, 0, 0.5), 0 2px 6px rgba(0,0,0,0.15)';"
+                       onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 20px rgba(230, 92, 0, 0.35), 0 1px 3px rgba(0,0,0,0.12)';"
+                       onclick="if(typeof window.startDirectVoice === 'function') { window.startDirectVoice(); } else { alert('Please refresh the page to use this feature.'); }">
+                        <i class="fas fa-microphone" style="font-size: 17px; animation: mic-pulse 2s ease-in-out infinite;"></i>
+                        Practice with Tutor
+                        <i class="fas fa-chevron-right" style="font-size: 12px; opacity: 0.8;"></i>
+                    </button>
+                    <style>
+                      @keyframes btn-gradient-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+                      @keyframes mic-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.15)} }
+                    </style>
+                </div>
+            </div>
+        </div>\n`;
+    } else if (el.kind === 'image') {
+      if (el.url) {
+        const displayUrl = driveEmbedUrl(el.url);
+        chunk += `<img src="${escAttr(displayUrl)}" alt="${escAttr(el.caption || '')}" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};box-shadow:0 8px 20px rgba(0,0,0,0.08);">\n`;
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'video') {
+      if (el.url && typeof el.url === 'string') {
+        let videoHtml = '';
+        const driveId = extractDriveFileId(el.url);
+        const normalizedUrl = normalizeMediaUrl(el.url);
+        
+        let ytId = '';
+        if (normalizedUrl.includes('youtu.be/')) {
+          ytId = normalizedUrl.split('youtu.be/')[1].split('?')[0];
+        } else if (normalizedUrl.includes('youtube.com/watch')) {
+          const m = normalizedUrl.match(/[?&]v=([^&]+)/);
+          if (m) ytId = m[1];
+        }
+        
+        if (driveId) {
+          videoHtml = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" width="100%" height="400" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;" allow="autoplay" allowfullscreen></iframe>`;
+        } else if (ytId) {
+          videoHtml = `<iframe src="https://www.youtube.com/embed/${ytId}" width="100%" height="400" frameborder="0" style="border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+        } else {
+          videoHtml = `<video class="video" src="${escAttr(normalizedUrl)}" controls style="width:100%;border-radius:16px;margin-bottom:${el.caption ? '6px' : '16px'};background:#000;"></video>`;
+        }
+        
+        chunk += videoHtml + '\n';
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'audio') {
+      if (el.url && typeof el.url === 'string') {
+        const driveId = extractDriveFileId(el.url);
+        const normalizedUrl = normalizeMediaUrl(el.url);
+        const mb = el.caption ? '6px' : '16px';
+        
+        let audioHtml = '';
+        if (driveId) {
+          // Google Drive: use the proven iframe embed player
+          audioHtml = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" width="100%" height="80" frameborder="0" style="border-radius:16px;margin-bottom:${mb};" allow="autoplay"></iframe>`;
+        } else {
+          // All other URLs (Dropbox, direct MP3, etc)
+          if (forExport) {
+            // Player mode: use the custom z-audio component (initialized by player.html JS)
+            audioHtml = `<div class="z-audio" data-src="${escAttr(normalizedUrl)}" style="margin-bottom:${mb};">
+  <button class="z-audio-btn" title="Play/Pause">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+  </button>
+  <div class="z-audio-info">
+    <div class="z-audio-track"><div class="z-audio-fill"></div></div>
+    <div class="z-audio-time">0:00 / 0:00</div>
+  </div>
+  <audio src="${escAttr(normalizedUrl)}" preload="none" style="display:none;"></audio>
+</div>`;
+          } else {
+            // Editor preview mode: use standard audio controls since custom JS doesn't run in the iframe
+            audioHtml = `<audio class="audio" src="${escAttr(normalizedUrl)}" controls style="width:100%;border-radius:24px;margin-bottom:${mb};background:#f5f7f9;"></audio>`;
+          }
+        }
+        chunk += audioHtml + '\n';
+        if (el.caption) chunk += `<p style="font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 16px;${el.captionFont ? 'font-family:'+escAttr(el.captionFont)+';' : ''}">${esc(el.caption)}</p>\n`;
+      }
+    } else if (el.kind === 'question') {
+      hasQuestion = true;
+      const qStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
+      chunk = `<div class="question-block"${qStyleAttr}><span class="exletter">?</span> `;
+      
+      let floatingInputs = '';
+      const parts = (el.prompt || '').replace(/\n/g, '<br>').split('[blank]');
+      for (let i = 0; i < parts.length; i++) {
+        chunk += parts[i];
+        if (i < parts.length - 1) {
+          const b = (el.blanks && el.blanks[i]) || { qtype: 'text', answer: '', altAnswers: [], options: [] };
+          const altList = (b.altAnswers || []).filter(Boolean);
+          const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+          
+          let inputHtml = '';
+          if (b.qtype === 'select') {
+            const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
+            inputHtml = `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+          } else if (b.qtype === 'radio') {
+            const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+          } else if (b.qtype === 'checkbox') {
+            const opts = (b.options || []).map(o => `<button class="interactive-checkbox" data-value="${escAttr(o)}" onclick="toggleCheckbox(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+          } else if (b.qtype === 'match') {
+            const lefts = []; const rights = [];
+            let opts = (b.options && b.options.length > 0) ? b.options : [];
+            if (opts.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+              opts = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+              b.options = opts;
+            }
+            opts.forEach(o => { 
+              let p = String(o).split('|'); 
+              if (p.length === 1 && (o.includes(' - ') || o.includes(' : ') || o.includes(' = '))) {
+                p = String(o).split(/ - | : | = /);
+              }
+              if(p.length>1) { 
+                const l = p[0].trim();
+                const r = p[1].trim();
+                if (l) lefts.push({ text: l, targetIdx: rights.length });
+                rights.push({ text: r, originalIdx: rights.length });
+              } 
+            });
+            const shuffledLefts = [...lefts];
+            const shuffledRights = [...rights];
+            shuffleArray(shuffledLefts);
+            shuffleArray(shuffledRights);
+            const leftHtml = shuffledLefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+            const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
+            inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+          } else if (b.qtype === 'schedule') {
+            const shuffled = [...(b.options || [])];
+            shuffleArray(shuffled);
+            const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+            inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
+          } else if (b.qtype === 'wordbank') {
+            const shuffled = [...(b.options || [])];
+            shuffleArray(shuffled);
+            const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+            inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
+          } else if (b.qtype === 'voice') {
+            const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+            const tipsAttr = b.tips ? ' data-tips="true"' : '';
+            const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+            inputHtml = `<button class="interactive-voice btn btn-outline" data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr} onclick="startVoiceQuestion(this)"><i class="fas fa-microphone"></i> <span>Tap to Speak</span></button>`;
+          } else {
+            const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+            const tipsAttr = b.tips ? ' data-tips="true"' : '';
+            const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+            inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr}>`;
+          }
+
+          if (b.pos) {
+            floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="${i}" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
+            chunk += `<span style="opacity:0.3;">[___]</span>`;
+          } else {
+            chunk += inputHtml;
+          }
+        }
+      }
+      
+      if (parts.length === 1 && el.blanks && el.blanks.length > 0) {
+        chunk += " ";
+        const b = el.blanks[0];
+        const altList = (b.altAnswers || []).filter(Boolean);
+        const altAttr = altList.length ? ` data-alt="${escAttr(altList.join('|'))}"` : '';
+        let inputHtml = '';
+        if (b.qtype === 'select') {
+          const opts = (b.options || []).map(o => `<option value="${escAttr(o)}">${esc(o)}</option>`).join('');
+          inputHtml = `<select class="interactive-select" data-answer="${escAttr(b.answer)}"${altAttr}><option value="">--</option>${opts}</select>`;
+        } else if (b.qtype === 'radio') {
+          const opts = (b.options || []).map(o => `<button class="interactive-radio" data-value="${escAttr(o)}" onclick="selectRadio(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-radio-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+        } else if (b.qtype === 'checkbox') {
+          const opts = (b.options || []).map(o => `<button class="interactive-checkbox" data-value="${escAttr(o)}" onclick="toggleCheckbox(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-checkbox-group" data-answer="${escAttr(b.answer)}"${altAttr}>${opts}</div>`;
+        } else if (b.qtype === 'match') {
+          const lefts = []; const rights = [];
+          let opts = (b.options && b.options.length > 0) ? b.options : [];
+          if (opts.length === 0 && el.pairs && Array.isArray(el.pairs) && el.pairs.length > 0) {
+            opts = el.pairs.map(p => (typeof p === 'object' && p !== null) ? `${p.left || ''} | ${p.right || ''}` : String(p));
+            b.options = opts;
+          }
+          opts.forEach(o => { 
+            let p = String(o).split('|'); 
+            if (p.length === 1 && (o.includes(' - ') || o.includes(' : ') || o.includes(' = '))) {
+              p = String(o).split(/ - | : | = /);
+            }
+            if(p.length>1) { 
+              const l = p[0].trim();
+              const r = p[1].trim();
+              if (l) lefts.push({ text: l, targetIdx: rights.length });
+              rights.push({ text: r, originalIdx: rights.length });
+            } 
+          });
+          const shuffledLefts = [...lefts];
+          const shuffledRights = [...rights];
+          shuffleArray(shuffledLefts);
+          shuffleArray(shuffledRights);
+          const leftHtml = shuffledLefts.map((l, i) => `<button class="match-item match-left" data-index="${i}" data-target-idx="${l.targetIdx}" onclick="selectMatch(this, 'left')">${esc(l.text)}</button>`).join('');
+          const rightHtml = shuffledRights.map((r, i) => `<button class="match-item match-right" data-index="${r.originalIdx}" onclick="selectMatch(this, 'right')">${esc(r.text)}</button>`).join('');
+          inputHtml = `<div class="interactive-match"><svg class="match-lines"></svg><div class="match-col">${leftHtml}</div><div class="match-col">${rightHtml}</div></div>`;
+        } else if (b.qtype === 'schedule') {
+          const shuffled = [...(b.options || [])];
+          const opts = shuffled.map(o => `<div class="schedule-item" data-value="${escAttr(o)}"><div class="sched-controls"><button class="sched-btn" onclick="moveSched(this, -1)">▲</button><button class="sched-btn" onclick="moveSched(this, 1)">▼</button></div><span class="sched-text">${esc(o)}</span></div>`).join('');
+          inputHtml = `<div class="interactive-schedule" data-answer="${escAttr(JSON.stringify(b.options))}">${opts}</div>`;
+        } else if (b.qtype === 'wordbank') {
+          const shuffled = [...(b.options || [])];
+          const opts = shuffled.map(o => `<button class="interactive-word" data-value="${escAttr(o)}" onclick="toggleWord(this)">${esc(o)}</button>`).join('');
+          inputHtml = `<div class="interactive-wordbank" data-answer="${escAttr(b.answer)}"${altAttr}><div class="wordbank-dropzone" onclick="returnWord(event)"></div><div class="wordbank-words">${opts}</div></div>`;
+        } else if (b.qtype === 'voice') {
+          const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+          const tipsAttr = b.tips ? ' data-tips="true"' : '';
+          const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+          inputHtml = `<button class="interactive-voice btn btn-outline" data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr} onclick="startVoiceQuestion(this)"><i class="fas fa-microphone"></i> <span>Tap to Speak</span></button>`;
+        } else {
+          const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
+          const tipsAttr = b.tips ? ' data-tips="true"' : '';
+          const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
+          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr}>`;
+        }
+        if (b.pos) {
+          floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="0" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
+        } else {
+          chunk += inputHtml;
+        }
+      }
+      chunk += `</div>\n${floatingInputs}`;
+    } else if (el.kind === 'list') {
+      let items = (el.items || []).map(it => `<li><span class="n">•</span> ${esc(it.text)}${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}</li>`).join('');
+      const listStyleAttr = el.font ? ` style="font-family:${escAttr(el.font)};"` : '';
+      chunk = `<ol class="agenda"${listStyleAttr}>${items}</ol>\n`;
+    } else if (el.kind === 'audiocreator') {
+      let b64 = '';
+      try { b64 = b64EncodeUnicode(JSON.stringify(el.blocks || [])); } catch(e){}
+      chunk = `
+        <div class="audiocreator-player" data-blocks="${b64}">
+          <button class="audiocreator-btn" onclick="toggleAudioCreator(this)">${ICON_PLAY}</button>
+          <div class="audiocreator-progress" onclick="seekAudioCreator(event, this)" style="cursor:pointer;">
+            <div class="audiocreator-bar" style="width:0%"></div>
+          </div>
+          <div class="audiocreator-text">Click play to listen...</div>
+        </div>
+      `;
+    } else if (el.kind === 'raw') {
+      chunk = (el.html || '') + '\n';
+      if (chunk.includes('interactive-input') || chunk.includes('interactive-select') || chunk.includes('interactive-radio') || chunk.includes('interactive-checkbox') || chunk.includes('interactive-match') || chunk.includes('interactive-schedule') || chunk.includes('interactive-wordbank')) {
+        hasQuestion = true;
+      }
+    } else if (el.kind === 'link') {
+      let domain = '';
+      try { domain = new URL(el.url).hostname.replace('www.', ''); } catch (e) {}
+      const subtext = el.subtext || domain;
+      const isVideo = domain.includes('youtube.com') || domain.includes('youtu.be');
+      const icon = isVideo ? '📹' : '🔗';
+      chunk = `<div style="margin:16px 0;">
+        <a class="link-row" href="${escAttr(el.url)}" target="_blank" rel="noopener">
+          <span style="font-size:24px;">${icon}</span>
+          <div>${esc(el.text || 'Click Here')}${subtext ? `<br><small>${esc(subtext)}</small>` : ''}</div>
+        </a>
+      </div>\n`;
+    }
+
+    if (!chunk) return;
+
+    if (el.gap) {
+      chunk = `<div style="margin-bottom:${escAttr(el.gap)}px;">\n${chunk}</div>\n`;
+    }
+
+    if (el.pos) {
+      body += `<div class="editor-pos-el" data-el-id="${escAttr(el.id)}" style="position:absolute; top:${escAttr(el.pos.top)}; left:${escAttr(el.pos.left)}; max-width:80%;">${chunk}</div>\n`;
+    } else {
+      body += chunk;
+    }
+  });
+
+  if (hasQuestion) {
+    body += `<button class="check-btn" onclick="checkAnswers(this)">&#10003; Check Answers</button>\n`;
+  }
+
+  return dataComment + `\n<div class="frame">\n${body}</div>`;
+}
+
+function getPreviewCSS() { return `
+  html,body{ height:100%; }
+  body{ margin:0; padding:18px; font-family:'Nunito',sans-serif; background:#EFF5F9; box-sizing:border-box;
+    --blue:#6DB3E2; --blue-mid:#4CA8DD; --blue-dark:#1E6FA6; --blue-ink:#123B57;
+    --gold:#FDC846; --gold-dark:#E2A100; --ink:#2B3844; --ink-soft:#5C6C79; --line:#DCE6EC; --success:#4CAF6D; --error:#D9455C;
+    display:flex; align-items:flex-start; justify-content:center; }
+  .frame{ position:relative; background:#fff; box-shadow:0 12px 30px rgba(18,59,87,0.08); border-radius:18px; padding:24px 26px; border:1px solid rgba(255,255,255,0.8); width:100%; max-width:720px; box-sizing:border-box; }
+  .frame-tag{ position:absolute; top:14px; right:18px; font-family:'Baloo 2'; font-size:11px; font-weight:800; color:var(--blue-mid); background:rgba(76,168,221,0.1); padding:4px 10px; border-radius:20px; letter-spacing:.08em; }
+  h1.t-content{ font-family:'Baloo 2'; font-weight:800; font-size:24px; color:var(--blue-ink); margin:0 0 16px; }
+  h1.t-activity{ font-family:'Baloo 2'; font-weight:800; font-size:22px; color:var(--blue-mid); margin:0 0 20px; position:relative; display:inline-block; }
+  h1.t-activity::after{ content:''; position:absolute; bottom:-4px; left:0; width:100%; height:5px; background:var(--gold); border-radius:4px; opacity:.8; }
+  .question-block{ background:#FAFCFD; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; font-size:15px; font-weight:700; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .interactive-input, .interactive-select{ border:2px dashed var(--blue-mid); border-radius:8px; padding:7px 10px; font-weight:800; font-size:15px; color:var(--blue-dark); min-width:90px; text-align:center; background:rgba(255,255,255,0.8); }
+  .interactive-select{
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    border-style:solid; border-color:var(--blue-mid); border-width:2px;
+    padding:8px 32px 8px 14px; border-radius:10px; cursor:pointer;
+    background-color:#fff;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%231E6FA6' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
+    box-shadow:0 2px 6px rgba(30,111,166,0.12);
+    transition:border-color .15s, box-shadow .15s, background-color .15s;
+  }
+  .interactive-select:hover{ border-color:var(--blue-dark); box-shadow:0 3px 10px rgba(30,111,166,0.18); }
+  .interactive-select:focus{ outline:none; border-color:var(--blue-dark); box-shadow:0 0 0 3px rgba(76,168,221,0.25); }
+  .exletter{ display:inline-flex; width:26px; height:26px; border-radius:8px; background:var(--gold); color:var(--blue-ink); align-items:center; justify-content:center; font-family:'Baloo 2'; font-weight:800; font-size:14px; }
+  .check-btn{ margin-top:14px; background:var(--blue-mid); color:#fff; padding:10px 24px; border-radius:10px; font-family:'Baloo 2'; font-weight:800; font-size:14px; border:none; }
+  ol.agenda{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  ol.agenda li{ display:flex; align-items:baseline; gap:12px; font-size:15px; font-weight:700; border-bottom:1px solid rgba(0,0,0,0.04); padding-bottom:10px; }
+  ol.agenda li .n{ font-family:'Baloo 2'; font-weight:800; color:var(--blue-dark); }
+  ol.agenda li .time{ margin-left:auto; font-weight:800; color:var(--ink-soft); font-size:12px; background:#f0f4f8; padding:2px 8px; border-radius:6px; }
+  .video{ position:relative; }
+  .editor-pos-el{ z-index:5; }
+  .z-audio { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 2px solid #DCE6EC; border-radius: 20px; padding: 12px 18px 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .z-audio-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .z-audio-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1f7bfe, #9b51e0); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex: 0 0 auto; }
+  .z-audio-track { width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; margin-top: 2px; }
+  .z-audio-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #1f7bfe, #9b51e0); pointer-events: none; }
+  .z-audio-time { font-size: 13px; color: #5C6C79; font-weight: 800; min-width: 70px; text-align: right; }
+  .audiocreator-player{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.85); border:2px solid #DCE6EC; border-radius:20px; padding:12px 18px 12px 12px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:16px; }
+  .audiocreator-btn{ width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg,#1f7bfe,#9b51e0); color:#fff; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .audiocreator-btn:hover{ transform:scale(1.05); box-shadow:0 4px 12px rgba(155,81,224,0.3); }
+  .audiocreator-btn.playing{ background:linear-gradient(135deg,#ef4444,#b91c1c); }
+  .audiocreator-progress{ flex:1; width:auto; height:10px; background:rgba(0,0,0,0.08); border-radius:5px; overflow:hidden; margin-top:2px; cursor:pointer; touch-action:none; }
+  .audiocreator-bar{ height:100%; background:linear-gradient(90deg,#1f7bfe,#9b51e0); width:0%; transition:width .05s linear; pointer-events:none; }
+  .audiocreator-text{ font-size:13px; color:#5C6C79; font-weight:800; font-family:'Nunito',sans-serif; min-width:140px; text-align:left; }
+`; }
+
+const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>';
+
+
+  // ---------- generation / review ----------
+  async function generateSlides(singleIdx){
+    const brief = $('brief').value.trim();
+    if (!brief) { setStatus('Describe the lesson you want to build first.', 'error'); return; }
+
+    const body = new URLSearchParams({
+      action: 'agentGenerateSlides',
+      token: sessionToken,
+      prompt: brief,
+      slideCount: $('slideCount').value || '8',
+      difficulty: $('difficulty').value,
+      language: $('language').value.trim(),
+      contentType: $('contentType').value,
+      focus: $('focus').value.trim(),
+      extra: JSON.stringify(collectExtras()),
+      single: singleIdx != null ? 'true' : 'false'
+    });
+
+    if (singleIdx != null) {
+      const cur = agentSlides[singleIdx];
+      body.set('prompt', 'Regenerate ONLY the slide titled "' + (cur ? cur.s.title : '') + '". Keep it as one focused, student-facing slide. Follow the original brief below:\n\n' + brief);
+    }
+
+    const btn = singleIdx != null ? null : $('generateBtn');
+    if (btn) btn.disabled = true;
+    setStatus(singleIdx != null ? 'Regenerating that slide...' : 'The AI is building your lesson slides (this can take up to a minute)...', 'info');
+    try {
+      const result = await callBackend(body);
+      if (result.expired) { alert('Your admin session expired. Please sign in again from the dashboard.'); location.href = 'index.html'; return; }
+      if (!result.success) { setStatus(result.message || 'Generation failed.', 'error'); return; }
+
+      if (singleIdx != null) {
+        if (result.slides && result.slides[0]) {
+          agentSlides[singleIdx] = { s: result.slides[0], approved: true };
+          render();
+          setStatus('Slide replaced.', 'success');
+        } else {
+          setStatus('Could not regenerate that slide.', 'error');
+        }
+      } else {
+        agentSlides = (result.slides || []).map(function (s) { return { s: s, approved: true }; });
+        render();
+        if (result.flaggedSlides && result.flaggedSlides.length > 0) {
+          setStatus('Generated ' + result.slides.length + ' slide(s). ' + result.flaggedSlides.length + ' flagged slide(s) (teacher-only content) were skipped.', 'info');
+        } else {
+          setStatus('Generated ' + result.slides.length + ' slide(s). Review them below.', 'success');
+        }
+      }
+      $('reviewStep').classList.add('active');
+      $('saveStep').classList.add('active');
+    } catch (err) {
+      setStatus('Could not reach the server: ' + err.message, 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function render(){
+    const list = $('reviewList');
+    list.innerHTML = '';
+    agentSlides.forEach(function (w, i) {
+      const s = w.s || {};
+      const elCount = (s.elements || []).length;
+      const typeLabel = (getTypeLabel(s.type) || 'CONTENT').toUpperCase();
+      const card = document.createElement('div');
+      card.className = 'slide-card' + (w.approved ? '' : ' rejected');
+      card.innerHTML =
+        '<div class="card-top">' +
+          '<div class="idx">' + (i + 1) + '</div>' +
+          '<span class="badge ' + (s.type === 'activity' ? 'act' : 'con') + '">' + esc(typeLabel) + '</span>' +
+          '<span class="meta">' + elCount + ' element' + (elCount === 1 ? '' : 's') + '</span>' +
+          '<input class="title-input" data-idx="' + i + '" value="' + escAttr(s.title) + '" placeholder="Slide title">' +
+          '<div class="card-actions">' +
+            '<button class="btn icon" data-act="up" data-idx="' + i + '" title="Move up"><i class="fas fa-arrow-up"></i></button>' +
+            '<button class="btn icon" data-act="down" data-idx="' + i + '" title="Move down"><i class="fas fa-arrow-down"></i></button>' +
+            '<button class="btn icon" data-act="repl" data-idx="' + i + '" title="Regenerate this slide"><i class="fas fa-rotate-right"></i></button>' +
+            '<button class="btn icon danger" data-act="del" data-idx="' + i + '" title="Delete slide"><i class="fas fa-trash"></i></button>' +
+            '<button class="btn toggle ' + (w.approved ? 'on' : 'off') + '" data-act="toggle" data-idx="' + i + '">' + (w.approved ? '<i class="fas fa-check"></i> Approved' : '<i class="fas fa-xmark"></i> Rejected') + '</button>' +
+          '</div>' +
+        '</div>' +
+        '<iframe class="preview-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" title="Slide preview"></iframe>';
+      list.appendChild(card);
+      card.querySelector('iframe').srcdoc = previewDoc(s);
+    });
+    const approved = agentSlides.filter(function (w) { return w.approved; }).length;
+    $('summary').textContent = agentSlides.length + ' slide(s) · ' + approved + ' approved';
+  }
+
+  function addBlank(){
+    agentSlides.push({ s: { id: uid(), type: 'content', title: 'New Slide', elements: [] }, approved: true });
+    render();
+    $('reviewStep').classList.add('active');
+    $('saveStep').classList.add('active');
+    setStatus('Blank slide added. Set a title and save — you can finish it in the Slide Editor.', 'info');
+  }
+
+  function clearAll(){
+    if (agentSlides.length > 0 && !confirm('Remove all slides from the review list?')) return;
+    agentSlides = [];
+    render();
+    $('reviewStep').classList.remove('active');
+    $('saveStep').classList.remove('active');
+    setStatus('Cleared.', 'info');
+  }
+
+  async function save(){
+    const approved = agentSlides.filter(function (w) { return w.approved; });
+    if (approved.length === 0) { setStatus('Approve at least one slide before saving.', 'error'); return; }
+    const track = $('sel-track').value;
+    const level = $('sel-level').value;
+    const sessionNumber = $('sel-session').value;
+    const btn = $('saveBtn');
+    btn.disabled = true;
+    setStatus('Saving ' + approved.length + ' approved slide(s) to ' + track.toUpperCase() + ' · Level ' + level + ' · Session ' + sessionNumber + '...', 'info');
+    try {
+      const compiledSlides = approved.map(function (w) { return compileSlide(w.s, true); });
+      const slidesJson = JSON.stringify(compiledSlides);
+      const result = await callBackend(new URLSearchParams({
+        action: 'setLessonContent', token: sessionToken, track: track, level: level, sessionNumber: sessionNumber, slidesJson: slidesJson
+      }));
+      if (result.expired) { alert('Your admin session expired. Please sign in again from the dashboard.'); location.href = 'index.html'; return; }
+      if (!result.success) { setStatus(result.message || 'Save failed.', 'error'); return; }
+      setStatus('Saved ' + approved.length + ' slide(s) to Session ' + sessionNumber + '. Students can open this lesson now.', 'success');
+    } catch (err) {
+      setStatus('Could not reach the server: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- wiring ----------
+  $('reviewList').addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const i = parseInt(btn.dataset.idx, 10);
+    const act = btn.dataset.act;
+    if (act === 'toggle') {
+      if (agentSlides[i]) { agentSlides[i].approved = !agentSlides[i].approved; render(); }
+    } else if (act === 'up') {
+      if (i > 0) { const t = agentSlides.splice(i, 1)[0]; agentSlides.splice(i - 1, 0, t); render(); }
+    } else if (act === 'down') {
+      if (i < agentSlides.length - 1) { const t = agentSlides.splice(i, 1)[0]; agentSlides.splice(i + 1, 0, t); render(); }
+    } else if (act === 'del') {
+      if (confirm('Delete this slide from the review list?')) { agentSlides.splice(i, 1); render(); }
+    } else if (act === 'repl') {
+      if (confirm('Regenerate this slide with AI?')) generateSlides(i);
+    }
+  });
+
+  $('reviewList').addEventListener('input', function (e) {
+    const inp = e.target.closest('.title-input');
+    if (!inp) return;
+    const i = parseInt(inp.dataset.idx, 10);
+    if (agentSlides[i]) agentSlides[i].s.title = inp.value;
+  });
+
+  window.generateSlides = generateSlides;
+  window.addBlank = addBlank;
+  window.clearAll = clearAll;
+  window.save = save;
+  window.fillBrief = function (idx) {
+    $('brief').value = EXAMPLE_BRIEFS[idx] || '';
+    $('brief').focus();
+  };
+
+  function loadSelects(){
+    const levelSel = $('sel-level');
+    const numSel = $('sel-session');
+    levelSel.innerHTML = '';
+    numSel.innerHTML = '';
+    for (let i = 1; i <= LEVELS_PER_TRACK; i++) {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = 'Level ' + i;
+      levelSel.appendChild(o);
+    }
+    for (let i = 1; i <= SESSIONS_PER_LEVEL; i++) {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = 'Session ' + i;
+      numSel.appendChild(o);
+    }
+  }
+
+  function init(){
+    if (!restoreSession() || !currentUser || currentUser.role !== 'admin') {
+      $('blocked').style.display = 'flex';
+      $('app').style.display = 'none';
+      return;
+    }
+    $('app').style.display = 'block';
+    loadSelects();
+    $('userName').textContent = currentUser.name || currentUser.email || 'Admin';
+    setStatus('Ready. Describe a lesson and the agent will build interactive slides for you.', 'info');
+  }
+
+  window.signOut = function () {
+    localStorage.removeItem('zenglish_session');
+    location.href = 'index.html';
+  };
+
+  init();
+})();
+</script>
+</body>
+</html>

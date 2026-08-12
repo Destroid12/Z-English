@@ -7,7 +7,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const jsFiles = ['api/backend.js', 'api/paymob.js', 'scripts/check-syntax.js'];
-const htmlFiles = ['index.html', 'editor.html', 'player.html'];
+const htmlFiles = ['index.html', 'editor.html', 'player.html', 'agent.html'];
 let failed = false;
 
 function check(file, label) {

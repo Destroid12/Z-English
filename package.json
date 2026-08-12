@@ -12,7 +12,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "vercel": "^58.9.1"

@@ -19,6 +19,7 @@
 
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+const JSZip = require('jszip');
 
 // ---------------------------------------------------------------------
 // Constants (mirrors backend_Code.gs.local)
@@ -40,6 +41,30 @@ const STORAGE_BUCKET = 'zenglish-media';
 const CONTACT_DESTINATION_EMAIL =
   process.env.CONTACT_DESTINATION_EMAIL || 'z.english.academy26@gmail.com';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
+const AGENT_CONCURRENCY = Math.max(1, parseInt(process.env.AGENT_CONCURRENCY || '3', 10) || 3);
+const AGENT_MAX_PPTX_BYTES = parseInt(process.env.AGENT_MAX_PPTX_BYTES || String(12 * 1024 * 1024), 10) || (12 * 1024 * 1024);
+const AGENT_AUDIO_FORMAT = String(process.env.AGENT_AUDIO_FORMAT || 'wav').toLowerCase();
+const AGENT_TTS_VOICES = {
+  'Z-AI (Male)': 'Charon',
+  'Z-AI (Female)': 'Aoede',
+  'US English (Male)': 'Kore',
+  'US English (Female)': 'Puck',
+  'UK English (Male)': 'Zephyr',
+  'UK English (Female)': 'Leda',
+  'Australian (Male)': 'Orus',
+  'Australian (Female)': 'Callirrhoe'
+};
+const AGENT_TTS_LANGUAGES = {
+  'Z-AI (Male)': 'en-US',
+  'Z-AI (Female)': 'en-US',
+  'US English (Male)': 'en-US',
+  'US English (Female)': 'en-US',
+  'UK English (Male)': 'en-GB',
+  'UK English (Female)': 'en-GB',
+  'Australian (Male)': 'en-AU',
+  'Australian (Female)': 'en-AU'
+};
 const ADMIN_GOOGLE_EMAILS = String(process.env.ADMIN_GOOGLE_EMAILS || '')
   .split(',')
   .map(function (s) { return String(s).trim().toLowerCase(); })
@@ -2373,6 +2398,46 @@ const PPTX_CONVERTER_SYSTEM_PROMPT =
   '   - For a session: return a JSON array: [ { "id": "slide_1", ... }, { "id": "slide_2", ... } ]\n\n' +
   'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON.';
 
+// System prompt for the AI Slide Agent: build a whole Z-English session from a teacher's
+// topic brief (no source deck). Produces the same structured slide schema compileSlide() consumes.
+const AGENT_SLIDE_GENERATOR_PROMPT =
+  'You are an expert English lesson designer who creates complete, ready-to-teach interactive ' +
+  'Z-English sessions from a short teacher brief. You never invent external media: if the brief ' +
+  'does not include an image/audio/video URL, use only text-based elements.\n\n' +
+  '## SLIDE SCHEMA (JSON array)\n' +
+  'Return a JSON array of slide objects, one per planned screen:\n' +
+  '{ "id": "slide_1", "type": "content" | "activity", "title": "Short slide title", "elements": [ ... ] }\n' +
+  'type "content" = instruction/explanation screen. type "activity" = a screen where students DO something.\n' +
+  'Every element needs its own "id" (e.g. "el_1").\n\n' +
+  '## ELEMENT KINDS\n' +
+  '1. kind "paragraph": { "id":"el_1", "kind":"paragraph", "text":"Your text.\\nSecond line.", "size":16, "color":"", "bold":false, "align":"left", "font":"" }\n' +
+  '   Use \\n for line breaks. Default element for ALL text, explanations, vocabulary, dialogues, reading passages, instructions.\n' +
+  '2. kind "list": { "id":"el_2", "kind":"list", "items":[ {"text":"Item 1"}, {"text":"Item 2"} ], "font":"" }\n' +
+  '   For bullet points / agenda / vocabulary chunks / steps.\n' +
+  '3. kind "question": { "id":"el_3", "kind":"question", "prompt":"Question text with [blank]", "font":"", "blanks":[{ "qtype":"text"|"select"|"radio"|"match"|"wordbank"|"schedule"|"voice", "answer":"...", "altAnswers":[], "options":[], "strict":false, "tips":true, "aiInstructions":"" }] }\n' +
+  '   - "text": short-answer input. "select"/"radio": multiple choice (put the choices in options, the correct one in answer).\n' +
+  '   - "match": matching pairs — each entry in options like "left | right" (or "left - right").\n' +
+  '   - "wordbank": options is the word bank, answer is the correct word(s).\n' +
+  '   - "schedule": put the items in their correct order — options is the correct order.\n' +
+  '   - "voice": student records their spoken answer (answer is the expected phrase). Use ONLY for speak-the-answer drills.\n' +
+  '   Use [blank] markers in prompt text, one per blank, and one matching blank object per [blank].\n' +
+  '4. kind "audiocreator": { "id":"el_4", "kind":"audiocreator", "blocks":[ {"voice":"US English (Female)","text":"Hello!"}, {"voice":"UK English (Male)","text":"Hi there."} ] }\n' +
+  '   For spoken dialogues / listening practice. Allowed voices: "Z-AI (Male)", "Z-AI (Female)", "US English (Male)", "US English (Female)", "UK English (Male)", "UK English (Female)", "Australian (Male)", "Australian (Female)". Use distinct voices per speaker.\n' +
+  '5. kind "speaking": { "id":"el_5", "kind":"speaking", "text":"Practice saying: ...", "color":"#1E6FA6", "bgColor":"#EAF4FC", "bold":true }\n' +
+  '   STRICTLY for dedicated speaking drills ONLY (title says "Speaking Practice", "Pronunciation", "Say Aloud", "Oral Task"). NEVER for general dialogue or reading text.\n' +
+  '6. kind "link": { "id":"el_6", "kind":"link", "url":"https://...", "text":"Click here", "subtext":"" }\n' +
+  '   Only when the brief explicitly supplies a URL. Never invent URLs.\n' +
+  '7. kind "image": { "id":"el_7", "kind":"image", "url":"", "caption":"" }\n' +
+  '   Only when the brief explicitly supplies an image URL. If you have no real URL, use url: "" (empty) and DO NOT fabricate one.\n\n' +
+  '## SESSION DESIGN RULES\n' +
+  '1. Follow the teacher\'s brief exactly: topic, target language (grammar/vocab), age level, and how many slides.\n' +
+  '2. Structure the session like a real lesson: warm-up, teach/present, guided practice, freer practice/activity, wrap-up.\n' +
+  '3. Keep each slide focused (one idea per slide). Titles short and student-friendly. Text in clear, level-appropriate English.\n' +
+  '4. Include interactive practice: turn several screens into kind "question" / "audiocreator" activities, not just reading.\n' +
+  '5. Do NOT include teacher-only content (answer keys, answer sheets, marking schemes, model answers, teacher notes, solutions).\n' +
+  '6. Language: write the lesson IN ENGLISH unless the brief says the target language is something else.\n\n' +
+  'CRITICAL: You MUST think inside <think> ... </think> first. Then output ONLY valid JSON (the array of slides, no extra prose).';
+
 // Extract the JSON payload out of a Gemini text reply (strip <think> blocks
 // and markdown fences; fall back to first {...} / [...] substring).
 function _extractJsonFromGemini(fixedText, wantArray) {
@@ -2977,6 +3042,555 @@ async function _importExternalMedia(p) {
   }
 }
 
+const AGENT_FORBIDDEN_SLIDE_PATTERNS = [
+  /\banswer\s*key\b/i,
+  /\banswer\s*sheet\b/i,
+  /\bmarking\s*scheme\b/i,
+  /\bcorrection\s*(key|sheet)?\b/i,
+  /\bmodel\s*answer\b/i,
+  /\bteacher(?:'s)?\s*(copy|notes|guide|manual)\b/i,
+  /\btutor\s*(notes|guide|copy)\b/i,
+  /\b(instructor|teaching)\s*guide\b/i,
+  /\bsolutions?\b/i,
+  /\bإجابات\b/,
+  /\bالإجابات\b/,
+  /\bمفتاح\s*الإجابة\b/,
+  /\bنموذج\s*الإجابة\b/,
+  /\bورقة\s*الإجابة\b/
+];
+
+function _pcmToWav(pcmBuffer, sampleRate) {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmBuffer.length;
+  const buffer = Buffer.alloc(44 + dataSize);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(numChannels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(bitsPerSample, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  pcmBuffer.copy(buffer, 44);
+  return buffer;
+}
+
+async function _callGeminiTTS(text, voiceName, languageCode) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_TTS_MODEL +
+    ':generateContent?key=' + encodeURIComponent(apiKey);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: String(text).slice(0, 4000) }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          languageCode: languageCode,
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } }
+        }
+      }
+    })
+  });
+  if (resp.status !== 200) {
+    const errText = (await resp.text()).slice(0, 500);
+    throw new Error('Gemini TTS error (' + resp.status + '): ' + errText);
+  }
+  const data = await resp.json();
+  const candidate = (data.candidates || [])[0];
+  const part = candidate && candidate.content && candidate.content.parts
+    ? candidate.content.parts.find(p => p && p.inlineData && p.inlineData.data)
+    : null;
+  if (!part) throw new Error('Gemini TTS returned no audio.');
+  const mimeType = String(part.inlineData.mimeType || '');
+  const rateMatch = mimeType.match(/rate=(\d+)/);
+  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+  const pcm = Buffer.from(part.inlineData.data, 'base64');
+  const wav = _pcmToWav(pcm, sampleRate);
+  return { buffer: wav, mimeType: 'audio/wav' };
+}
+
+async function _storeAgentAudio(buffer, mimeType, filename) {
+  const key = Date.now() + '_' + filename;
+  const { error: upErr } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(key, buffer, { contentType: mimeType });
+  if (upErr) throw new Error(upErr.message);
+  const { data: pubData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+  const publicUrl = pubData && pubData.publicUrl ? pubData.publicUrl : '';
+  const { error: insErr } = await supabase.from('media').insert({
+    id: key,
+    url: publicUrl,
+    mime_type: mimeType,
+    filename: filename
+  });
+  if (insErr) throw new Error(insErr.message);
+  return { url: publicUrl, fileId: key };
+}
+
+function _extractPptxTexts(xml) {
+  const texts = [];
+  const regex = /<a:t>([\s\S]*?)<\/a:t>/g;
+  let match;
+  while ((match = regex.exec(xml)) !== null) {
+    const text = String(match[1] || '').trim();
+    if (text) texts.push(text);
+  }
+  return texts;
+}
+
+function _extractPptxMediaTargets(relsXml) {
+  const targets = [];
+  const regex = /Target="\.\.\/media\/([^"]+)"/g;
+  let match;
+  while ((match = regex.exec(relsXml)) !== null) {
+    if (match[1]) targets.push(match[1]);
+  }
+  return targets;
+}
+
+async function _parsePptxBuffer(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const slideEntries = [];
+  zip.forEach((relativePath, entry) => {
+    const match = /^ppt\/slides\/slide(\d+)\.xml$/i.exec(relativePath);
+    if (match && !entry.dir) slideEntries.push({ num: parseInt(match[1], 10), entry });
+  });
+  slideEntries.sort((a, b) => a.num - b.num);
+  const slides = [];
+  for (const item of slideEntries) {
+    const xml = await item.entry.async('string');
+    const texts = _extractPptxTexts(xml);
+    let notes = '';
+    const notesEntry = zip.file('ppt/notesSlides/notesSlide' + item.num + '.xml');
+    if (notesEntry) {
+      notes = _extractPptxTexts(await notesEntry.async('string')).join('\n');
+    }
+    const media = [];
+    const relsEntry = zip.file('ppt/slides/_rels/slide' + item.num + '.xml.rels');
+    if (relsEntry) {
+      const targets = _extractPptxMediaTargets(await relsEntry.async('string'));
+      for (const target of targets) {
+        const lower = target.toLowerCase();
+        let type = 'image';
+        if (/\.(mp3|wav|m4a|aac|ogg|flac)$/.test(lower)) type = 'audio';
+        else if (/\.(mp4|webm|mov|avi)$/.test(lower)) type = 'video';
+        media.push({ name: target, type: type });
+      }
+    }
+    slides.push({
+      slideIndex: item.num,
+      totalSlides: slideEntries.length,
+      title: texts[0] || '',
+      text: texts.join('\n'),
+      notes: notes,
+      media: media
+    });
+  }
+  return slides;
+}
+
+function _classifyForbiddenSlide(slide) {
+  if (!slide) return false;
+  const title = String(slide.title || '');
+  const texts = (slide.elements || []).map(el => {
+    return String(el && (el.text || el.prompt || el.caption || '') || '');
+  }).join(' ');
+  const haystack = title + ' ' + texts;
+  return AGENT_FORBIDDEN_SLIDE_PATTERNS.some(pattern => pattern.test(haystack));
+}
+
+function _detectAudioSignature(buf) {
+  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WAVE') return 'wav';
+  if (buf.length >= 3 && buf.toString('ascii', 0, 3) === 'ID3') return 'mp3';
+  if (buf.length >= 2 && buf[0] === 0xFF && (buf[1] & 0xE0) === 0xE0) return 'mp3';
+  if (buf.length >= 4 && buf.toString('ascii', 0, 4) === 'OggS') return 'ogg';
+  if (buf.length >= 8 && buf.toString('ascii', 4, 8) === 'ftyp') return 'm4a';
+  if (buf.length >= 4 && buf.toString('ascii', 0, 4) === 'fLaC') return 'flac';
+  return '';
+}
+
+async function _validateAudio(url) {
+  if (!url) return { ok: false, reason: 'Missing URL' };
+  let head;
+  try {
+    head = await fetch(url, { method: 'HEAD' });
+  } catch (err) {
+    return { ok: false, reason: 'Unreachable: ' + err.message };
+  }
+  if (head.status < 200 || head.status >= 400) {
+    return { ok: false, reason: 'HTTP ' + head.status };
+  }
+  const contentLength = parseInt(head.headers.get('content-length') || '0', 10);
+  if (contentLength > 0 && contentLength < 1024) {
+    return { ok: false, reason: 'Too small (' + contentLength + ' bytes)' };
+  }
+  let sample;
+  try {
+    const ranged = await fetch(url, { headers: { Range: 'bytes=0-127' } });
+    sample = Buffer.from(await ranged.arrayBuffer());
+  } catch (err) {
+    return { ok: false, reason: 'Read failed: ' + err.message };
+  }
+  if (sample.length < 4) return { ok: false, reason: 'Unreadable header' };
+  const signature = _detectAudioSignature(sample);
+  if (!signature) return { ok: false, reason: 'Unknown format' };
+  return { ok: true, format: signature, contentLength: contentLength };
+}
+
+async function _agentImportAndReview(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const customInstructions = String(p.instructions || '').trim();
+  const pptxUrl = String(p.pptxUrl || '').trim();
+  let slides = p.slides;
+  if (typeof slides === 'string') {
+    try { slides = JSON.parse(slides); } catch (e) { slides = null; }
+  }
+
+  if (pptxUrl) {
+    try {
+      const res = await fetch(pptxUrl);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (buffer.length > AGENT_MAX_PPTX_BYTES) {
+        return { success: false, message: 'File too large (max ' + Math.round(AGENT_MAX_PPTX_BYTES / 1024 / 1024) + 'MB)' };
+      }
+      slides = await _parsePptxBuffer(buffer);
+    } catch (err) {
+      return { success: false, message: 'PPTX fetch/parse failed: ' + err.message };
+    }
+  }
+
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return { success: false, message: 'No slides provided.' };
+  }
+
+  const summaryList = slides.map((s, i) => ({
+    slideIndex: i + 1,
+    title: s.title || '',
+    text: s.text || '',
+    notes: s.notes || '',
+    media: (s.media || []).map(m => ({ name: m.name, type: m.type }))
+  }));
+
+  let promptText = 'Convert this complete PowerPoint deck (' + summaryList.length + ' slides) into a full interactive Z-English session JSON array.\n\n' +
+    'PPTX Slides Outline:\n' + JSON.stringify(summaryList, null, 2);
+  if (customInstructions) {
+    promptText = 'USER INSTRUCTIONS FOR SESSION CONVERSION:\n"""\n' + customInstructions + '\n"""\n\n' + promptText;
+  }
+
+  let resultSlides;
+  try {
+    const fixedText = await _callGemini(PPTX_CONVERTER_SYSTEM_PROMPT,
+      [{ role: 'user', parts: [{ text: promptText }] }],
+      { maxOutputTokens: 16384, temperature: 0.3 });
+    resultSlides = _extractJsonFromGemini(fixedText, true);
+    if (!Array.isArray(resultSlides)) throw new Error('AI did not return a valid slides array');
+  } catch (err) {
+    console.error('agentImportAndReview failed: ' + err.message);
+    return { success: false, message: 'AI session conversion failed: ' + err.message };
+  }
+
+  const flaggedSlides = [];
+  const approvedSlides = [];
+  resultSlides.forEach((slide, index) => {
+    if (!slide) return;
+    const forbidden = _classifyForbiddenSlide(slide);
+    if (forbidden || slide.skip === true) {
+      flaggedSlides.push({ index: index, reason: forbidden ? 'Forbidden slide content' : 'Marked skip', slide: slide });
+    } else {
+      approvedSlides.push(slide);
+    }
+  });
+
+  return { success: true, slides: approvedSlides, flaggedSlides: flaggedSlides, totalSlides: resultSlides.length };
+}
+
+async function _agentGenerateSlides(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const brief = String(p.prompt || '').trim();
+  if (!brief) return { success: false, message: 'Please describe the lesson you want to create.' };
+  if (brief.length > 12000) return { success: false, message: 'Your brief is too long (max 12,000 characters).' };
+
+  const slideCount = Math.min(20, Math.max(3, parseInt(p.slideCount, 10) || 8));
+  const language = String(p.language || '').trim();
+  const difficulty = String(p.difficulty || '').trim();
+  const contentType = String(p.contentType || '').trim();
+  const focus = String(p.focus || '').trim();
+  let extra = p.extra;
+  if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch (e) { extra = []; } }
+  if (!Array.isArray(extra)) extra = [];
+
+  const constraints = [];
+  if (p.single === 'true' || p.single === true) {
+    constraints.push('Return exactly ONE slide in the array (no extra slides).');
+  } else {
+    constraints.push('Create exactly ' + slideCount + ' slide(s).');
+  }
+  if (language) constraints.push('Target language: ' + language);
+  if (difficulty) constraints.push('Student level / difficulty: ' + difficulty);
+  if (contentType) {
+    if (contentType === 'content') constraints.push('Mostly content/teaching slides (with a couple of short practice questions).');
+    else if (contentType === 'activity') constraints.push('Mostly interactive activity slides (questions, dialogues, speaking drills).');
+  }
+  if (focus) constraints.push('Special focus: ' + focus);
+  if (extra.length > 0) constraints.push('The teacher also asked for these specific activity types: ' + extra.join(', ') + '. Include as many of them as fit naturally.');
+
+  const userPrompt = 'TEACHER BRIEF:\n"""\n' + brief + '\n"""\n\n' + constraints.join('\n');
+
+  let resultSlides;
+  try {
+    const fixedText = await _callGemini(AGENT_SLIDE_GENERATOR_PROMPT,
+      [{ role: 'user', parts: [{ text: userPrompt }] }],
+      { maxOutputTokens: 16384, temperature: 0.7, jsonMode: true });
+    resultSlides = _extractJsonFromGemini(fixedText, true);
+    if (!Array.isArray(resultSlides)) throw new Error('AI did not return a slides array');
+  } catch (err) {
+    console.error('agentGenerateSlides failed: ' + err.message);
+    return { success: false, message: 'AI slide generation failed: ' + err.message };
+  }
+
+  const sanitized = [];
+  const flaggedSlides = [];
+  resultSlides.forEach((slide, index) => {
+    if (!slide || typeof slide !== 'object') return;
+    const normalized = {
+      id: String(slide.id || 'slide_' + (index + 1)),
+      type: (slide.type === 'activity') ? 'activity' : 'content',
+      title: String(slide.title || 'Untitled Slide'),
+      elements: Array.isArray(slide.elements) ? slide.elements.filter(function (el) { return el && el.kind; }) : []
+    };
+    normalized.elements.forEach(function (el, i) {
+      el.id = String(el.id || 'el_' + (index + 1) + '_' + (i + 1));
+      if (el.kind === 'question') {
+        el.prompt = String(el.prompt || '');
+        el.blanks = Array.isArray(el.blanks) ? el.blanks.filter(function (b) { return b && b.qtype && (b.answer !== undefined); }) : [];
+      }
+    });
+    const forbidden = _classifyForbiddenSlide(normalized);
+    if (forbidden || slide.skip === true) {
+      flaggedSlides.push({ index: index, reason: forbidden ? 'Forbidden slide content (teacher-only material)' : 'Marked skip', slide: normalized });
+    } else {
+      sanitized.push(normalized);
+    }
+  });
+
+  if (sanitized.length === 0 && flaggedSlides.length > 0) {
+    return { success: false, message: 'All generated slides were flagged as teacher-only content. Try a student-facing brief.' };
+  }
+
+  return { success: true, slides: sanitized, flaggedSlides: flaggedSlides, totalSlides: resultSlides.length };
+}
+
+async function _agentGenerateAudio(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  let slides = p.slides;
+  if (typeof slides === 'string') {
+    try { slides = JSON.parse(slides); } catch (e) { slides = null; }
+  }
+  if (!Array.isArray(slides) && p.track && p.level && p.sessionNumber) {
+    const raw = await _loadLessonContent(String(p.track), String(p.level), String(p.sessionNumber));
+    if (raw) {
+      try { slides = JSON.parse(raw); } catch (e) { slides = null; }
+    }
+  }
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return { success: false, message: 'No slides provided.' };
+  }
+
+  const tasks = [];
+  const seen = {};
+  slides.forEach((slide, slideIndex) => {
+    if (!slide || !Array.isArray(slide.elements)) return;
+    slide.elements.forEach((el, elIndex) => {
+      if (!el || el.kind !== 'audiocreator' || !Array.isArray(el.blocks)) return;
+      el.blocks.forEach((block, blockIndex) => {
+        const text = String(block && block.text || '').trim();
+        const voice = String(block && block.voice || 'US English (Female)').trim();
+        if (!text) return;
+        const key = voice + '\u0000' + text;
+        if (!seen[key]) {
+          seen[key] = { voice: voice, text: text, refs: [] };
+          tasks.push(seen[key]);
+        }
+        seen[key].refs.push({ slideIndex: slideIndex, elIndex: elIndex, blockIndex: blockIndex });
+      });
+    });
+  });
+
+  if (tasks.length === 0) {
+    return { success: true, generated: 0, failures: [], slides: slides };
+  }
+
+  const results = [];
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= tasks.length) return;
+      const task = tasks[idx];
+      try {
+        const voiceName = AGENT_TTS_VOICES[task.voice] || 'Kore';
+        const languageCode = AGENT_TTS_LANGUAGES[task.voice] || 'en-US';
+        const tts = await _callGeminiTTS(task.text, voiceName, languageCode);
+        const stored = await _storeAgentAudio(tts.buffer, tts.mimeType, 'agent_audio_' + Date.now() + '_' + idx + '.wav');
+        results[idx] = { ok: true, url: stored.url, fileId: stored.fileId };
+      } catch (err) {
+        console.error('agentGenerateAudio error: ' + err.message);
+        results[idx] = { ok: false, error: err.message };
+      }
+    }
+  }
+
+  const workers = [];
+  const workerCount = Math.min(AGENT_CONCURRENCY, tasks.length);
+  for (let i = 0; i < workerCount; i++) workers.push(worker());
+  await Promise.all(workers);
+
+  const audio = [];
+  const failures = [];
+  tasks.forEach((task, idx) => {
+    const result = results[idx];
+    if (result.ok) {
+      audio.push({ voice: task.voice, text: task.text, url: result.url, fileId: result.fileId });
+      task.refs.forEach(ref => {
+        const el = slides[ref.slideIndex].elements[ref.elIndex];
+        el.kind = 'audio';
+        el.url = result.url;
+        el.caption = el.caption || '';
+        el.blocks = el.blocks.map(block => {
+          const blockText = String(block && block.text || '').trim();
+          const blockVoice = String(block && block.voice || 'US English (Female)').trim();
+          if (blockText && blockVoice === task.voice && blockText === task.text) {
+            return Object.assign({}, block, { url: result.url });
+          }
+          return block;
+        });
+      });
+    } else {
+      failures.push({ voice: task.voice, text: task.text, error: result.error });
+    }
+  });
+
+  return { success: true, generated: audio.length, failures: failures, audio: audio, slides: slides };
+}
+
+async function _corruptAudioScan(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  let slides = p.slides;
+  if (typeof slides === 'string') {
+    try { slides = JSON.parse(slides); } catch (e) { slides = null; }
+  }
+  if (!Array.isArray(slides) && p.track && p.level && p.sessionNumber) {
+    const raw = await _loadLessonContent(String(p.track), String(p.level), String(p.sessionNumber));
+    if (raw) {
+      try { slides = JSON.parse(raw); } catch (e) { slides = null; }
+    }
+  }
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return { success: false, message: 'No slides provided.' };
+  }
+
+  const targets = [];
+  slides.forEach((slide, slideIndex) => {
+    if (!slide || !Array.isArray(slide.elements)) return;
+    slide.elements.forEach((el, elIndex) => {
+      if (el && el.kind === 'audio' && el.url) {
+        targets.push({ slideIndex: slideIndex, elIndex: elIndex, url: String(el.url) });
+      }
+    });
+  });
+
+  if (targets.length === 0) {
+    return { success: true, corrupt: [], healthy: [], scanned: 0 };
+  }
+
+  const results = [];
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= targets.length) return;
+      results[idx] = await _validateAudio(targets[idx].url);
+    }
+  }
+
+  const workers = [];
+  const workerCount = Math.min(AGENT_CONCURRENCY, targets.length);
+  for (let i = 0; i < workerCount; i++) workers.push(worker());
+  await Promise.all(workers);
+
+  const corrupt = [];
+  const healthy = [];
+  targets.forEach((target, idx) => {
+    const record = {
+      slideIndex: target.slideIndex,
+      elIndex: target.elIndex,
+      url: target.url,
+      format: results[idx].format || '',
+      reason: results[idx].reason || ''
+    };
+    if (results[idx].ok) healthy.push(record);
+    else corrupt.push(record);
+  });
+
+  return { success: true, corrupt: corrupt, healthy: healthy, scanned: targets.length };
+}
+
+async function _agentApplyChanges(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const track = String(p.track || '');
+  const level = String(p.level || '');
+  const sessionNumber = String(p.sessionNumber || '');
+  let slides = p.slides;
+  if (typeof slides === 'string') {
+    try { slides = JSON.parse(slides); } catch (e) { slides = null; }
+  }
+  if (!track || !level || !sessionNumber || !Array.isArray(slides)) {
+    return { success: false, message: 'Missing required fields.' };
+  }
+
+  const slidesJson = JSON.stringify(slides);
+  const { error } = await supabase
+    .from('lesson_content')
+    .upsert(
+      { track: track, level: level, session_number: sessionNumber, slides_json: slidesJson, updated_at: _nowIso() },
+      { onConflict: 'track,level,session_number' }
+    );
+  if (error) throw new Error(error.message);
+
+  try {
+    await supabase.from('sessions').upsert(
+      { track: track, level: level, session_number: sessionNumber, link: 'lesson', updated_at: _nowIso() },
+      { onConflict: 'track,level,session_number' }
+    );
+  } catch (e) {
+    console.warn('sessions upsert warning:', e.message);
+  }
+
+  return { success: true };
+}
+
 // =====================================================================
 // Dispatcher
 // =====================================================================
@@ -3052,7 +3666,12 @@ const actions = {
   listPaymobLinks: _listPaymobLinks,
   deletePaymobLink: _deletePaymobLink,
   getPublicSessionContent: _getPublicSessionContent,
-  aiGradeAnswer: _aiGradeAnswer
+  aiGradeAnswer: _aiGradeAnswer,
+  agentImportAndReview: _agentImportAndReview,
+  agentGenerateSlides: _agentGenerateSlides,
+  agentGenerateAudio: _agentGenerateAudio,
+  corruptAudioScan: _corruptAudioScan,
+  agentApplyChanges: _agentApplyChanges
 };
 
 module.exports = async function handler(req, res) {
