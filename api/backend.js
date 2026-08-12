@@ -43,7 +43,7 @@ const CONTACT_DESTINATION_EMAIL =
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 const AGENT_CONCURRENCY = Math.max(1, parseInt(process.env.AGENT_CONCURRENCY || '3', 10) || 3);
-const AGENT_MAX_PPTX_BYTES = parseInt(process.env.AGENT_MAX_PPTX_BYTES || String(12 * 1024 * 1024), 10) || (12 * 1024 * 1024);
+const AGENT_MAX_PPTX_BYTES = parseInt(process.env.AGENT_MAX_PPTX_BYTES || String(50 * 1024 * 1024), 10) || (50 * 1024 * 1024);
 const AGENT_AUDIO_FORMAT = String(process.env.AGENT_AUDIO_FORMAT || 'wav').toLowerCase();
 const AGENT_TTS_VOICES = {
   'Z-AI (Male)': 'Charon',
