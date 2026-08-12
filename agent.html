@@ -207,31 +207,58 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
 .convert-session .status-badge.done{ color:var(--success); background:rgba(76,175,109,.12); }
 .convert-session .status-badge.error{ color:var(--error); background:rgba(217,69,92,.12); }
 
-.suspicious-review-list{ display:grid; gap:16px; }
-.suspicious-session-group{ border:2px solid var(--line); border-radius:16px; background:#fbfdfe; overflow:hidden; }
-.suspicious-session-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:var(--card); border-bottom:2px solid var(--line); flex-wrap:wrap; }
-.suspicious-session-title{ font-family:'Baloo 2',cursive; font-weight:800; font-size:18px; color:var(--blue-ink); }
-.suspicious-session-counts{ display:flex; gap:8px; flex-wrap:wrap; }
-.suspicious-count{ font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
-.suspicious-count.clean{ color:var(--success); background:rgba(76,175,109,.12); }
-.suspicious-count.suspicious{ color:var(--gold-dark); background:rgba(253,200,70,.18); }
-.suspicious-count.excluded{ color:var(--ink-soft); background:var(--bg); }
-.suspicious-slide-list{ padding:12px 16px; display:grid; gap:12px; }
-.suspicious-slide-card{ border:2px solid var(--line); border-radius:12px; background:#fbfdfe; overflow:hidden; }
+/* ===== SUSPICIOUS REVIEW — OVERHAULED ===== */
+.review-session-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.review-session-tab{ font-family:'Baloo 2',cursive; font-size:13px; font-weight:800; padding:7px 14px; border-radius:10px; border:2px solid var(--line); background:var(--card); color:var(--ink-soft); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px; }
+.review-session-tab:hover{ border-color:var(--blue-mid); color:var(--blue-dark); }
+.review-session-tab.active{ border-color:var(--blue-mid); background:rgba(76,168,221,.10); color:var(--blue-dark); }
+.review-session-tab .tab-badge{ font-size:11px; padding:2px 7px; border-radius:12px; background:rgba(253,200,70,.25); color:var(--gold-dark); }
+.suspicious-slide-card{ border:2px solid var(--line); border-radius:12px; background:#fbfdfe; overflow:hidden; margin-bottom:14px; }
 .suspicious-slide-card.excluded{ opacity:.7; border-color:rgba(0,0,0,.08); }
+.suspicious-slide-card.clean-card{ border-color:rgba(76,175,109,.25); }
 .suspicious-slide-header{ display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--card); border-bottom:2px solid var(--line); flex-wrap:wrap; }
 .suspicious-slide-idx{ font-family:'Baloo 2',cursive; font-weight:800; font-size:14px; color:var(--blue-ink); background:var(--gold); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .suspicious-slide-title{ flex:1; min-width:150px; border:2px solid var(--line); border-radius:8px; padding:6px 10px; font-family:'Baloo 2',cursive; font-size:14px; font-weight:800; color:var(--blue-ink); background:#fbfdfe; }
 .suspicious-slide-badge{ font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px; flex:0 0 auto; }
 .suspicious-slide-badge.suspicious{ color:var(--gold-dark); background:rgba(253,200,70,.18); }
 .suspicious-slide-badge.excluded{ color:var(--ink-soft); background:var(--bg); }
-.suspicious-slide-badge.restored{ color:var(--success); background:rgba(76,175,109,.12); }
+.suspicious-slide-badge.restored,.suspicious-slide-badge.clean{ color:var(--success); background:rgba(76,175,109,.12); }
 .suspicious-slide-reason{ font-size:11px; color:var(--ink-soft); font-weight:700; flex:1; min-width:120px; }
-.suspicious-slide-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+.suspicious-slide-actions{ display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
 .suspicious-slide-body{ padding:12px; display:grid; gap:10px; }
-.suspicious-slide-preview{ width:100%; height:280px; border:0; background:#EFF5F9; }
+/* Before/After split preview */
+.slide-preview-split{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.slide-preview-split.single{ grid-template-columns:1fr; }
+.slide-preview-panel{ display:flex; flex-direction:column; gap:4px; }
+.slide-preview-label{ font-size:11px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; }
+.slide-preview-label.before{ color:#c2410c; }
+.slide-preview-label.after{ color:var(--success); }
+.suspicious-slide-preview{ width:100%; height:260px; border:0; background:#EFF5F9; border-radius:8px; }
+/* Inline element editor panel */
+.slide-inline-editor{ background:var(--bg); border:2px solid var(--blue-mid); border-radius:10px; padding:14px; display:none; margin-top:4px; }
+.slide-inline-editor.open{ display:block; }
+.slide-inline-editor h4{ font-family:'Baloo 2',cursive; font-size:15px; font-weight:800; color:var(--blue-ink); margin:0 0 12px; display:flex; align-items:center; gap:8px; justify-content:space-between; }
+.slide-el-list{ display:grid; gap:6px; }
+.slide-el-item{ border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:#fbfdfe; cursor:pointer; font-size:13px; font-weight:700; color:var(--blue-ink); }
+.slide-el-item:hover,.slide-el-item.active{ background:rgba(76,168,221,.08); border-color:var(--blue-mid); }
+.slide-el-field{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+.slide-el-field label{ font-size:11px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; }
+.slide-el-field input,.slide-el-field textarea,.slide-el-field select{ width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-family:'Nunito',sans-serif; font-size:13px; color:var(--ink); background:#fff; box-sizing:border-box; }
+.slide-el-field textarea{ min-height:60px; resize:vertical; }
+.slide-el-field input[type=color]{ height:34px; padding:2px 4px; }
+/* Regenerate input row */
+.regen-row{ display:none; align-items:center; gap:8px; padding:8px 10px; background:rgba(155,81,224,.06); border:1px solid rgba(155,81,224,.25); border-radius:8px; flex-wrap:wrap; }
+.regen-row.open{ display:flex; }
+.regen-row input{ flex:1; min-width:160px; border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:13px; color:var(--ink); }
+/* JSON textarea */
 .suspicious-slide-json{ width:100%; min-height:120px; border:2px solid var(--line); border-radius:8px; padding:10px; font-family:monospace; font-size:12px; background:#fbfdfe; color:var(--ink); resize:vertical; display:none; }
 .suspicious-slide-json:focus{ border-color:var(--blue-mid); outline:none; box-shadow:0 0 0 3px rgba(76,168,221,.18); }
+.review-session-counts{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.suspicious-count{ font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
+.suspicious-count.clean{ color:var(--success); background:rgba(76,175,109,.12); }
+.suspicious-count.suspicious{ color:var(--gold-dark); background:rgba(253,200,70,.18); }
+.suspicious-count.excluded{ color:var(--ink-soft); background:var(--bg); }
+@media(max-width:680px){ .slide-preview-split{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -351,11 +378,12 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
 
         <!-- Sub-step 5: Review Suspicious -->
         <div class="import-substep" data-substep="5">
-          <h3>Review Suspicious Slides</h3>
-          <div class="note"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Suspicious slides need your approval. Excluded slides (answer keys / rules) are shown for double-check. Clean slides are auto-approved.</div>
-          <div id="suspiciousReviewList" class="suspicious-review-list"></div>
+          <h3>Review &amp; Fix Suspicious Slides</h3>
+          <div class="note"><i class="fas fa-magic" style="margin-right:6px;"></i>Z-AI has automatically attempted to fix all suspicious &amp; excluded slides. Review the <strong>Before</strong> (original) and <strong>After</strong> (AI-fixed) versions. Approve, edit, regenerate with custom instructions, or delete. Clean slides are saved automatically.</div>
+          <div id="reviewSessionTabs" class="review-session-tabs"></div>
+          <div id="suspiciousReviewList"></div>
           <div class="save-row">
-            <button class="btn btn-primary big" onclick="confirmAndSaveAll()"><i class="fas fa-check-circle"></i> Confirm & Save All</button>
+            <button class="btn btn-primary big" onclick="confirmAndSaveAll()"><i class="fas fa-check-circle"></i> Confirm &amp; Save All</button>
             <button class="btn btn-outline" onclick="nextImportSubstep(1)"><i class="fas fa-arrow-left"></i> Back to Start</button>
           </div>
         </div>
@@ -1816,7 +1844,9 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
           excluded: res.excluded || [],
           filename: res.filename
         };
-        setStatus(sessionLabel(s) + ' converted: ' + (res.clean?.length||0) + ' clean, ' + (res.suspicious?.length||0) + ' suspicious, ' + (res.excluded?.length||0) + ' excluded.', 'success');
+        setStatus(sessionLabel(s) + ' converted: ' + (res.clean?.length||0) + ' clean, ' + (res.suspicious?.length||0) + ' suspicious, ' + (res.excluded?.length||0) + ' excluded. Auto-fixing suspicious slides with Z-AI...', 'info');
+        await autoFixAllSuspicious(key);
+        setStatus(sessionLabel(s) + ' done.', 'success');
       } catch (err) {
         setStatus('Conversion failed for ' + sessionLabel(s) + ': ' + err.message, 'error');
         importState.conversionResults[key] = { error: err.message };
@@ -1825,101 +1855,143 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     }
     conversionActive = null;
     btn.disabled = false;
-    setStatus('All conversions complete. Review suspicious slides.', 'success');
+    setStatus('All conversions complete. Z-AI has attempted fixes on suspicious slides. Review them now.', 'success');
     nextImportSubstep(5);
+  }
+
+  async function autoFixAllSuspicious(key) {
+    const res = importState.conversionResults[key];
+    if (!res) return;
+    const toFix = [
+      ...(res.suspicious || []),
+      ...(res.excluded || [])
+    ];
+    for (const sl of toFix) {
+      if (sl.fixedSlide) continue;
+      try {
+        const r = await callBackend({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(sl.slide) });
+        if (r.success && r.fixedSlide) {
+          sl.fixedSlide = r.fixedSlide;
+        }
+      } catch(e) {
+        sl.fixedSlide = sl.slide;
+      }
+    }
+  }
+
+  let reviewState = { activeSession: null };
+
+  function getAllSlides(key) {
+    const res = importState.conversionResults[key];
+    if (!res) return [];
+    return [
+      ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean', fixedSlide: null })),
+      ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason, fixedSlide: sl.fixedSlide || null })),
+      ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason, fixedSlide: sl.fixedSlide || null }))
+    ];
   }
 
   function renderSuspiciousReview(){
     const list = $('suspiciousReviewList');
-    let html = '';
-    for (const s of importState.selectedSessions) {
-      const key = sessionKey(s);
-      const res = importState.conversionResults[key];
-      if (!res) continue;
-      const allSlides = [
-        ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-        ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-        ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-      ];
-      if (!allSlides.length) continue;
-      html += '<div class="suspicious-session-group">' +
-        '<div class="suspicious-session-header">' +
-          '<span class="suspicious-session-title">' + sessionLabel(s) + '</span>' +
-          '<div class="suspicious-session-counts">' +
-            '<span class="suspicious-count clean"><i class="fas fa-check"></i> ' + (res.clean?.length||0) + ' clean</span>' +
-            '<span class="suspicious-count suspicious"><i class="fas fa-exclamation-triangle"></i> ' + (res.suspicious?.length||0) + ' suspicious</span>' +
-            '<span class="suspicious-count excluded"><i class="fas fa-ban"></i> ' + (res.excluded?.length||0) + ' excluded</span>' +
+    const tabsEl = $('reviewSessionTabs');
+    const sessions = importState.selectedSessions.filter(s => importState.conversionResults[sessionKey(s)]);
+    if (!reviewState.activeSession || !sessions.find(s => sessionKey(s) === reviewState.activeSession)) {
+      reviewState.activeSession = sessions.length ? sessionKey(sessions[0]) : null;
+    }
+    if (tabsEl) {
+      tabsEl.innerHTML = sessions.map(s => {
+        const k = sessionKey(s);
+        const r = importState.conversionResults[k] || {};
+        const suspCount = (r.suspicious||[]).length + (r.excluded||[]).length;
+        return '<button class="review-session-tab' + (k === reviewState.activeSession ? ' active' : '') + '" onclick="switchReviewTab(\'' + k + '\')">' +
+          sessionLabel(s) +
+          (suspCount > 0 ? '<span class="tab-badge">' + suspCount + '</span>' : '') +
+        '</button>';
+      }).join('');
+    }
+
+    const activeKey = reviewState.activeSession;
+    const activeSess = sessions.find(s => sessionKey(s) === activeKey);
+    if (!activeSess) { list.innerHTML = '<div class="note">No sessions to review.</div>'; return; }
+
+    const res = importState.conversionResults[activeKey];
+    if (!res || res.error) { list.innerHTML = '<div class="note status error">' + escHtml(res ? res.error : 'No result') + '</div>'; return; }
+
+    const allSlides = getAllSlides(activeKey);
+
+    let html = '<div class="review-session-counts">' +
+        '<span class="suspicious-count clean"><i class="fas fa-check"></i> ' + (res.clean?.length||0) + ' clean</span>' +
+        '<span class="suspicious-count suspicious"><i class="fas fa-exclamation-triangle"></i> ' + (res.suspicious?.length||0) + ' suspicious</span>' +
+        '<span class="suspicious-count excluded"><i class="fas fa-ban"></i> ' + (res.excluded?.length||0) + ' excluded</span>' +
+      '</div>';
+
+    allSlides.forEach((item, idx) => {
+      const slide = item.slide;
+      const status = item.status;
+      const reason = item.reason || '';
+      const hasFixed = !!item.fixedSlide;
+      const badgeCls = status === 'suspicious' ? 'suspicious' : status === 'excluded' ? 'excluded' : 'clean';
+      html += '<div class="suspicious-slide-card' + (status === 'excluded' ? ' excluded' : status === 'clean' ? ' clean-card' : '') + '" data-session="' + activeKey + '" data-idx="' + idx + '">' +
+        '<div class="suspicious-slide-header">' +
+          '<span class="suspicious-slide-idx">' + (idx+1) + '</span>' +
+          '<input class="suspicious-slide-title" value="' + escAttr(slide.title) + '" onchange="updateImportSlideTitle(\'' + activeKey + '\', ' + idx + ', this.value)">' +
+          '<span class="suspicious-slide-badge ' + badgeCls + '">' + status.toUpperCase() + '</span>' +
+          (reason ? '<span class="suspicious-slide-reason"><i class="fas fa-info-circle"></i> ' + escHtml(reason) + '</span>' : '') +
+          '<div class="suspicious-slide-actions">' +
+            (status !== 'clean' ? '<button class="btn btn-outline btn-sm" onclick="approveImportSlide(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-check"></i> Approve</button>' : '') +
+            (status !== 'clean' ? '<button class="btn btn-outline btn-sm" onclick="useFixedSlide(\'' + activeKey + '\', ' + idx + ')" style="color:var(--success);"><i class="fas fa-magic"></i> Use AI Fix</button>' : '') +
+            (status === 'excluded' ? '<button class="btn btn-outline btn-sm" onclick="restoreExcludedSlide(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-undo"></i> Restore</button>' : '') +
+            '<button class="btn btn-outline btn-sm" onclick="openSlideEditor(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-pen"></i> Edit</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="toggleRegenRow(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-robot"></i> Z-AI</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="toggleImportSlideJson(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-code"></i> JSON</button>' +
+            '<button class="btn btn-outline btn-sm" style="color:var(--error); border-color:rgba(217,69,92,.4);" onclick="deleteImportSlide(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-trash"></i> Delete</button>' +
           '</div>' +
         '</div>' +
-        '<div class="suspicious-slide-list">';
-      allSlides.forEach((item, idx) => {
-        const slide = item.slide;
-        const status = item.status;
-        const reason = item.reason || '';
-        html += '<div class="suspicious-slide-card' + (status==='excluded' ? ' excluded' : '') + '" data-session="' + key + '" data-idx="' + idx + '">' +
-          '<div class="suspicious-slide-header">' +
-            '<span class="suspicious-slide-idx">' + (idx+1) + '</span>' +
-            '<input class="suspicious-slide-title" value="' + escAttr(slide.title) + '" onchange="updateImportSlideTitle(\'' + key + '\', ' + idx + ', this.value)">' +
-            '<span class="suspicious-slide-badge ' + (status==='suspicious'?'suspicious':status==='excluded'?'excluded':'restored') + '">' + status.toUpperCase() + '</span>' +
-            '<span class="suspicious-slide-reason">' + escHtml(reason) + '</span>' +
-            '<div class="suspicious-slide-actions">' +
-              (status !== 'clean' ? '<button class="btn btn-outline btn-sm" onclick="approveImportSlide(\'' + key + '\', ' + idx + ')"><i class="fas fa-check"></i> Approve</button>' : '') +
-              (status !== 'clean' ? '<button class="btn btn-outline btn-sm danger" onclick="rejectImportSlide(\'' + key + '\', ' + idx + ')"><i class="fas fa-times"></i> Reject</button>' : '') +
-              (status === 'excluded' ? '<button class="btn btn-outline btn-sm" onclick="restoreExcludedSlide(\'' + key + '\', ' + idx + ')"><i class="fas fa-undo"></i> Restore</button>' : '') +
-              '<button class="btn btn-outline btn-sm" onclick="toggleImportSlideJson(\'' + key + '\', ' + idx + ')"><i class="fas fa-code"></i> JSON</button>' +
-              '<button class="btn btn-outline btn-sm" onclick="regenerateImportSlide(\'' + key + '\', ' + idx + ')"><i class="fas fa-redo"></i> Regenerate</button>' +
-            '</div>' +
+        '<div class="suspicious-slide-body">' +
+          '<div class="regen-row" id="regenRow_' + activeKey + '_' + idx + '">' +
+            '<i class="fas fa-robot" style="color:#9b51e0;"></i>' +
+            '<input type="text" placeholder="Optional: give Z-AI instructions (e.g. make it fill-in-the-blank)" id="regenInstr_' + activeKey + '_' + idx + '">' +
+            '<button class="btn btn-primary btn-sm" onclick="runRegenerate(\'' + activeKey + '\', ' + idx + ')"><i class="fas fa-play"></i> Run Z-AI</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="toggleRegenRow(\'' + activeKey + '\', ' + idx + ')">Cancel</button>' +
           '</div>' +
-          '<div class="suspicious-slide-body">' +
-            '<iframe class="suspicious-slide-preview" sandbox="allow-scripts allow-same-origin allow-presentation" title="Slide preview"></iframe>' +
-            '<textarea class="suspicious-slide-json" onchange="applyImportSlideJson(\'' + key + '\', ' + idx + ', this.value)"></textarea>' +
+          '<div class="slide-preview-split' + (hasFixed ? '' : ' single') + '">' +
+            (hasFixed ? '<div class="slide-preview-panel"><div class="slide-preview-label before"><i class="fas fa-clock-rotate-left"></i> Original (Before)</div><iframe class="suspicious-slide-preview before-frame" sandbox="allow-scripts allow-same-origin allow-presentation" title="Before"></iframe></div>' : '') +
+            '<div class="slide-preview-panel"><div class="slide-preview-label after"><i class="fas fa-wand-magic-sparkles"></i>' + (hasFixed ? ' AI Fixed (After)' : ' Preview') + '</div><iframe class="suspicious-slide-preview after-frame" sandbox="allow-scripts allow-same-origin allow-presentation" title="After"></iframe></div>' +
           '</div>' +
-        '</div>';
-      });
-      html += '</div></div>';
-    }
+          '<div class="slide-inline-editor" id="slideEditor_' + activeKey + '_' + idx + '"></div>' +
+          '<textarea class="suspicious-slide-json" id="jsonArea_' + activeKey + '_' + idx + '" onchange="applyImportSlideJson(\'' + activeKey + '\', ' + idx + ', this.value)"></textarea>' +
+        '</div>' +
+      '</div>';
+    });
+
     list.innerHTML = html;
 
-    // render previews
     list.querySelectorAll('.suspicious-slide-card').forEach(card => {
-      const key = card.dataset.session;
+      const k = card.dataset.session;
       const idx = parseInt(card.dataset.idx, 10);
-      const res = importState.conversionResults[key];
-      if (!res) return;
-      const allSlides = [
-        ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-        ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-        ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-      ];
       const item = allSlides[idx];
-      if (item) {
-        const iframe = card.querySelector('.suspicious-slide-preview');
-        iframe.srcdoc = previewDoc(item.slide);
-        const jsonArea = card.querySelector('.suspicious-slide-json');
-        jsonArea.value = JSON.stringify(item.slide, null, 2);
-      }
+      if (!item) return;
+      const afterFrame = card.querySelector('.after-frame');
+      if (afterFrame) afterFrame.srcdoc = previewDoc(item.fixedSlide || item.slide);
+      const beforeFrame = card.querySelector('.before-frame');
+      if (beforeFrame) beforeFrame.srcdoc = previewDoc(item.slide);
+      const jsonArea = card.querySelector('.suspicious-slide-json');
+      if (jsonArea) jsonArea.value = JSON.stringify(item.fixedSlide || item.slide, null, 2);
     });
   }
 
+  function switchReviewTab(key) {
+    reviewState.activeSession = key;
+    renderSuspiciousReview();
+  }
+
   function updateImportSlideTitle(key, idx, title){
-    const res = importState.conversionResults[key];
-    if (!res) return;
-    const allSlides = [
-      ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-      ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-      ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-    ];
+    const allSlides = getAllSlides(key);
     if (allSlides[idx]) allSlides[idx].slide.title = title;
   }
 
   function approveImportSlide(key, idx){
-    const res = importState.conversionResults[key];
-    if (!res) return;
-    const allSlides = [
-      ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-      ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-      ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-    ];
+    const allSlides = getAllSlides(key);
     if (allSlides[idx]) {
       allSlides[idx].status = 'clean';
       rebuildResult(key, allSlides);
@@ -1927,27 +1999,26 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     }
   }
 
-  function rejectImportSlide(key, idx){
-    const res = importState.conversionResults[key];
-    if (!res) return;
-    const allSlides = [
-      ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-      ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-      ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-    ];
+  function useFixedSlide(key, idx){
+    const allSlides = getAllSlides(key);
+    if (allSlides[idx] && allSlides[idx].fixedSlide) {
+      allSlides[idx].slide = allSlides[idx].fixedSlide;
+      allSlides[idx].status = 'clean';
+      rebuildResult(key, allSlides);
+      renderSuspiciousReview();
+    }
+  }
+
+  function deleteImportSlide(key, idx){
+    if (!confirm('Delete this slide permanently from the session?')) return;
+    const allSlides = getAllSlides(key);
     allSlides.splice(idx, 1);
     rebuildResult(key, allSlides);
     renderSuspiciousReview();
   }
 
   function restoreExcludedSlide(key, idx){
-    const res = importState.conversionResults[key];
-    if (!res) return;
-    const allSlides = [
-      ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-      ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-      ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-    ];
+    const allSlides = getAllSlides(key);
     if (allSlides[idx]) {
       allSlides[idx].status = 'suspicious';
       rebuildResult(key, allSlides);
@@ -1959,45 +2030,63 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     const res = importState.conversionResults[key];
     if (!res) return;
     res.clean = allSlides.filter(s => s.status === 'clean').map(s => s.slide);
-    res.suspicious = allSlides.filter(s => s.status === 'suspicious').map(s => ({ slide: s.slide, reason: s.reason }));
-    res.excluded = allSlides.filter(s => s.status === 'excluded').map(s => ({ slide: s.slide, reason: s.reason }));
+    res.suspicious = allSlides.filter(s => s.status === 'suspicious').map(s => ({ slide: s.slide, reason: s.reason, fixedSlide: s.fixedSlide }));
+    res.excluded = allSlides.filter(s => s.status === 'excluded').map(s => ({ slide: s.slide, reason: s.reason, fixedSlide: s.fixedSlide }));
   }
 
   function toggleImportSlideJson(key, idx){
-    const card = document.querySelector('.suspicious-slide-card[data-session="' + key + '"][data-idx="' + idx + '"]');
-    if (!card) return;
-    const area = card.querySelector('.suspicious-slide-json');
-    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+    const area = $('jsonArea_' + key + '_' + idx);
+    if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function toggleRegenRow(key, idx) {
+    const row = $('regenRow_' + key + '_' + idx);
+    if (row) row.classList.toggle('open');
   }
 
   function applyImportSlideJson(key, idx, jsonText){
     try {
       const slide = JSON.parse(jsonText);
-      const res = importState.conversionResults[key];
-      if (!res) return;
-      const allSlides = [
-        ...(res.clean||[]).map(sl => ({ slide: sl, status: 'clean' })),
-        ...(res.suspicious||[]).map(sl => ({ slide: sl.slide, status: 'suspicious', reason: sl.reason })),
-        ...(res.excluded||[]).map(sl => ({ slide: sl.slide, status: 'excluded', reason: sl.reason }))
-      ];
+      const allSlides = getAllSlides(key);
       if (allSlides[idx]) {
         allSlides[idx].slide = slide;
-        // re-render preview
+        allSlides[idx].fixedSlide = slide;
+        rebuildResult(key, allSlides);
         const card = document.querySelector('.suspicious-slide-card[data-session="' + key + '"][data-idx="' + idx + '"]');
         if (card) {
-          const iframe = card.querySelector('.suspicious-slide-preview');
-          iframe.srcdoc = previewDoc(slide);
+          const af = card.querySelector('.after-frame');
+          if (af) af.srcdoc = previewDoc(slide);
         }
-        rebuildResult(key, allSlides);
       }
     } catch (err) {
       alert('Invalid JSON: ' + err.message);
     }
   }
 
-  async function regenerateImportSlide(key, idx){
-    // For simplicity, mark as suspicious with a note that user should regenerate in main agent
-    setStatus('Use the main "Generate Slides" step to regenerate individual slides.', 'info');
+  async function runRegenerate(key, idx){
+    const instrEl = $('regenInstr_' + key + '_' + idx);
+    const instructions = instrEl ? instrEl.value.trim() : '';
+    const allSlides = getAllSlides(key);
+    const item = allSlides[idx];
+    if (!item) return;
+    const card = document.querySelector('.suspicious-slide-card[data-session="' + key + '"][data-idx="' + idx + '"]');
+    if (card) {
+      const af = card.querySelector('.after-frame');
+      if (af) af.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100%;background:#EFF5F9;font-family:sans-serif;color:#4CA8DD;"><div><i class="fas fa-spinner fa-spin"></i> Z-AI is working...</div></body></html>';
+    }
+    toggleRegenRow(key, idx);
+    try {
+      const r = await callBackend({ action: 'autoFixSlide', token: sessionToken, slideJson: JSON.stringify(item.slide), instructions });
+      if (r.expired) { alert('Session expired.'); location.href='index.html'; return; }
+      if (!r.success) throw new Error(r.message);
+      item.fixedSlide = r.fixedSlide;
+      rebuildResult(key, allSlides);
+      renderSuspiciousReview();
+      setStatus('Z-AI regenerated slide ' + (idx+1) + '.', 'success');
+    } catch(err) {
+      setStatus('Regenerate failed: ' + err.message, 'error');
+      renderSuspiciousReview();
+    }
   }
 
   async function confirmAndSaveAll(){
@@ -2090,8 +2179,16 @@ window.generateSlides = generateSlides;
   window.restoreExcludedSlide = restoreExcludedSlide;
   window.toggleImportSlideJson = toggleImportSlideJson;
   window.applyImportSlideJson = applyImportSlideJson;
-  window.regenerateImportSlide = regenerateImportSlide;
   window.updateImportSlideTitle = updateImportSlideTitle;
+  window.switchReviewTab = switchReviewTab;
+  window.useFixedSlide = useFixedSlide;
+  window.deleteImportSlide = deleteImportSlide;
+  window.openSlideEditor = openSlideEditor;
+  window.applySlideEditor = applySlideEditor;
+  window.toggleRegenRow = toggleRegenRow;
+  window.runRegenerate = runRegenerate;
+  window.toggleAudioCreator = toggleAudioCreator;
+  window.seekAudioCreator = seekAudioCreator;
   window.showImportStep = function(){
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     $('importStep').classList.add('active');
