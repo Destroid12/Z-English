@@ -499,10 +499,16 @@ function toggleAudioCreator(btn){
   var blocks=getBlocks(player); if(!blocks.length){ if(text)text.textContent='No audio blocks'; return; }
   var txt=blocks.map(function(b){return b.text||'';}).join(' ');
   var msg=new SpeechSynthesisUtterance(txt);
-  var voiceName=(blocks[0]&&blocks[0].voice)||'';
+  var voiceName=(blocks[0]&&blocks[0].voice)||'Z-AI (Male)';
   try{
     var voices=window.speechSynthesis.getVoices()||[];
-    var pick=voices.filter(function(v){return voiceName.toLowerCase().indexOf('female')>=0?/(female|zira|samantha)/i.test(v.name):/(male|david|daniel|mark|george)/i.test(v.name);});
+    var pick=[];
+    if(voiceName.indexOf('Female')>=0){
+      pick=voices.filter(function(v){return /(female|zira|samantha|victoria|karen|google.*female)/i.test(v.name);});
+    }else{
+      pick=voices.filter(function(v){return /(male|david|daniel|mark|george|google.*male)/i.test(v.name);});
+    }
+    if(!pick.length && voices.length) pick=[voices[0]];
     if(pick.length) msg.voice=pick[0];
   }catch(e){}
   msg.rate=0.92; msg.pitch=1;

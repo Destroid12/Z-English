@@ -2361,14 +2361,14 @@ const FIXER_SHARED_RULES =
   '- "select": dropdown menu. Example: { "qtype": "select", "answer": "apples", "altAnswers": [], "options": ["apples", "banana", "bread"] }\n' +
   '- "radio": single choice clickable buttons. Example: { "qtype": "radio", "answer": "blue", "altAnswers": [], "options": ["red", "blue", "green"] }\n' +
   '- "checkbox": multi-select checkboxes. "answer" is comma-separated correct keys. Example: { "qtype": "checkbox", "answer": "dog,cat", "altAnswers": [], "options": ["dog", "cat", "chair", "table"] }\n' +
-  '- "match": matching pairs. "options" is array of "left|right". Example: { "qtype": "match", "options": ["Dog | Animal", "Apple | Fruit"] }\n' +
+  '- "match": matching pairs. "options" MUST BE NON-EMPTY array of "Left | Right" pairs (minimum 4-6 pairs)! Example: { "qtype": "match", "options": ["played | Regular Past", "went | Irregular Past", "visited | Regular Past", "bought | Irregular Past"] }\n' +
   '- "schedule": drag/drop ordering. Example: { "qtype": "schedule", "options": ["First", "Second", "Third"] }\n' +
   '- "wordbank": unscramble sentence. Example: { "qtype": "wordbank", "options": ["is", "This", "good"], "answer": "This is good." }\n' +
   '- "voice": voice-recording question (the student speaks the answer and the AI grades it). Example: { "qtype": "voice", "answer": "My name is Sarah", "altAnswers": ["I am Sarah"], "options": [], "strict": false, "tips": true, "aiInstructions": "Accept any correct introduction" }\n' +
   '     * For "voice" blanks the student taps a "Tap to Speak" microphone button. Set a clear expected "answer" (and optional "altAnswers" / "aiInstructions") so the AI can check what they say.\n\n' +
   '### 6. kind: "audiocreator" (AUDIO DIALOGUE / LISTENING PLAYER)\n' +
-  '{ "id": "ai_aud1", "kind": "audiocreator", "pos": null, "blocks": [{ "voice": "Z-AI (Male)", "text": "Hello, welcome to the lesson." }, { "voice": "US English (Female)", "text": "Nice to meet you!" }] }\n' +
-  'Use kind:"audiocreator" for listening activities: spoken dialogues, conversations, pronunciation examples, audio exercises. Each entry in "blocks" has a "voice" (who speaks) and the "text" to be read aloud. Allowed "voice" values: "Z-AI (Male)", "Z-AI (Female)", "US English (Male)", "US English (Female)", "UK English (Male)", "UK English (Female)", "Australian (Male)", "Australian (Female)".\n\n';
+  '{ "id": "ai_aud1", "kind": "audiocreator", "pos": null, "blocks": [{ "voice": "Z-AI (Male)", "text": "Hello, welcome to the lesson." }, { "voice": "Z-AI (Female)", "text": "Nice to meet you!" }] }\n' +
+  'DEFAULT VOICES: Default to "Z-AI (Male)" and "Z-AI (Female)". Each block in "blocks" MUST have a "voice" property set to "Z-AI (Male)" or "Z-AI (Female)" (or "US English (Male)", "UK English (Female)", etc.).\n\n';
 
 const FIXER_SYSTEM_PROMPT =
   'You are an expert educational slide fixer for the Z-English learning platform.\n' +
@@ -2461,13 +2461,13 @@ const AGENT_SLIDE_GENERATOR_PROMPT =
   '   For bullet points / agenda / vocabulary chunks / steps.\n' +
   '3. kind "question": { "id":"el_3", "kind":"question", "prompt":"Question text with [blank]", "font":"", "blanks":[{ "qtype":"text"|"select"|"radio"|"match"|"wordbank"|"schedule"|"voice", "answer":"...", "altAnswers":[], "options":[], "strict":false, "tips":true, "aiInstructions":"" }] }\n' +
   '   - "text": short-answer input. "select"/"radio": multiple choice (put the choices in options, the correct one in answer).\n' +
-  '   - "match": matching pairs — each entry in options like "left | right" (or "left - right").\n' +
+  '   - "match": matching pairs — "options" MUST BE A NON-EMPTY ARRAY of "Left | Right" pairs (minimum 4-6 pairs)! Example: { "qtype": "match", "options": ["played | Regular Past", "went | Irregular Past", "visited | Regular Past", "bought | Irregular Past"] }\n' +
   '   - "wordbank": options is the word bank, answer is the correct word(s).\n' +
   '   - "schedule": put the items in their correct order — options is the correct order.\n' +
   '   - "voice": student records their spoken answer (answer is the expected phrase). Use ONLY for speak-the-answer drills.\n' +
   '   Use [blank] markers in prompt text, one per blank, and one matching blank object per [blank].\n' +
-  '4. kind "audiocreator": { "id":"el_4", "kind":"audiocreator", "blocks":[ {"voice":"US English (Female)","text":"Hello!"}, {"voice":"UK English (Male)","text":"Hi there."} ] }\n' +
-  '   For spoken dialogues / listening practice. Allowed voices: "Z-AI (Male)", "Z-AI (Female)", "US English (Male)", "US English (Female)", "UK English (Male)", "UK English (Female)", "Australian (Male)", "Australian (Female)". Use distinct voices per speaker.\n' +
+  '4. kind "audiocreator": { "id":"el_4", "kind":"audiocreator", "blocks":[ {"voice":"Z-AI (Male)","text":"Hello!"}, {"voice":"Z-AI (Female)","text":"Hi there."} ] }\n' +
+  '   For spoken dialogues / listening practice. DEFAULT VOICES: Always default to "Z-AI (Male)" and "Z-AI (Female)". Use distinct voices per speaker.\n' +
   '5. kind "speaking": { "id":"el_5", "kind":"speaking", "text":"Practice saying: ...", "color":"#1E6FA6", "bgColor":"#EAF4FC", "bold":true }\n' +
   '   STRICTLY for dedicated speaking drills ONLY (title says "Speaking Practice", "Pronunciation", "Say Aloud", "Oral Task"). NEVER for general dialogue or reading text.\n' +
   '6. kind "link": { "id":"el_6", "kind":"link", "url":"https://...", "text":"Click here", "subtext":"" }\n' +
@@ -2477,7 +2477,7 @@ const AGENT_SLIDE_GENERATOR_PROMPT =
   '## SESSION DESIGN RULES\n' +
   '1. Follow the teacher\'s brief exactly: topic, target language (grammar/vocab), age level, and how many slides.\n' +
   '2. Structure the session like a real lesson: warm-up, teach/present, guided practice, freer practice/activity, wrap-up.\n' +
-  '3. Keep each slide focused (one idea per slide). Titles short and student-friendly. Text in clear, level-appropriate English.\n' +
+  '3. RICH SLIDE CONTENT: Create rich, detailed, comprehensive slides! Include full sentences, clear grammar rules, multiple example sentences, and complete exercise options. DO NOT make sparse or empty slides!\n' +
   '4. Include interactive practice: turn several screens into kind "question" / "audiocreator" activities, not just reading.\n' +
   '5. Do NOT include teacher-only content (answer keys, answer sheets, marking schemes, model answers, teacher notes, solutions).\n' +
   '6. Language: write the lesson IN ENGLISH unless the brief says the target language is something else.\n\n' +
