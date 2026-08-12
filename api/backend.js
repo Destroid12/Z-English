@@ -888,6 +888,51 @@ async function _getMediaUploadUrl(p) {
   }
 }
 
+const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+// Signed-upload URL for a PowerPoint file. The browser PUTs the .pptx straight to
+// Supabase Storage (bypasses Vercel's ~4.5MB body limit), then passes the public URL
+// to agentPptxImport for parsing + conversion.
+async function _agentPptxUploadUrl(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const rawFilename = String(p.filename || 'upload.pptx');
+  const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const mimeType = String(p.mimeType || 'application/octet-stream');
+  const fileSize = Number(p.fileSize || 0);
+
+  if (fileSize > AGENT_MAX_PPTX_BYTES) {
+    return {
+      success: false,
+      message: 'File is too large. Please keep PowerPoint files under ' + Math.round(AGENT_MAX_PPTX_BYTES / 1024 / 1024) + 'MB.'
+    };
+  }
+
+  const key = 'pptx_' + Date.now() + '_' + filename;
+  try {
+    const { data: signedData, error: signErr } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUploadUrl(key);
+    if (signErr) throw new Error(signErr.message);
+
+    const { data: pubData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+    const publicUrl = pubData && pubData.publicUrl ? pubData.publicUrl : '';
+
+    return {
+      success: true,
+      signedUrl: signedData.signedUrl,
+      token: signedData.token,
+      path: signedData.path,
+      fileId: key,
+      publicUrl: publicUrl
+    };
+  } catch (err) {
+    console.error('agentPptxUploadUrl error:', err);
+    return { success: false, message: 'Failed to generate upload URL: ' + err.message };
+  }
+}
+
 async function _finalizeMediaUpload(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
@@ -3318,6 +3363,351 @@ async function _agentImportAndReview(p) {
   return { success: true, slides: approvedSlides, flaggedSlides: flaggedSlides, totalSlides: resultSlides.length };
 }
 
+// =====================================================================
+// Detailed PPTX import pipeline (multi-session "Import PPTX" agent flow)
+// =====================================================================
+
+function _pptxMimeFromName(name) {
+  const lower = String(name || '').toLowerCase();
+  if (/\.png$/.test(lower)) return 'image/png';
+  if (/\.jpe?g$/.test(lower)) return 'image/jpeg';
+  if (/\.gif$/.test(lower)) return 'image/gif';
+  if (/\.webp$/.test(lower)) return 'image/webp';
+  if (/\.bmp$/.test(lower)) return 'image/bmp';
+  if (/\.svg$/.test(lower)) return 'image/svg+xml';
+  if (/\.mp3$/.test(lower)) return 'audio/mpeg';
+  if (/\.wav$/.test(lower)) return 'audio/wav';
+  if (/\.m4a$/.test(lower)) return 'audio/mp4';
+  if (/\.aac$/.test(lower)) return 'audio/aac';
+  if (/\.oga?$/.test(lower)) return 'audio/ogg';
+  if (/\.flac$/.test(lower)) return 'audio/flac';
+  if (/\.mov$/.test(lower)) return 'video/quicktime';
+  if (/\.webm$/.test(lower)) return 'video/webm';
+  if (/\.avi$/.test(lower)) return 'video/x-msvideo';
+  return 'application/octet-stream';
+}
+
+function _pptxMediaTypeFromName(name) {
+  const lower = String(name || '').toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return 'image';
+  if (/\.(mp3|wav|m4a|aac|oga?|flac)$/.test(lower)) return 'audio';
+  if (/\.(mov|webm|avi|mp4)$/.test(lower)) return 'video';
+  return 'other';
+}
+
+// Same as _parsePptxBuffer but also pulls the actual embedded media bytes out of the
+// zip, so images can be read by Gemini and stored, and audio can be transcribed.
+async function _parsePptxDetailed(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const slideEntries = [];
+  zip.forEach((relativePath, entry) => {
+    const match = /^ppt\/slides\/slide(\d+)\.xml$/i.exec(relativePath);
+    if (match && !entry.dir) slideEntries.push({ num: parseInt(match[1], 10), entry });
+  });
+  slideEntries.sort((a, b) => a.num - b.num);
+  const slides = [];
+  for (const item of slideEntries) {
+    const xml = await item.entry.async('string');
+    const texts = _extractPptxTexts(xml);
+    let notes = '';
+    const notesEntry = zip.file('ppt/notesSlides/notesSlide' + item.num + '.xml');
+    if (notesEntry) notes = _extractPptxTexts(await notesEntry.async('string')).join('\n');
+    const media = [];
+    const relsEntry = zip.file('ppt/slides/_rels/slide' + item.num + '.xml.rels');
+    if (relsEntry) {
+      const targets = _extractPptxMediaTargets(await relsEntry.async('string'));
+      for (const target of targets) {
+        const base = target.split('/').pop();
+        const mediaEntry = zip.file('ppt/media/' + base);
+        if (!mediaEntry) continue;
+        const mimeType = _pptxMimeFromName(base);
+        const type = _pptxMediaTypeFromName(base);
+        const buf = await mediaEntry.async('nodebuffer');
+        media.push({
+          name: base,
+          type: type,
+          mimeType: mimeType,
+          size: buf.length,
+          base64: (type === 'image' || type === 'audio') ? buf.toString('base64') : ''
+        });
+      }
+    }
+    slides.push({
+      slideIndex: item.num,
+      totalSlides: slideEntries.length,
+      title: texts[0] || '',
+      text: texts.join('\n'),
+      notes: notes,
+      media: media
+    });
+  }
+  return slides;
+}
+
+// Uploads a pptx's images/videos to Supabase Storage. Audio is intentionally skipped —
+// embedded audio is transcribed and regenerated as TTS Audio Creator blocks.
+async function _uploadPptxMediaToStorage(mediaList) {
+  const results = [];
+  for (const m of mediaList) {
+    if (m.type !== 'image' && m.type !== 'video') continue;
+    if (!m.base64 && !m.buffer) continue;
+    if (m.size > MAX_MEDIA_UPLOAD_BYTES) continue;
+    const safeName = String(m.name || 'media').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = 'pptmedia_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + safeName;
+    try {
+      const bytes = m.buffer ? m.buffer : Buffer.from(m.base64, 'base64');
+      const { error: upErr } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(key, bytes, { contentType: m.mimeType || 'application/octet-stream' });
+      if (upErr) throw new Error(upErr.message);
+      const { data: pubData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+      results.push({ name: m.name, type: m.type, url: pubData && pubData.publicUrl ? pubData.publicUrl : '' });
+    } catch (err) {
+      console.warn('ppt media upload failed for ' + (m.name || '') + ': ' + err.message);
+      results.push({ name: m.name, type: m.type, url: '' });
+    }
+  }
+  return results;
+}
+
+// Transcribes embedded audio with Gemini so it can be rebuilt as TTS Audio Creator
+// listening blocks. Capped at AGENT_PPTX_MAX_AUDIO files per deck.
+async function _transcribePptxAudio(mediaList) {
+  const MAX_AUDIO = 6;
+  const list = (mediaList || [])
+    .filter(m => m.type === 'audio' && m.base64)
+    .slice(0, MAX_AUDIO);
+  if (list.length === 0) return {};
+  const results = {};
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= list.length) return;
+      const item = list[idx];
+      const key = item.slideIndex + ':' + item.name;
+      try {
+        const reply = await _callGemini(
+          'You are a transcription engine. Transcribe the spoken audio exactly and completely. ' +
+          'If there are multiple speakers, label turns as "Speaker A: ..." / "Speaker B: ...". ' +
+          'Return ONLY the transcript text with no extra commentary.',
+          [{ role: 'user', parts: [
+            { text: 'Transcribe this audio clip exactly.' },
+            { inlineData: { mimeType: item.mimeType || 'audio/mpeg', data: item.base64 } }
+          ] }],
+          { maxOutputTokens: 4096, temperature: 0 });
+        results[key] = reply;
+      } catch (err) {
+        console.warn('ppt audio transcription failed for ' + item.name + ': ' + err.message);
+        results[key] = '';
+      }
+    }
+  }
+  const workers = [];
+  const count = Math.min(AGENT_CONCURRENCY, list.length);
+  for (let i = 0; i < count; i++) workers.push(worker());
+  await Promise.all(workers);
+  return results;
+}
+
+const AGENT_PPTX_IMPORT_PROMPT =
+  'You are converting a teacher\'s PowerPoint presentation into a native Z-English interactive lesson. ' +
+  'You receive: (1) a deck outline with each slide\'s text, speaker notes, any audio transcript, and tagged media, and ' +
+  '(2) some slide images as multimodal inputs tagged exactly [IMAGE:0], [IMAGE:1], ... (only tags marked "shown" below are attached; ' +
+  'for "not shown" images rely on their filename and the slide text).\n\n' +
+  'OUTPUT FORMAT: return ONLY a JSON array — one object per PowerPoint slide in the SAME ORDER as the outline, shaped exactly like:\n' +
+  '{\n' +
+  '  "exclude": true|false,\n' +
+  '  "suspicious": true|false,\n' +
+  '  "suspiciousReason": "short reason or empty string",\n' +
+  '  "slide": { "id": "slide_1", "type": "content"|"activity", "title": "...", "elements": [...] }\n' +
+  '}\n\n' +
+  'RULES:\n' +
+  '1. EXCLUSION: set exclude:true (and leave slide.elements empty) for any teacher-only slide: answer keys, answer sheets, marking schemes, ' +
+  'correction keys, model answers, teacher\'s copies/notes/guides, or slides containing إجابات / الإجابات / نموذج الإجابة. ' +
+  'Also exclude pure rules-of-the-game / teacher instruction slides if they are not student content.\n' +
+  '2. FIDELITY: preserve the deck\'s content exactly — names, numbers, dates, vocabulary, and answers. Never invent content that is not in the outline.\n' +
+  '3. ELEMENT KINDS (use exactly these):\n' +
+  '   - "paragraph": explanation text. fields: text, bold, size, align, color.\n' +
+  '   - "list": bullet list. field: items: [{ "text": "...", "time": "optional" }].\n' +
+  '   - "image": a real photo, illustration, diagram, chart, or graphic from the deck — USE it: { "kind":"image", "url":"[IMAGE:i]", "caption":"..." }. ' +
+  'NEVER output an image element for a worksheet-like image (see rule 4).\n' +
+  '   - "question": interactive exercise. field: prompt with [blank] markers, blanks: [{ "qtype":"text"|"select"|"radio"|"match"|"wordbank"|"schedule", "answer":"...", "options":["..."] }]. ' +
+  'For qtype "match" use options entries like "left | right".\n' +
+  '   - "speaking": speaking drill. field: text.\n' +
+  '   - "audiocreator": LISTENING material (embedded audio or audio transcript slides, dialogues, listening exercises). ' +
+  'field: blocks: [{ "text":"...", "voice":"US English (Female)"|"US English (Male)" }]. Split dialogue turns into separate blocks (one per speaker turn), ' +
+  'and base the block text EXACTLY on the provided audio transcript when one exists.\n' +
+  '   - "video": { "kind":"video", "url":"[VIDEO:i]" } if the slide has an embedded video.\n' +
+  '4. IMAGES: if an image is a worksheet, screenshot, grammar table, vocabulary list, phonetic chart, or scanned exercise whose text students should read, ' +
+  'TRANSCRIBE it into native paragraph/list/question elements and DO NOT output an image element. If it is real presentation art (photo, illustration, ' +
+  'diagram, character, chart graphic), output it as {kind:"image", url:"[IMAGE:i]"}. Never invent URLs.\n' +
+  '5. AUDIO: a slide with embedded audio becomes listening material → output an audiocreator element from its transcript. Never fabricate spoken text.\n' +
+  '6. SUSPICIOUS: set suspicious:true with a short suspiciousReason (under ~60 chars) when you are not confident the slide converted cleanly: ' +
+  'heavy or unclear images, possible missing text, ambiguous layout, uncertain (but not certain) answer material, or an empty-looking slide a teacher should double-check. ' +
+  'Excluded slides must have suspicious:false.\n' +
+  '7. Interactive exercises (fill-in-the-blank, matching, multiple choice, word order) become native "question" elements with blanks/options and correct answers. ' +
+  'Keep answer values exactly as shown in the deck.';
+
+function _normalizeImportedSlide(slide, index) {
+  if (!slide || typeof slide !== 'object') return null;
+  const normalized = {
+    id: String(slide.id || 'slide_' + (index + 1)),
+    type: (slide.type === 'activity') ? 'activity' : 'content',
+    title: String(slide.title || 'Untitled Slide'),
+    elements: Array.isArray(slide.elements) ? slide.elements.filter(function (el) { return el && el.kind; }) : []
+  };
+  normalized.elements.forEach(function (el, i) {
+    el.id = String(el.id || 'el_' + (index + 1) + '_' + (i + 1));
+    if (el.kind === 'question') {
+      el.prompt = String(el.prompt || '');
+      el.blanks = Array.isArray(el.blanks) ? el.blanks.filter(function (b) { return b && b.qtype && (b.answer !== undefined); }) : [];
+    }
+    if (el.url && typeof el.url !== 'string') el.url = String(el.url);
+  });
+  return normalized;
+}
+
+async function _agentPptxImport(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const pptxUrl = String(p.pptxUrl || '').trim();
+  const filename = String(p.filename || 'presentation.pptx');
+  if (!pptxUrl) return { success: false, message: 'Missing pptxUrl.' };
+
+  let buffer;
+  try {
+    const res = await fetch(pptxUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length > AGENT_MAX_PPTX_BYTES) {
+      return { success: false, message: 'File too large (max ' + Math.round(AGENT_MAX_PPTX_BYTES / 1024 / 1024) + 'MB)' };
+    }
+  } catch (err) {
+    return { success: false, message: 'PPTX download failed: ' + err.message };
+  }
+
+  let slides;
+  try {
+    slides = await _parsePptxDetailed(buffer);
+  } catch (err) {
+    return { success: false, message: 'PPTX parse failed: ' + err.message };
+  }
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return { success: false, message: 'No slides found in this PowerPoint.' };
+  }
+
+  const mediaAll = [];
+  slides.forEach(s => (s.media || []).forEach(m => mediaAll.push(Object.assign({}, m, { slideIndex: s.slideIndex }))));
+  const uploaded = await _uploadPptxMediaToStorage(mediaAll);
+  const urlByName = {};
+  uploaded.forEach(u => { if (u.url) urlByName[u.name] = u.url; });
+
+  const transcripts = await _transcribePptxAudio(mediaAll);
+
+  const imageTags = [];
+  slides.forEach(s => (s.media || []).forEach(m => {
+    if (m.type === 'image') imageTags.push({ tag: 'IMAGE:' + imageTags.length, slideIndex: s.slideIndex, name: m.name, base64: m.base64, mimeType: m.mimeType });
+  }));
+  const videoTags = [];
+  slides.forEach(s => (s.media || []).forEach(m => {
+    if (m.type === 'video') videoTags.push({ tag: 'VIDEO:' + videoTags.length, slideIndex: s.slideIndex, name: m.name });
+  }));
+
+  const INLINE_IMAGE_LIMIT = 16;
+  const inlineImages = imageTags.slice(0, INLINE_IMAGE_LIMIT);
+  const shownTags = new Set(inlineImages.map(t => t.tag));
+
+  const outline = slides.map(s => {
+    const audios = (s.media || []).filter(m => m.type === 'audio').map(m => m.name);
+    const firstAudio = audios[0] || '';
+    const transcript = firstAudio ? (transcripts[s.slideIndex + ':' + firstAudio] || '') : '';
+    return {
+      slideIndex: s.slideIndex,
+      title: s.title || '',
+      text: s.text || '',
+      notes: s.notes || '',
+      audioTranscript: transcript || '(no audio)',
+      images: imageTags.filter(t => t.slideIndex === s.slideIndex).map(t => ({ tag: t.tag, shown: shownTags.has(t.tag) })),
+      videos: videoTags.filter(t => t.slideIndex === s.slideIndex).map(t => t.tag)
+    };
+  });
+
+  const promptText = 'PPTX Slides Outline (' + outline.length + ' slides):\n' + JSON.stringify(outline, null, 2);
+  const parts = [{ text: promptText }];
+  inlineImages.forEach(t => {
+    if (!t.base64 || t.base64.length > 6 * 1024 * 1024) return;
+    parts.push({ inlineData: { mimeType: t.mimeType || 'image/png', data: t.base64 } });
+  });
+
+  let raw;
+  try {
+    raw = await _callGemini(AGENT_PPTX_IMPORT_PROMPT,
+      [{ role: 'user', parts: parts }],
+      { maxOutputTokens: 32768, temperature: 0.3 });
+  } catch (err) {
+    console.error('agentPptxImport conversion failed: ' + err.message);
+    return { success: false, message: 'AI conversion failed: ' + err.message };
+  }
+
+  let items = null;
+  try { items = _extractJsonFromGemini(raw, true); } catch (err) { items = null; }
+  if (!Array.isArray(items)) {
+    return { success: false, message: 'AI did not return a valid slides array.' };
+  }
+
+  function resolveTaggedUrl(u) {
+    if (typeof u !== 'string') return u;
+    u = u.replace(/\[IMAGE:(\d+)\]/g, function (m, i) {
+      const t = imageTags[parseInt(i, 10)];
+      return t && urlByName[t.name] ? urlByName[t.name] : m;
+    });
+    u = u.replace(/\[VIDEO:(\d+)\]/g, function (m, i) {
+      const t = videoTags[parseInt(i, 10)];
+      return t && urlByName[t.name] ? urlByName[t.name] : m;
+    });
+    return u;
+  }
+
+  const clean = [];
+  const suspicious = [];
+  const excluded = [];
+  items.forEach((item, idx) => {
+    if (!item || typeof item !== 'object') return;
+    const slide = (item && item.slide && typeof item.slide === 'object') ? item.slide : item;
+    const reason = String(item.suspiciousReason || item.reason || '').trim();
+    const forbid = item.exclude === true || _classifyForbiddenSlide(slide);
+    if (slide && Array.isArray(slide.elements)) {
+      slide.elements.forEach(el => {
+        if (!el) return;
+        if (el.url) el.url = resolveTaggedUrl(el.url);
+        if (el.kind === 'audiocreator' && Array.isArray(el.blocks)) {
+          el.blocks.forEach(b => { if (b && b.url) b.url = resolveTaggedUrl(b.url); });
+        }
+      });
+    }
+    const normalized = _normalizeImportedSlide(slide, idx);
+    if (!normalized) return;
+    if (forbid) {
+      excluded.push({ index: idx, slide: normalized, reason: reason || 'Teacher-only / answer-key content' });
+    } else if (item.suspicious === true || reason) {
+      suspicious.push({ index: idx, slide: normalized, reason: reason || 'Needs review' });
+    } else {
+      clean.push(normalized);
+    }
+  });
+
+  return {
+    success: true,
+    filename: filename,
+    totalSlides: outline.length,
+    clean: clean,
+    suspicious: suspicious,
+    excluded: excluded
+  };
+}
+
 async function _agentGenerateSlides(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
@@ -3667,6 +4057,8 @@ const actions = {
   deletePaymobLink: _deletePaymobLink,
   getPublicSessionContent: _getPublicSessionContent,
   aiGradeAnswer: _aiGradeAnswer,
+  agentPptxUploadUrl: _agentPptxUploadUrl,
+  agentPptxImport: _agentPptxImport,
   agentImportAndReview: _agentImportAndReview,
   agentGenerateSlides: _agentGenerateSlides,
   agentGenerateAudio: _agentGenerateAudio,
