@@ -199,10 +199,11 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
 <div id="app">
   <header>
     <div class="brand">Z-English · AI Slide Agent<small>Generate &amp; review full lessons, then save to any session</small></div>
-    <div class="head-right">
+<div class="head-right">
       <span class="pill"><i class="fas fa-shield-halved" style="margin-right:6px;"></i><span id="userName">Admin</span></span>
       <a class="btn btn-outline" href="editor.html"><i class="fas fa-pen-to-square"></i> Slide Editor</a>
       <a class="btn btn-outline" href="index.html"><i class="fas fa-table-columns"></i> Admin Panel</a>
+      <button class="btn btn-outline" onclick="showImportStep()"><i class="fas fa-file-import"></i> Import PPTX</button>
       <button class="btn btn-outline" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign Out</button>
     </div>
   </header>
@@ -211,7 +212,7 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
     <div id="status" class="status"></div>
 
     <!-- Import PPTX Step (Step 0) -->
-    <section class="step active" id="importStep">
+    <section class="step" id="importStep">
       <h2><span class="step-num">0</span> Import PPTX &rarr; Sessions</h2>
       <div class="import-substeps">
         <!-- Sub-step 1: Select Sessions -->
@@ -1827,13 +1828,34 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     if (agentSlides[i]) agentSlides[i].s.title = inp.value;
   });
 
-  window.generateSlides = generateSlides;
+window.generateSlides = generateSlides;
   window.addBlank = addBlank;
   window.clearAll = clearAll;
   window.save = save;
   window.fillBrief = function (idx) {
     $('brief').value = EXAMPLE_BRIEFS[idx] || '';
     $('brief').focus();
+  };
+  // Import PPTX functions
+  window.loadSessionsForImport = loadSessionsForImport;
+  window.toggleSelectAllSessions = toggleSelectAllSessions;
+  window.nextImportSubstep = nextImportSubstep;
+  window.toggleSessionSelect = toggleSessionSelect;
+  window.toggleSelectAllSessions = toggleSelectAllSessions;
+  window.toggleFolderPicker = toggleFolderPicker;
+  window.startConversion = startConversion;
+  window.confirmAndSaveAll = confirmAndSaveAll;
+  window.approveImportSlide = approveImportSlide;
+  window.rejectImportSlide = rejectImportSlide;
+  window.restoreExcludedSlide = restoreExcludedSlide;
+  window.toggleImportSlideJson = toggleImportSlideJson;
+  window.applyImportSlideJson = applyImportSlideJson;
+  window.regenerateImportSlide = regenerateImportSlide;
+  window.updateImportSlideTitle = updateImportSlideTitle;
+  window.showImportStep = function(){
+    document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+    $('importStep').classList.add('active');
+    if (!importState.sessions.length) loadSessionsForImport();
   };
 
   function loadSelects(){
