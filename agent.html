@@ -441,6 +441,7 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
     <section class="step" id="reviewStep">
       <h2><span class="step-num">2</span> Review the slides <span id="summary" class="summary"></span></h2>
       <div class="review-tools">
+        <button class="btn btn-outline" onclick="approveAll()"><i class="fas fa-check-double"></i> Approve All</button>
         <button class="btn btn-outline" onclick="addBlank()"><i class="fas fa-plus"></i> Add Blank Slide</button>
         <button class="btn btn-outline" onclick="generateSlides('all')"><i class="fas fa-rotate"></i> Regenerate All</button>
         <button class="btn btn-outline" onclick="clearAll()"><i class="fas fa-broom"></i> Clear</button>
@@ -1447,6 +1448,12 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     });
     const approved = agentSlides.filter(function (w) { return w.approved; }).length;
     $('summary').textContent = agentSlides.length + ' slide(s) · ' + approved + ' approved';
+  }
+
+  function approveAll(){
+    agentSlides.forEach(function (w) { w.approved = true; });
+    render();
+    setStatus('All ' + agentSlides.length + ' slide(s) approved.', 'success');
   }
 
   function addBlank(){
@@ -2477,6 +2484,7 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
 
 window.generateSlides = generateSlides;
   window.addBlank = addBlank;
+  window.approveAll = approveAll;
   window.clearAll = clearAll;
   window.save = save;
   window.fillBrief = function (idx) {
