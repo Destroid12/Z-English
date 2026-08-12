@@ -1758,16 +1758,17 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
   }
 
   function tryPair(){
-    if (linkSelected.type === 'session' && linkSelected.key) {
-      const pptxEl = document.querySelector('.link-item.pptx-selected');
-      if (pptxEl) {
-        const pptxName = pptxEl.dataset.pptx;
-        importState.pairs[linkSelected.key] = { pptxName: pptxName, pptxUrl: importState.pptxFiles.find(f=>f.name===pptxName).url, pptxFileId: importState.pptxFiles.find(f=>f.name===pptxName).fileId };
-        linkSelected = { type: null, key: null };
-        document.querySelectorAll('.link-item.session-selected, .link-item.pptx-selected').forEach(e => e.classList.remove('session-selected', 'pptx-selected'));
-        renderLinkingColumns();
-      }
-    }
+    const sessionEl = document.querySelector('.link-item.session-selected');
+    const pptxEl = document.querySelector('.link-item.pptx-selected');
+    if (!sessionEl || !pptxEl) return;
+    const sessionKey2 = sessionEl.dataset.key;
+    const pptxName = pptxEl.dataset.pptx;
+    const pptxFile = importState.pptxFiles.find(f => f.name === pptxName);
+    if (!pptxFile) return;
+    importState.pairs[sessionKey2] = { pptxName, pptxUrl: pptxFile.url, pptxFileId: pptxFile.fileId };
+    linkSelected = { type: null, key: null };
+    document.querySelectorAll('.link-item.session-selected, .link-item.pptx-selected').forEach(e => e.classList.remove('session-selected', 'pptx-selected'));
+    renderLinkingColumns();
   }
 
   function renderConvertProgress(){
@@ -2081,6 +2082,7 @@ window.generateSlides = generateSlides;
   window.handlePptxFolder = handlePptxFolder;
   window.uploadPptxFiles = uploadPptxFiles;
   window.removePptxFile = removePptxFile;
+  window.selectLinkItem = selectLinkItem;
   window.startConversion = startConversion;
   window.confirmAndSaveAll = confirmAndSaveAll;
   window.approveImportSlide = approveImportSlide;
