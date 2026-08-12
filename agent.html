@@ -1955,8 +1955,8 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
             '<button class="btn btn-outline btn-sm" onclick="toggleRegenRow(\'' + activeKey + '\', ' + idx + ')">Cancel</button>' +
           '</div>' +
           '<div class="slide-preview-split' + (hasFixed ? '' : ' single') + '">' +
-            (hasFixed ? '<div class="slide-preview-panel"><div class="slide-preview-label before"><i class="fas fa-clock-rotate-left"></i> Original (Before)</div><iframe class="suspicious-slide-preview before-frame" sandbox="allow-scripts allow-same-origin allow-presentation" title="Before"></iframe></div>' : '') +
-            '<div class="slide-preview-panel"><div class="slide-preview-label after"><i class="fas fa-wand-magic-sparkles"></i>' + (hasFixed ? ' AI Fixed (After)' : ' Preview') + '</div><iframe class="suspicious-slide-preview after-frame" sandbox="allow-scripts allow-same-origin allow-presentation" title="After"></iframe></div>' +
+            (hasFixed ? '<div class="slide-preview-panel"><div class="slide-preview-label before"><i class="fas fa-clock-rotate-left"></i> Original (Before)</div><iframe class="suspicious-slide-preview before-frame" sandbox="allow-scripts allow-presentation" title="Before"></iframe></div>' : '') +
+            '<div class="slide-preview-panel"><div class="slide-preview-label after"><i class="fas fa-wand-magic-sparkles"></i>' + (hasFixed ? ' AI Fixed (After)' : ' Preview') + '</div><iframe class="suspicious-slide-preview after-frame" sandbox="allow-scripts allow-presentation" title="After"></iframe></div>' +
           '</div>' +
           '<div class="slide-inline-editor" id="slideEditor_' + activeKey + '_' + idx + '"></div>' +
           '<textarea class="suspicious-slide-json" id="jsonArea_' + activeKey + '_' + idx + '" onchange="applyImportSlideJson(\'' + activeKey + '\', ' + idx + ', this.value)"></textarea>' +
