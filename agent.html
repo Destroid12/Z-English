@@ -117,14 +117,46 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
 .import-substep.active{ display:block; }
 @keyframes fadeIn{ from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
 
+.session-tabs{ display:flex; gap:4px; margin-bottom:16px; background:var(--bg); border:2px solid var(--line); border-radius:12px; padding:4px; }
+.session-tab{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border-radius:10px; font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--ink-soft); background:transparent; border:none; cursor:pointer; transition:all .15s ease; }
+.session-tab:hover{ color:var(--blue-dark); background:rgba(76,168,221,.08); }
+.session-tab.active{ color:#fff; background:linear-gradient(135deg,var(--blue-mid),var(--blue-dark)); box-shadow:0 2px 8px rgba(30,111,166,.25); }
+.session-tab .tab-count{ font-family:'Baloo 2',cursive; font-size:12px; font-weight:800; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.25); min-width:24px; text-align:center; }
+.session-tab.active .tab-count{ background:rgba(255,255,255,.35); color:var(--gold); }
+.session-tab .tab-has-content{ width:8px; height:8px; border-radius:50%; background:var(--success); flex:0 0 auto; }
+
+.session-tabpanels{ display:flex; flex-direction:column; gap:12px; }
+.session-tabpanel{ display:none; animation:fadeIn .2s ease; }
+.session-tabpanel.active{ display:block; }
+
+.session-select-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; padding:0 4px; }
+.session-select-title{ font-family:'Baloo 2',cursive; font-weight:800; font-size:16px; color:var(--blue-ink); }
+.session-select-counter{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:var(--ink-soft); }
+.session-select-counter .count-badge{ font-family:'Baloo 2',cursive; font-size:14px; padding:4px 12px; border-radius:20px; background:rgba(76,168,221,.12); color:var(--blue-dark); min-width:36px; text-align:center; }
+.session-select-counter .count-badge.has-selection{ background:linear-gradient(135deg,var(--blue-mid),var(--blue-dark)); color:#fff; }
+
 .session-select-list{ display:grid; gap:8px; }
-.session-select-item{ display:flex; align-items:center; gap:12px; padding:12px 14px; border:2px solid var(--line); border-radius:12px; background:#fbfdfe; cursor:pointer; transition:border-color .15s, background .15s; }
-.session-select-item:hover{ border-color:var(--blue-mid); background:rgba(76,168,221,.05); }
-.session-select-item.selected{ border-color:var(--blue-mid); background:rgba(76,168,221,.12); }
-.session-select-item input[type=checkbox]{ width:18px; height:18px; accent-color:var(--blue-mid); }
-.session-select-info{ flex:1; min-width:0; }
-.session-select-track{ font-family:'Baloo 2',cursive; font-weight:800; font-size:15px; color:var(--blue-ink); }
-.session-select-meta{ font-size:12px; color:var(--ink-soft); font-weight:700; margin-top:2px; }
+.session-select-item{ display:flex; align-items:center; gap:12px; padding:14px 16px; border:2px solid var(--line); border-radius:14px; background:#fbfdfe; cursor:pointer; transition:border-color .15s, background .15s, box-shadow .15s; position:relative; }
+.session-select-item:hover{ border-color:var(--blue-mid); background:rgba(76,168,221,.05); box-shadow:0 4px 12px rgba(76,168,221,.08); }
+.session-select-item.selected{ border-color:var(--blue-mid); background:rgba(76,168,221,.12); box-shadow:0 0 0 3px rgba(76,168,221,.15); }
+.session-select-item input[type=checkbox]{ width:20px; height:20px; accent-color:var(--blue-mid); flex:0 0 auto; cursor:pointer; }
+.session-select-item .session-select-info{ flex:1; min-width:0; }
+.session-select-item .session-select-main{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.session-select-track-badge{ font-family:'Baloo 2',cursive; font-weight:800; font-size:11px; letter-spacing:.04em; padding:3px 10px; border-radius:20px; flex:0 0 auto; white-space:nowrap; }
+.session-select-track-badge.basic{ color:var(--blue-mid); background:rgba(76,168,221,.12); }
+.session-select-track-badge.advanced{ color:var(--gold-dark); background:rgba(253,200,70,.18); }
+.session-select-level-session{ font-family:'Baloo 2',cursive; font-weight:800; font-size:15px; color:var(--blue-ink); }
+.session-select-meta{ font-size:12px; color:var(--ink-soft); font-weight:700; margin-top:3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.session-select-meta .has-content{ color:var(--success); }
+.session-select-meta .empty-session{ color:var(--ink-soft); }
+.session-select-item .content-indicator{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; margin-left:auto; }
+.session-select-item .content-indicator.has-content{ background:var(--success); box-shadow:0 0 0 2px rgba(76,175,109,.25); }
+.session-select-item .content-indicator.empty{ background:var(--line); }
+
+.session-select-empty{ text-align:center; padding:32px 16px; color:var(--ink-soft); }
+.session-select-empty .empty-icon{ font-size:40px; opacity:.4; margin-bottom:12px; display:block; }
+.session-select-empty .empty-title{ font-family:'Baloo 2',cursive; font-weight:800; font-size:16px; color:var(--ink); margin-bottom:6px; }
+.session-select-empty .empty-desc{ font-size:13px; line-height:1.5; }
 
 .pptx-upload-list{ display:grid; gap:8px; margin-top:10px; }
 .pptx-upload-item{ display:flex; align-items:center; gap:12px; padding:12px 14px; border:2px solid var(--line); border-radius:12px; background:#fbfdfe; }
@@ -219,11 +251,48 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
         <!-- Sub-step 1: Select Sessions -->
         <div class="import-substep active" data-substep="1">
           <h3>Select Sessions to Import Into</h3>
-          <div class="note"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Choose one or more existing sessions. Each will receive one PowerPoint.</div>
-          <div id="sessionSelectList" class="session-select-list"></div>
+          <div class="note"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Choose one or more existing sessions. Each will receive one PowerPoint. Sessions with content are marked; empty sessions can also be selected.</div>
+
+          <div class="session-tabs" role="tablist" aria-label="Session tracks">
+            <button class="session-tab active" role="tab" aria-selected="true" aria-controls="panel-basic" id="tab-basic" onclick="switchSessionTab('basic')">
+              <i class="fas fa-layer-group"></i> Basic
+              <span class="tab-count" id="tabCountBasic">0</span>
+              <span class="tab-has-content" id="tabHasContentBasic" style="display:none;"></span>
+            </button>
+            <button class="session-tab" role="tab" aria-selected="false" aria-controls="panel-advanced" id="tab-advanced" onclick="switchSessionTab('advanced')">
+              <i class="fas fa-rocket"></i> Advanced
+              <span class="tab-count" id="tabCountAdvanced">0</span>
+              <span class="tab-has-content" id="tabHasContentAdvanced" style="display:none;"></span>
+            </button>
+          </div>
+
+          <div class="session-tabpanels">
+            <div class="session-tabpanel active" role="tabpanel" id="panel-basic" aria-labelledby="tab-basic">
+              <div class="session-select-header">
+                <span class="session-select-title"><i class="fas fa-layer-group" style="margin-right:6px;color:var(--blue-mid);"></i> Basic Track</span>
+                <div class="session-select-counter">
+                  <span>Selected:</span>
+                  <span class="count-badge" id="counterBasic">0</span>
+                </div>
+              </div>
+              <div id="sessionSelectListBasic" class="session-select-list"></div>
+            </div>
+            <div class="session-tabpanel" role="tabpanel" id="panel-advanced" aria-labelledby="tab-advanced">
+              <div class="session-select-header">
+                <span class="session-select-title"><i class="fas fa-rocket" style="margin-right:6px;color:var(--gold-dark);"></i> Advanced Track</span>
+                <div class="session-select-counter">
+                  <span>Selected:</span>
+                  <span class="count-badge" id="counterAdvanced">0</span>
+                </div>
+              </div>
+              <div id="sessionSelectListAdvanced" class="session-select-list"></div>
+            </div>
+          </div>
+
           <div class="options">
-            <button class="btn btn-primary" onclick="loadSessionsForImport()"><i class="fas fa-sync"></i> Load Sessions</button>
-            <button class="btn btn-outline" onclick="toggleSelectAllSessions()">Select All</button>
+            <button class="btn btn-primary" onclick="loadSessionsForImport()"><i class="fas fa-sync"></i> Reload Sessions</button>
+            <button class="btn btn-outline" onclick="toggleSelectAllSessions()"><i class="fas fa-check-square"></i> Select All Visible</button>
+            <button class="btn btn-outline" onclick="clearAllSessionSelections()"><i class="fas fa-times-circle"></i> Clear All</button>
           </div>
           <button class="btn btn-primary big" id="importSubstep1Next" onclick="nextImportSubstep(2)"><i class="fas fa-arrow-right"></i> Next: Upload PPTX</button>
         </div>
@@ -1324,49 +1393,117 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
 
   // ============ IMPORT PPTX STEP ============
   let importState = {
-    sessions: [],           // all available sessions from listSessions
+    sessions: { basic: [], advanced: [] },   // all available sessions from listSessions, separated by track
     selectedSessions: [],   // user-selected sessions
     pptxFiles: [],          // [{name, url, fileId, pending}]
     pairs: {},              // sessionKey -> {pptxName, pptxUrl, pptxFileId}
-    conversionResults: {}   // sessionKey -> {clean, suspicious, excluded, filename}
+    conversionResults: {},  // sessionKey -> {clean, suspicious, excluded, filename}
+    currentTab: 'basic'     // 'basic' or 'advanced'
   };
 
   async function loadSessionsForImport(){
-    const list = $('sessionSelectList');
-    list.innerHTML = '<div class="note">Loading sessions...</div>';
+    const listBasic = $('sessionSelectListBasic');
+    const listAdvanced = $('sessionSelectListAdvanced');
+    listBasic.innerHTML = '<div class="note">Loading sessions...</div>';
+    listAdvanced.innerHTML = '<div class="note">Loading sessions...</div>';
     try {
-      const res = await callBackend({ action: 'listLessonContentSessions', token: sessionToken });
+      const res = await callBackend({ action: 'listSessions', token: sessionToken });
       if (res.expired) { alert('Session expired.'); location.href='index.html'; return; }
-      if (!res.success) { setStatus(res.message, 'error'); list.innerHTML = '<div class="note status error">Failed to load.</div>'; return; }
-      importState.sessions = res.sessions || [];
+      if (!res.success) { setStatus(res.message, 'error'); 
+        listBasic.innerHTML = '<div class="note status error">Failed to load.</div>'; 
+        listAdvanced.innerHTML = '<div class="note status error">Failed to load.</div>'; 
+        return; }
+      
+      const allSessions = res.sessions || [];
+      importState.sessions.basic = allSessions.filter(s => s.track === 'basic');
+      importState.sessions.advanced = allSessions.filter(s => s.track === 'advanced');
+      
       renderSessionSelect();
+      updateTabCounts();
     } catch (err) {
-      list.innerHTML = '<div class="note status error">Error: ' + err.message + '</div>';
+      listBasic.innerHTML = '<div class="note status error">Error: ' + err.message + '</div>';
+      listAdvanced.innerHTML = '<div class="note status error">Error: ' + err.message + '</div>';
     }
   }
 
   function sessionKey(s){ return s.track + '-' + s.level + '-' + s.sessionNumber; }
   function sessionLabel(s){ return s.track.charAt(0).toUpperCase() + s.track.slice(1) + ' · Level ' + s.level + ' · Session ' + s.sessionNumber; }
 
+  function switchSessionTab(tab){
+    importState.currentTab = tab;
+    document.querySelectorAll('.session-tab').forEach(btn => {
+      const isActive = btn.id === 'tab-' + tab;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive);
+    });
+    document.querySelectorAll('.session-tabpanel').forEach(panel => {
+      panel.classList.toggle('active', panel.id === 'panel-' + tab);
+    });
+  }
+
+  function updateTabCounts(){
+    const basicCount = importState.sessions.basic.length;
+    const advancedCount = importState.sessions.advanced.length;
+    $('tabCountBasic').textContent = basicCount;
+    $('tabCountAdvanced').textContent = advancedCount;
+    
+    const basicHasContent = importState.sessions.basic.some(s => s.link === 'lesson');
+    const advancedHasContent = importState.sessions.advanced.some(s => s.link === 'lesson');
+    $('tabHasContentBasic').style.display = basicHasContent ? 'inline-block' : 'none';
+    $('tabHasContentAdvanced').style.display = advancedHasContent ? 'inline-block' : 'none';
+  }
+
   function renderSessionSelect(){
-    const list = $('sessionSelectList');
-    if (!importState.sessions.length) { list.innerHTML = '<div class="note">No sessions with content found.</div>'; return; }
-    list.innerHTML = importState.sessions.map(s => {
+    renderSessionList('basic');
+    renderSessionList('advanced');
+    updateSelectionCounters();
+  }
+
+  function renderSessionList(track){
+    const list = $('sessionSelectList' + track.charAt(0).toUpperCase() + track.slice(1));
+    const sessions = importState.sessions[track] || [];
+    
+    if (!sessions.length) {
+      list.innerHTML = '<div class="session-select-empty">' +
+        '<span class="empty-icon"><i class="fas fa-folder-open"></i></span>' +
+        '<div class="empty-title">No ' + track.charAt(0).toUpperCase() + track.slice(1) + ' sessions found</div>' +
+        '<div class="empty-desc">This track has no configured sessions yet.</div>' +
+      '</div>';
+      return;
+    }
+
+    list.innerHTML = sessions.map(s => {
       const key = sessionKey(s);
       const isSelected = importState.selectedSessions.some(ss => sessionKey(ss) === key);
-      return '<div class="session-select-item' + (isSelected ? ' selected' : '') + '" data-key="' + key + '" onclick="toggleSessionSelect(this)">' +
+      const hasContent = s.link === 'lesson';
+      return '<div class="session-select-item' + (isSelected ? ' selected' : '') + '" data-key="' + key + '" data-track="' + track + '" onclick="toggleSessionSelect(this)">' +
         '<input type="checkbox" ' + (isSelected ? 'checked' : '') + ' onchange="event.stopPropagation(); toggleSessionSelect(this.closest(\'.session-select-item\'))">' +
         '<div class="session-select-info">' +
-          '<div class="session-select-track">' + sessionLabel(s) + '</div>' +
-          '<div class="session-select-meta">' + s.sizeBytes + ' bytes</div>' +
-        '</div></div>';
+          '<div class="session-select-main">' +
+            '<span class="session-select-track-badge ' + track + '">' + track.charAt(0).toUpperCase() + track.slice(1) + '</span>' +
+            '<span class="session-select-level-session">Level ' + s.level + ' · Session ' + s.sessionNumber + '</span>' +
+          '</div>' +
+          '<div class="session-select-meta">' +
+            (hasContent ? '<span class="has-content"><i class="fas fa-check-circle"></i> Has lesson content</span>' : '<span class="empty-session"><i class="fas fa-circle"></i> Empty session</span>') +
+            (s.sizeBytes ? ' · ' + formatBytes(s.sizeBytes) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="content-indicator ' + (hasContent ? 'has-content' : 'empty') + '" title="' + (hasContent ? 'Has lesson content' : 'Empty session') + '"></div>' +
+      '</div>';
     }).join('');
+  }
+
+  function formatBytes(bytes){
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
   }
 
   function toggleSessionSelect(el){
     const key = el.dataset.key;
+    const track = el.dataset.track;
     const idx = importState.selectedSessions.findIndex(s => sessionKey(s) === key);
-    const sess = importState.sessions.find(s => sessionKey(s) === key);
+    const sess = importState.sessions[track].find(s => sessionKey(s) === key);
     if (idx >= 0) importState.selectedSessions.splice(idx, 1);
     else if (sess) importState.selectedSessions.push(sess);
     renderSessionSelect();
@@ -1374,13 +1511,43 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
   }
 
   function toggleSelectAllSessions(){
-    if (importState.selectedSessions.length === importState.sessions.length) {
-      importState.selectedSessions = [];
+    const currentSessions = importState.sessions[importState.currentTab] || [];
+    const currentKeys = currentSessions.map(sessionKey);
+    const allSelected = currentKeys.every(key => importState.selectedSessions.some(s => sessionKey(s) === key));
+    
+    if (allSelected) {
+      importState.selectedSessions = importState.selectedSessions.filter(s => !currentKeys.includes(sessionKey(s)));
     } else {
-      importState.selectedSessions = [...importState.sessions];
+      currentSessions.forEach(s => {
+        if (!importState.selectedSessions.some(ss => sessionKey(ss) === sessionKey(s))) {
+          importState.selectedSessions.push(s);
+        }
+      });
     }
     renderSessionSelect();
     updateImportNav();
+  }
+
+  function clearAllSessionSelections(){
+    importState.selectedSessions = [];
+    renderSessionSelect();
+    updateImportNav();
+  }
+
+  function updateSelectionCounters(){
+    const basicSelected = importState.selectedSessions.filter(s => s.track === 'basic').length;
+    const advancedSelected = importState.selectedSessions.filter(s => s.track === 'advanced').length;
+    const basicTotal = importState.sessions.basic.length;
+    const advancedTotal = importState.sessions.advanced.length;
+    
+    const counterBasic = $('counterBasic');
+    const counterAdvanced = $('counterAdvanced');
+    
+    counterBasic.textContent = basicSelected + (basicTotal ? ' / ' + basicTotal : '');
+    counterAdvanced.textContent = advancedSelected + (advancedTotal ? ' / ' + advancedTotal : '');
+    
+    counterBasic.classList.toggle('has-selection', basicSelected > 0);
+    counterAdvanced.classList.toggle('has-selection', advancedSelected > 0);
   }
 
   function updateImportNav(){
@@ -1842,7 +2009,8 @@ window.generateSlides = generateSlides;
   window.toggleSelectAllSessions = toggleSelectAllSessions;
   window.nextImportSubstep = nextImportSubstep;
   window.toggleSessionSelect = toggleSessionSelect;
-  window.toggleSelectAllSessions = toggleSelectAllSessions;
+  window.clearAllSessionSelections = clearAllSessionSelections;
+  window.switchSessionTab = switchSessionTab;
   window.toggleFolderPicker = toggleFolderPicker;
   window.startConversion = startConversion;
   window.confirmAndSaveAll = confirmAndSaveAll;
@@ -1856,7 +2024,13 @@ window.generateSlides = generateSlides;
   window.showImportStep = function(){
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     $('importStep').classList.add('active');
-    if (!importState.sessions.length) loadSessionsForImport();
+    if (!importState.sessions.basic.length && !importState.sessions.advanced.length) loadSessionsForImport();
+    else {
+      renderSessionSelect();
+      updateTabCounts();
+    }
+    // Reset to basic tab
+    switchSessionTab('basic');
   };
 
   function loadSelects(){
