@@ -2089,6 +2089,175 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
     }
   }
 
+  // ---- Inline Slide Editor ----
+  function _ief(label, inputHtml) {
+    return '<div class="slide-el-field"><label>' + label + '</label>' + inputHtml + '</div>';
+  }
+
+  function _elFieldsHTML(el, ek) {
+    const v = (val, def) => escAttr(val != null ? String(val) : (def != null ? String(def) : ''));
+    const chk = (val, def) => (val != null ? val : def) ? 'checked' : '';
+    if (el.kind === 'paragraph') {
+      return _ief('Text', '<textarea oninput="_ief_update(\'' + ek + '\',\'text\',this.value)">' + escHtml(el.text || '') + '</textarea>') +
+        _ief('Font Size (px)', '<input type="text" value="' + v(el.size,'') + '" oninput="_ief_update(\'' + ek + '\',\'size\',this.value)">') +
+        _ief('Text Color', '<input type="color" value="' + v(el.color,'#2D3748') + '" oninput="_ief_update(\'' + ek + '\',\'color\',this.value)">') +
+        _ief('Bold', '<input type="checkbox" ' + chk(el.bold,false) + ' onchange="_ief_update(\'' + ek + '\',\'bold\',this.checked)"> Bold') +
+        _ief('Align', '<select onchange="_ief_update(\'' + ek + '\',\'align\',this.value)"><option value=""' + (!el.align?' selected':'') + '>Default</option><option value="left"' + (el.align==='left'?' selected':'') + '>Left</option><option value="center"' + (el.align==='center'?' selected':'') + '>Center</option><option value="right"' + (el.align==='right'?' selected':'') + '>Right</option></select>');
+    } else if (el.kind === 'image') {
+      return _ief('Image URL', '<input type="url" value="' + v(el.url,'') + '" oninput="_ief_update(\'' + ek + '\',\'url\',this.value)">') +
+        _ief('Caption', '<input type="text" value="' + v(el.caption,'') + '" oninput="_ief_update(\'' + ek + '\',\'caption\',this.value)">');
+    } else if (el.kind === 'audio' || el.kind === 'video') {
+      return _ief((el.kind==='audio'?'Audio':'Video') + ' URL', '<input type="url" value="' + v(el.url,'') + '" oninput="_ief_update(\'' + ek + '\',\'url\',this.value)">');
+    } else if (el.kind === 'question') {
+      let f = _ief('Prompt (use [blank] for answer boxes)', '<input type="text" value="' + v(el.prompt,'') + '" oninput="_ief_update(\'' + ek + '\',\'prompt\',this.value)">');
+      (el.blanks||[]).forEach((b,bi) => {
+        f += '<div style="padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:6px;"><strong style="font-size:11px;">Answer Box ' + (bi+1) + '</strong>' +
+          _ief('Correct Answer', '<input type="text" value="' + v(b.answer,'') + '" oninput="_ief_update_blank(\'' + ek + '\',' + bi + ',\'answer\',this.value)">') +
+          _ief('Options (one per line)', '<textarea oninput="_ief_update_blank(\'' + ek + '\',' + bi + ',\'options\',this.value)">' + escHtml((b.options||[]).join('\n')) + '</textarea>') +
+          '</div>';
+      });
+      return f;
+    } else if (el.kind === 'speaking') {
+      return _ief('Instructions Text', '<textarea oninput="_ief_update(\'' + ek + '\',\'text\',this.value)">' + escHtml(el.text||'') + '</textarea>');
+    } else if (el.kind === 'audiocreator') {
+      const voices = ['Z-AI (Male)','Z-AI (Female)','US English (Male)','US English (Female)','UK English (Male)','UK English (Female)','Australian (Male)','Australian (Female)'];
+      let f = '';
+      (el.blocks||[]).forEach((blk,bi) => {
+        const voiceOpts = voices.map(vn => '<option value="' + vn + '"' + (blk.voice===vn?' selected':'') + '>' + vn + '</option>').join('');
+        f += '<div style="padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px;"><strong style="font-size:11px;">Block ' + (bi+1) + '</strong>' +
+          _ief('Voice', '<select onchange="_ief_update_block(\'' + ek + '\',' + bi + ',\'voice\',this.value)">' + voiceOpts + '</select>') +
+          _ief('Text', '<textarea oninput="_ief_update_block(\'' + ek + '\',' + bi + ',\'text\',this.value)">' + escHtml(blk.text||'') + '</textarea>') +
+          '</div>';
+      });
+      return f || '<div style="color:var(--ink-soft);font-size:12px;">No blocks defined.</div>';
+    } else if (el.kind === 'list') {
+      const txt = (el.items||[]).map(it => it.time ? it.text + ' | ' + it.time : it.text).join('\n');
+      return _ief('Items (one per line, "text | time" for badge)', '<textarea oninput="_ief_update_items(\'' + ek + '\',this.value)">' + escHtml(txt) + '</textarea>');
+    } else if (el.kind === 'link') {
+      return _ief('URL', '<input type="url" value="' + v(el.url,'') + '" oninput="_ief_update(\'' + ek + '\',\'url\',this.value)">') +
+        _ief('Link Title', '<input type="text" value="' + v(el.text,'') + '" oninput="_ief_update(\'' + ek + '\',\'text\',this.value)">');
+    }
+    return _ief('Element JSON', '<textarea style="font-family:monospace;font-size:11px;" oninput="_ief_update_raw(\'' + ek + '\',this.value)">' + escHtml(JSON.stringify(el,null,2)) + '</textarea>');
+  }
+
+  let _iefState = {};
+
+  window._ief_update = function(ek, field, value) {
+    const st = _iefState[ek];
+    if (!st) return;
+    const el = st.slide.elements && st.slide.elements[st.elIdx];
+    if (el) el[field] = value;
+    _iefRefreshAfter(ek);
+  };
+  window._ief_update_blank = function(ek, bi, field, value) {
+    const st = _iefState[ek];
+    if (!st) return;
+    const el = st.slide.elements && st.slide.elements[st.elIdx];
+    if (el && el.blanks && el.blanks[bi]) {
+      if (field === 'options') el.blanks[bi].options = value.split('\n').map(s=>s.trim()).filter(Boolean);
+      else el.blanks[bi][field] = value;
+    }
+    _iefRefreshAfter(ek);
+  };
+  window._ief_update_block = function(ek, bi, field, value) {
+    const st = _iefState[ek];
+    if (!st) return;
+    const el = st.slide.elements && st.slide.elements[st.elIdx];
+    if (el && el.blocks && el.blocks[bi]) el.blocks[bi][field] = value;
+    _iefRefreshAfter(ek);
+  };
+  window._ief_update_items = function(ek, value) {
+    const st = _iefState[ek];
+    if (!st) return;
+    const el = st.slide.elements && st.slide.elements[st.elIdx];
+    if (el) {
+      el.items = value.split('\n').map(line => {
+        const parts = line.split('|');
+        return parts.length >= 2 ? { text: parts[0].trim(), time: parts[1].trim() } : { text: line.trim() };
+      }).filter(it => it.text);
+    }
+    _iefRefreshAfter(ek);
+  };
+  window._ief_update_raw = function(ek, value) {
+    const st = _iefState[ek];
+    if (!st) return;
+    try {
+      const parsed = JSON.parse(value);
+      if (st.slide.elements) st.slide.elements[st.elIdx] = parsed;
+      _iefRefreshAfter(ek);
+    } catch(e) {}
+  };
+  function _iefRefreshAfter(ek) {
+    const st = _iefState[ek];
+    if (!st) return;
+    const card = document.querySelector('.suspicious-slide-card[data-session="' + st.key + '"][data-idx="' + st.idx + '"]');
+    if (!card) return;
+    const af = card.querySelector('.after-frame');
+    if (af) af.srcdoc = previewDoc(st.slide);
+  }
+
+  window._iefSelectEl = function(ek, elIdx) {
+    const st = _iefState[ek];
+    if (!st) return;
+    st.elIdx = elIdx;
+    const panel = document.getElementById('editorFields_' + ek);
+    if (!panel) return;
+    const el = st.slide.elements && st.slide.elements[elIdx];
+    panel.innerHTML = el ? _elFieldsHTML(el, ek) : '<div style="color:var(--ink-soft);font-size:12px;">Select an element above to edit it.</div>';
+  };
+
+  function openSlideEditor(key, idx) {
+    const ek = key + '_' + idx;
+    const editorEl = $('slideEditor_' + ek);
+    if (!editorEl) return;
+    if (editorEl.classList.contains('open')) {
+      editorEl.classList.remove('open');
+      return;
+    }
+    const allSlides = getAllSlides(key);
+    const item = allSlides[idx];
+    if (!item) return;
+    const workingSlide = JSON.parse(JSON.stringify(item.fixedSlide || item.slide));
+    _iefState[ek] = { key, idx, slide: workingSlide, elIdx: 0 };
+    const ELEM_LABELS = {
+      paragraph:'Paragraph', image:'Image', audio:'Audio', video:'Video',
+      question:'Question', speaking:'Speaking', audiocreator:'Audio Creator',
+      list:'List', link:'Link', raw:'Raw HTML'
+    };
+    const elemListHtml = (workingSlide.elements||[]).map((el,i) => {
+      const lbl = ELEM_LABELS[el.kind] || el.kind;
+      return '<div class="slide-el-item" onclick="_iefSelectEl(\'' + ek + '\',' + i + ')" style="cursor:pointer; padding:7px 10px; font-size:13px; font-weight:700;">' + lbl + '</div>';
+    }).join('');
+    editorEl.innerHTML = '<h4><span><i class="fas fa-pen"></i> Slide Editor</span>' +
+      '<button class="btn btn-outline btn-sm" onclick="applySlideEditor(\'' + key + '\', ' + idx + ')"><i class="fas fa-check"></i> Apply Changes</button></h4>' +
+      '<div style="display:grid;grid-template-columns:160px 1fr;gap:12px;">' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin-bottom:6px;">Elements</div>' +
+          '<div class="slide-el-list">' + (elemListHtml || '<div style="color:var(--ink-soft);font-size:12px;">No elements</div>') + '</div>' +
+        '</div>' +
+        '<div id="editorFields_' + ek + '" style="padding:0;">' +
+          (workingSlide.elements && workingSlide.elements.length
+            ? _elFieldsHTML(workingSlide.elements[0], ek)
+            : '<div style="color:var(--ink-soft);font-size:12px;">No elements to edit.</div>') +
+        '</div>' +
+      '</div>';
+    editorEl.classList.add('open');
+    if (_iefState[ek]) _iefState[ek].elIdx = 0;
+  }
+
+  function applySlideEditor(key, idx) {
+    const ek = key + '_' + idx;
+    const st = _iefState[ek];
+    if (!st) return;
+    const allSlides = getAllSlides(key);
+    if (allSlides[idx]) {
+      allSlides[idx].fixedSlide = JSON.parse(JSON.stringify(st.slide));
+      rebuildResult(key, allSlides);
+      renderSuspiciousReview();
+      setStatus('Slide edits applied.', 'success');
+    }
+  }
+
   async function confirmAndSaveAll(){
     const btn = event.target;
     btn.disabled = true;
