@@ -2341,9 +2341,9 @@ const FIXER_SHARED_RULES =
   '### 1. kind: "paragraph" (PRIMARY & DEFAULT ELEMENT FOR ALL TEXT CONTENT)\n' +
   '{ "id": "ai_p123", "kind": "paragraph", "pos": null, "text": "Your text here.\\nSecond line.", "size": 16, "color": "", "bold": false, "align": "left", "font": "" }\n' +
   'Use \\n for line breaks inside "text". Use kind: "paragraph" for 99% of text: all lesson explanations, dialogues, conversations, stories, vocabulary words, grammar rules, examples, reading passages, and general instructions.\n\n' +
-  '### 2. kind: "image" (PICK RELATED IMAGES FROM INTERNET)\n' +
-  '{ "id": "ai_img12", "kind": "image", "pos": null, "url": "https://image.pollinations.ai/prompt/[detailed_english_description_with_spaces_replaced_by_%20]?width=600&height=400&nologo=true", "caption": "Optional caption" }\n' +
-  'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, include a kind:"image" element with a vivid, specific descriptive prompt.\n\n' +
+  '### 2. kind: "image" (REAL STOCK PHOTOS FROM UNSPLASH)\n' +
+  '{ "id": "ai_img12", "kind": "image", "pos": null, "url": "https://images.unsplash.com/photo-[search_keyword_encoded]?auto=format&fit=crop&w=600&q=80", "caption": "Optional caption" }\n' +
+  'RULE FOR IMAGES: Whenever a slide introduces vocabulary, a story, a dialogue, or a concept, include a kind:"image" element with a real photo URL. Use real, high-quality stock photo URLs from Unsplash, Wikimedia Commons, or standard web image URLs (e.g., https://images.unsplash.com/photo-...). DO NOT use synthetic AI generation URLs if real photographs are preferred!\n\n' +
   '### 3. kind: "speaking" (STRICTLY RESTRICTED TO EXPLICIT SPEAKING / ORAL PRONUNCIATION EXERCISES ONLY!)\n' +
   '{ "id": "ai_spk1", "kind": "speaking", "pos": null, "text": "Practice saying: Where is the train station?", "color": "#1E6FA6", "bgColor": "#EAF4FC", "bold": true }\n' +
   'CRITICAL RESTRICTION FOR SPEAKING:\n' +
@@ -2375,7 +2375,7 @@ const FIXER_SYSTEM_PROMPT =
   'You receive a JSON object representing a SINGLE SLIDE with: { "id": "...", "type": "content"|"activity", "title": "...", "elements": [...] }\n\n' +
   FIXER_SHARED_RULES +
   '## YOUR TASK RULES\n' +
-  '1. Fix grammar, formatting, and layout. Add relevant images using pollinations.ai URLs for vocabulary and topics.\n' +
+  '1. Fix grammar, formatting, and layout. Add relevant images using real Unsplash photo URLs for vocabulary and topics.\n' +
   '2. Convert raw text questions into interactive kind:"question" elements. Use "qtype":"voice" for pronunciation/speaking questions (speak-the-answer), and "qtype":"text"/"radio"/etc. for written questions.\n' +
   '3. Convert dialogues, conversations, or listening passages into a kind:"audiocreator" element (one block per spoken line, with different voices for different speakers). Keep the readable text as kind:"paragraph" too.\n' +
   '4. Use kind: "paragraph" for all normal text. DO NOT use kind: "speaking" unless the slide is explicitly a speaking drill.\n' +
@@ -2389,8 +2389,8 @@ const FIXER_SESSION_SYSTEM_PROMPT =
   'You receive a JSON array of existing slides (which may be empty or contain 1 or more slides) along with user instructions.\n' +
   'You must return a complete, professional, beautifully-structured JSON ARRAY of SLIDES: [ { "id": "...", "type": "content"|"activity", "title": "...", "elements": [...] }, ... ]\n\n' +
   '## CORE POWERS:\n' +
-  '1. CREATE NEW SLIDES: If the user asks for a new session (e.g. "Create 10 slides about..."), or asks to add practice/quiz/dialogue/reading slides, CREATE AS MANY SLIDES AS REQUESTED OR NEEDED!\n' +
-  '2. PICK / GENERATE RELEVANT IMAGES: Include kind:"image" elements with vivid, educational prompts (e.g. "https://image.pollinations.ai/prompt/a%20modern%20doctor%20talking%20to%20a%20patient%20in%20a%20clinic?width=600&height=400&nologo=true") for vocabulary and concepts.\n' +
+  '1. CREATE NEW SLIDES: If the user asks for a new session or multi-slide lesson (e.g. "Create 30 slides about..."), CREATE A COMPLETE MULTI-SLIDE LESSON PROGRESSION (Intro -> Agenda -> Vocab -> Grammar -> Guided Practice -> Listening -> Speaking -> Quiz -> Homework -> Outro). Each slide MUST have a distinct title and unique topic content! NEVER make all slides identical intro slides!\n' +
+  '2. PICK / GENERATE RELEVANT IMAGES: Include kind:"image" elements with real stock photo URLs (e.g. "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80") for vocabulary and concepts.\n' +
   '3. INTERACTIVE ACTIVITIES: Create interactive exercises (matching pairs, radio buttons, select dropdowns, wordbank sentence builders, fill-in-the-blanks).\n' +
   '4. VOICE & LISTENING CONTENT: Create kind:"audiocreator" elements for dialogues/conversations/listening practice (one block per spoken line, distinct voices per speaker), and add "qtype":"voice" questions for speak-the-answer pronunciation practice.\n' +
   '5. EDIT / EXPAND EXISTING SLIDES: Polish, expand, or reorganize existing slides according to the instructions.\n\n' +
@@ -2472,8 +2472,8 @@ const AGENT_SLIDE_GENERATOR_PROMPT =
   '   STRICTLY for dedicated speaking drills ONLY (title says "Speaking Practice", "Pronunciation", "Say Aloud", "Oral Task"). NEVER for general dialogue or reading text.\n' +
   '6. kind "link": { "id":"el_6", "kind":"link", "url":"https://...", "text":"Click here", "subtext":"" }\n' +
   '   Only when the brief explicitly supplies a URL. Never invent URLs.\n' +
-  '7. kind "image": { "id":"el_7", "kind":"image", "url":"", "caption":"" }\n' +
-  '   Only when the brief explicitly supplies an image URL. If you have no real URL, use url: "" (empty) and DO NOT fabricate one.\n\n' +
+  '7. kind "image": { "id":"el_7", "kind":"image", "url":"https://images.unsplash.com/photo-[search_keyword_encoded]?auto=format&fit=crop&w=600&q=80", "caption":"" }\n' +
+  '   Include kind:"image" with real photo URLs from Unsplash (e.g. https://images.unsplash.com/photo-...) whenever introducing vocabulary, stories, dialogues, or topics.\n\n' +
   '## SESSION DESIGN RULES\n' +
   '1. Follow the teacher\'s brief exactly: topic, target language (grammar/vocab), age level, and how many slides.\n' +
   '2. Structure the session like a real lesson: warm-up, teach/present, guided practice, freer practice/activity, wrap-up.\n' +
@@ -3716,7 +3716,7 @@ async function _agentGenerateSlides(p) {
   if (!brief) return { success: false, message: 'Please describe the lesson you want to create.' };
   if (brief.length > 12000) return { success: false, message: 'Your brief is too long (max 12,000 characters).' };
 
-  const slideCount = Math.min(20, Math.max(3, parseInt(p.slideCount, 10) || 8));
+  const slideCount = Math.min(50, Math.max(3, parseInt(p.slideCount, 10) || 8));
   const language = String(p.language || '').trim();
   const difficulty = String(p.difficulty || '').trim();
   const contentType = String(p.contentType || '').trim();
