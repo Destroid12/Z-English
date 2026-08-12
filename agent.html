@@ -153,10 +153,25 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
 .session-select-item .content-indicator.has-content{ background:var(--success); box-shadow:0 0 0 2px rgba(76,175,109,.25); }
 .session-select-item .content-indicator.empty{ background:var(--line); }
 
+.session-select-list{ display:grid; gap:8px; }
+.session-level-group{ margin-bottom:16px; }
+.session-level-header{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg); border:2px solid var(--line); border-radius:10px; font-size:13px; font-weight:800; color:var(--ink-soft); }
+.session-level-title{ font-family:'Baloo 2',cursive; font-weight:800; color:var(--blue-ink); }
+.session-level-count{ font-size:11px; color:var(--ink-soft); background:var(--card); padding:2px 10px; border-radius:12px; border:1px solid var(--line); }
+.session-level-list{ display:grid; gap:6px; margin-top:8px; padding-left:4px; }
+.session-select-item.db-missing{ opacity:.85; border-style:dashed; }
+.session-select-item.new-session{ background:rgba(76,175,109,.03); }
+.session-select-meta .new-session{ color:var(--success); font-weight:800; }
+.content-indicator.new{ background:var(--success); box-shadow:0 0 0 2px rgba(76,175,109,.25); }
 .session-select-empty{ text-align:center; padding:32px 16px; color:var(--ink-soft); }
 .session-select-empty .empty-icon{ font-size:40px; opacity:.4; margin-bottom:12px; display:block; }
 .session-select-empty .empty-title{ font-family:'Baloo 2',cursive; font-weight:800; font-size:16px; color:var(--ink); margin-bottom:6px; }
 .session-select-empty .empty-desc{ font-size:13px; line-height:1.5; }
+
+/* Button overlap fix */
+.import-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
+.import-actions .btn{ flex:1; min-width:140px; }
+.import-actions .btn.big{ min-width:auto; }
 
 .pptx-upload-list{ display:grid; gap:8px; margin-top:10px; }
 .pptx-upload-item{ display:flex; align-items:center; gap:12px; padding:12px 14px; border:2px solid var(--line); border-radius:12px; background:#fbfdfe; }
@@ -289,12 +304,12 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
             </div>
           </div>
 
-          <div class="options">
-            <button class="btn btn-primary" onclick="loadSessionsForImport()"><i class="fas fa-sync"></i> Reload Sessions</button>
+          <div class="import-actions">
+            <button class="btn btn-primary" onclick="loadSessionsForImport()"><i class="fas fa-sync"></i> Reload</button>
             <button class="btn btn-outline" onclick="toggleSelectAllSessions()"><i class="fas fa-check-square"></i> Select All Visible</button>
             <button class="btn btn-outline" onclick="clearAllSessionSelections()"><i class="fas fa-times-circle"></i> Clear All</button>
+            <button class="btn btn-primary big" id="importSubstep1Next" onclick="nextImportSubstep(2)"><i class="fas fa-arrow-right"></i> Next: Upload PPTX</button>
           </div>
-          <button class="btn btn-primary big" id="importSubstep1Next" onclick="nextImportSubstep(2)"><i class="fas fa-arrow-right"></i> Next: Upload PPTX</button>
         </div>
 
         <!-- Sub-step 2: Upload PPTX -->
@@ -1414,12 +1429,39 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
         listAdvanced.innerHTML = '<div class="note status error">Failed to load.</div>'; 
         return; }
       
-      const allSessions = res.sessions || [];
-      importState.sessions.basic = allSessions.filter(s => s.track === 'basic');
-      importState.sessions.advanced = allSessions.filter(s => s.track === 'advanced');
+      const dbSessions = res.sessions || [];
+      // Build a map of existing sessions from DB
+      const dbMap = {};
+      dbSessions.forEach(s => { dbMap[s.track + '-' + s.level + '-' + s.sessionNumber] = s; });
+      
+      // Generate ALL possible sessions (Basic/Advanced × 10 levels × 7 sessions = 140)
+      // and merge with DB data
+      const allTracks = ['basic', 'advanced'];
+      const maxLevels = 10;
+      const maxSessions = 7;
+      
+      allTracks.forEach(track => {
+        const sessions = [];
+        for (let level = 1; level <= maxLevels; level++) {
+          for (let sessionNum = 1; sessionNum <= maxSessions; sessionNum++) {
+            const key = track + '-' + level + '-' + sessionNum;
+            const db = dbMap[key];
+            sessions.push({
+              track: track,
+              level: level,
+              sessionNumber: sessionNum,
+              link: db ? db.link : 'none',
+              sizeBytes: db ? db.sizeBytes : 0,
+              existsInDb: !!db
+            });
+          }
+        }
+        importState.sessions[track] = sessions;
+      });
       
       renderSessionSelect();
       updateTabCounts();
+      setStatus('Loaded all ' + (maxLevels * maxSessions * 2) + ' possible sessions', 'success');
     } catch (err) {
       listBasic.innerHTML = '<div class="note status error">Error: ' + err.message + '</div>';
       listAdvanced.innerHTML = '<div class="note status error">Error: ' + err.message + '</div>';
@@ -1472,25 +1514,48 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
       return;
     }
 
-    list.innerHTML = sessions.map(s => {
-      const key = sessionKey(s);
-      const isSelected = importState.selectedSessions.some(ss => sessionKey(ss) === key);
-      const hasContent = s.link === 'lesson';
-      return '<div class="session-select-item' + (isSelected ? ' selected' : '') + '" data-key="' + key + '" data-track="' + track + '" onclick="toggleSessionSelect(this)">' +
-        '<input type="checkbox" ' + (isSelected ? 'checked' : '') + ' onchange="event.stopPropagation(); toggleSessionSelect(this.closest(\'.session-select-item\'))">' +
-        '<div class="session-select-info">' +
-          '<div class="session-select-main">' +
-            '<span class="session-select-track-badge ' + track + '">' + track.charAt(0).toUpperCase() + track.slice(1) + '</span>' +
-            '<span class="session-select-level-session">Level ' + s.level + ' · Session ' + s.sessionNumber + '</span>' +
-          '</div>' +
-          '<div class="session-select-meta">' +
-            (hasContent ? '<span class="has-content"><i class="fas fa-check-circle"></i> Has lesson content</span>' : '<span class="empty-session"><i class="fas fa-circle"></i> Empty session</span>') +
-            (s.sizeBytes ? ' · ' + formatBytes(s.sizeBytes) : '') +
-          '</div>' +
+    // Group sessions by level
+    const byLevel = {};
+    sessions.forEach(s => {
+      if (!byLevel[s.level]) byLevel[s.level] = [];
+      byLevel[s.level].push(s);
+    });
+    const levels = Object.keys(byLevel).map(Number).sort((a,b)=>a-b);
+
+    let html = '';
+    levels.forEach(level => {
+      const levelSessions = byLevel[level];
+      html += '<div class="session-level-group">' +
+        '<div class="session-level-header">' +
+          '<span class="session-level-title">Level ' + level + '</span>' +
+          '<span class="session-level-count">' + levelSessions.length + ' sessions</span>' +
         '</div>' +
-        '<div class="content-indicator ' + (hasContent ? 'has-content' : 'empty') + '" title="' + (hasContent ? 'Has lesson content' : 'Empty session') + '"></div>' +
-      '</div>';
-    }).join('');
+        '<div class="session-level-list">';
+      
+      levelSessions.forEach(s => {
+        const key = sessionKey(s);
+        const isSelected = importState.selectedSessions.some(ss => sessionKey(ss) === key);
+        const hasContent = s.link === 'lesson';
+        const existsInDb = s.existsInDb !== false;
+        html += '<div class="session-select-item' + (isSelected ? ' selected' : '') + (existsInDb ? '' : ' db-missing') + '" data-key="' + key + '" data-track="' + track + '" onclick="toggleSessionSelect(this)">' +
+          '<input type="checkbox" ' + (isSelected ? 'checked' : '') + ' onchange="event.stopPropagation(); toggleSessionSelect(this.closest(\'.session-select-item\'))">' +
+          '<div class="session-select-info">' +
+            '<div class="session-select-main">' +
+              '<span class="session-select-level-session">Level ' + s.level + ' · Session ' + s.sessionNumber + '</span>' +
+            '</div>' +
+            '<div class="session-select-meta">' +
+              (hasContent ? '<span class="has-content"><i class="fas fa-check-circle"></i> Has lesson content</span>' : 
+               (existsInDb ? '<span class="empty-session"><i class="fas fa-circle"></i> Empty session (exists in DB)</span>' : 
+                '<span class="empty-session new-session"><i class="fas fa-plus-circle"></i> New session (not in DB)</span>')) +
+              (s.sizeBytes ? ' · ' + formatBytes(s.sizeBytes) : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="content-indicator ' + (hasContent ? 'has-content' : (existsInDb ? 'empty' : 'new')) + '" title="' + (hasContent ? 'Has lesson content' : (existsInDb ? 'Empty session' : 'New session - will be created on save')) + '"></div>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    });
+    list.innerHTML = html;
   }
 
   function formatBytes(bytes){
