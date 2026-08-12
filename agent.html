@@ -1334,6 +1334,37 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
       customPrompt = userInstr.trim();
     }
 
+    if (singleIdx != null) {
+      const cur = agentSlides[singleIdx];
+      const slideJson = JSON.stringify(cur ? cur.s : {});
+      const instr = customPrompt || 'Modify/update this slide to improve its content.';
+      
+      const body = new URLSearchParams({
+        action: 'autoFixSlide',
+        token: sessionToken,
+        slideJson: slideJson,
+        instructions: instr
+      });
+
+      setStatus('Updating slide #' + (singleIdx+1) + ' with Z-AI...', 'info');
+      try {
+        const result = await callBackend(body);
+        if (result.expired) { alert('Session expired.'); location.href = 'index.html'; return; }
+        if (!result.success) { setStatus(result.message || 'Slide update failed.', 'error'); return; }
+        const newSlide = result.fixedSlide || result.slide;
+        if (newSlide) {
+          agentSlides[singleIdx].s = newSlide;
+          render();
+          setStatus('Slide #' + (singleIdx+1) + ' updated.', 'success');
+        } else {
+          setStatus('Slide update returned no data.', 'error');
+        }
+      } catch (err) {
+        setStatus('Update failed: ' + err.message, 'error');
+      }
+      return;
+    }
+
     const body = new URLSearchParams({
       action: 'agentGenerateSlides',
       token: sessionToken,
@@ -1344,14 +1375,8 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
       contentType: $('contentType').value,
       focus: $('focus').value.trim(),
       extra: JSON.stringify(collectExtras()),
-      single: singleIdx != null ? 'true' : 'false'
+      single: 'false'
     });
-
-    if (singleIdx != null) {
-      const cur = agentSlides[singleIdx];
-      const instr = customPrompt || ('Regenerate ONLY the slide titled "' + (cur ? cur.s.title : '') + '".');
-      body.set('prompt', instr + '\n\nLesson Brief:\n' + brief);
-    }
 
     const btn = singleIdx != null ? null : $('generateBtn');
     if (btn) btn.disabled = true;
