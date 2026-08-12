@@ -276,9 +276,10 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
     <div class="brand">Z-English · AI Slide Agent<small>Generate &amp; review full lessons, then save to any session</small></div>
 <div class="head-right">
       <span class="pill"><i class="fas fa-shield-halved" style="margin-right:6px;"></i><span id="userName">Admin</span></span>
+      <button class="btn btn-primary" onclick="showGeneratorStep()"><i class="fas fa-wand-magic-sparkles"></i> AI Brief Generator</button>
+      <button class="btn btn-outline" onclick="showImportStep()"><i class="fas fa-file-import"></i> Import PPTX</button>
       <a class="btn btn-outline" href="editor.html"><i class="fas fa-pen-to-square"></i> Slide Editor</a>
       <a class="btn btn-outline" href="index.html"><i class="fas fa-table-columns"></i> Admin Panel</a>
-      <button class="btn btn-outline" onclick="showImportStep()"><i class="fas fa-file-import"></i> Import PPTX</button>
       <button class="btn btn-outline" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign Out</button>
     </div>
   </header>
@@ -391,7 +392,7 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
     </section>
 
     <!-- Original Step 1: Build your lesson brief -->
-    <section class="step">
+    <section class="step active" id="briefStep">
       <h2><span class="step-num">1</span> Build your lesson brief</h2>
       <textarea id="brief" rows="6" placeholder="Describe the lesson you want the agent to build. Example: 'A lesson for 12-year-old beginners on daily routines using the present simple. Include a warm-up, vocabulary, two practice exercises, and a short listening dialogue.'"></textarea>
       <div class="chips">
@@ -400,7 +401,7 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
         <button class="chip" onclick="fillBrief(2)">Ordering food — dialogue</button>
       </div>
       <div class="options">
-        <label>Number of slides <input id="slideCount" type="number" min="3" max="20" value="8"></label>
+        <label>Number of slides <input id="slideCount" type="number" min="3" max="50" value="8"></label>
         <label>Student level
           <select id="difficulty">
             <option value="Beginner">Beginner</option>
@@ -2465,6 +2466,10 @@ window.generateSlides = generateSlides;
   window.runRegenerate = runRegenerate;
   window.toggleAudioCreator = toggleAudioCreator;
   window.seekAudioCreator = seekAudioCreator;
+  window.showGeneratorStep = function(){
+    document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+    $('briefStep').classList.add('active');
+  };
   window.showImportStep = function(){
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     $('importStep').classList.add('active');
