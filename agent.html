@@ -442,7 +442,7 @@ textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--blue
       <h2><span class="step-num">2</span> Review the slides <span id="summary" class="summary"></span></h2>
       <div class="review-tools">
         <button class="btn btn-outline" onclick="addBlank()"><i class="fas fa-plus"></i> Add Blank Slide</button>
-        <button class="btn btn-outline" onclick="generateSlides(null)"><i class="fas fa-rotate"></i> Regenerate All</button>
+        <button class="btn btn-outline" onclick="generateSlides('all')"><i class="fas fa-rotate"></i> Regenerate All</button>
         <button class="btn btn-outline" onclick="clearAll()"><i class="fas fa-broom"></i> Clear</button>
       </div>
       <div id="reviewList" class="review-list"></div>
@@ -1315,10 +1315,24 @@ function getPreviewCSS() { return `
 const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>';
 
 
-  // ---------- generation / review ----------
-  async function generateSlides(singleIdx){
-    const brief = $('brief').value.trim();
+  async function generateSlides(singleIdx, customPrompt){
+    let brief = $('brief').value.trim();
     if (!brief) { setStatus('Describe the lesson you want to build first.', 'error'); return; }
+
+    if (singleIdx === 'all') {
+      const userExtra = prompt('Enter instructions for regenerating all slides (or leave blank to use original brief):', '');
+      if (userExtra === null) return; // User cancelled
+      if (userExtra.trim()) {
+        brief = 'REGENERATE LESSON WITH REVISED INSTRUCTIONS:\n"""\n' + userExtra.trim() + '\n"""\n\nORIGINAL BRIEF:\n' + brief;
+      }
+      singleIdx = null;
+    } else if (singleIdx != null && customPrompt === undefined) {
+      const cur = agentSlides[singleIdx];
+      const defaultInstr = 'Regenerate slide #' + (singleIdx+1) + ' ("' + (cur ? cur.s.title : '') + '").';
+      const userInstr = prompt('Enter custom instructions for regenerating this slide (e.g. "Make this a fill-in-the-blank question" or "Add a dialogue"):', defaultInstr);
+      if (userInstr === null) return; // User cancelled
+      customPrompt = userInstr.trim();
+    }
 
     const body = new URLSearchParams({
       action: 'agentGenerateSlides',
@@ -1335,7 +1349,8 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="current
 
     if (singleIdx != null) {
       const cur = agentSlides[singleIdx];
-      body.set('prompt', 'Regenerate ONLY the slide titled "' + (cur ? cur.s.title : '') + '". Keep it as one focused, student-facing slide. Follow the original brief below:\n\n' + brief);
+      const instr = customPrompt || ('Regenerate ONLY the slide titled "' + (cur ? cur.s.title : '') + '".');
+      body.set('prompt', instr + '\n\nLesson Brief:\n' + brief);
     }
 
     const btn = singleIdx != null ? null : $('generateBtn');
