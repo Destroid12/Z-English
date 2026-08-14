@@ -622,6 +622,13 @@ function initDeck(slides){
     });
   });
 
+  // Override strict mode to false for text inputs across all sessions at runtime
+  document.querySelectorAll('input.interactive-input[type="text"]').forEach(input => {
+    if (!input.dataset.strictSetExplicitly) {
+      input.dataset.strict = 'false';
+    }
+  });
+
   document.querySelectorAll('.z-audio').forEach(initCustomAudio);
 
   window.selectRadio = function(btn) {

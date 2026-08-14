@@ -1102,10 +1102,12 @@ function compileSlide(slide, forExport = true) {
           const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
           inputHtml = `<button class="interactive-voice btn btn-outline" data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr} onclick="startVoiceQuestion(this)"><i class="fas fa-microphone"></i> <span>Tap to Speak</span></button>`;
         } else {
+          const isExplicit = b.strictExplicit === true || b.strictSetExplicitly === true || (b.strict !== undefined && b.strict !== null);
+          const explicitAttr = isExplicit ? ' data-strict-explicit="true"' : '';
           const strictAttr = (b.strict !== false) ? ' data-strict="true"' : ' data-strict="false"';
           const tipsAttr = b.tips ? ' data-tips="true"' : '';
           const instAttr = b.aiInstructions ? ` data-aiinstructions="${escAttr(b.aiInstructions)}"` : '';
-          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${tipsAttr}${instAttr}>`;
+          inputHtml = `<input type="text" class="interactive-input" placeholder="Type answer..." data-answer="${escAttr(b.answer)}"${altAttr}${strictAttr}${explicitAttr}${tipsAttr}${instAttr}>`;
         }
         if (b.pos) {
           floatingInputs += `<div class="editor-pos-blank" data-el-id="${escAttr(el.id)}" data-blank-idx="0" style="position:absolute; top:${escAttr(b.pos.top)}; left:${escAttr(b.pos.left)}; max-width:80%; z-index:10;">${inputHtml}</div>\n`;
@@ -1950,6 +1952,10 @@ function updateElBlank(elId, idx, field, value) {
     b[field] = value.split('\n').map(s=>s.trim()).filter(Boolean);
   } else {
     b[field] = value;
+    if (field === 'strict') {
+      b.strictExplicit = true;
+      b.strictSetExplicitly = true;
+    }
   }
   
   if (field === 'qtype') {
