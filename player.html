@@ -1276,12 +1276,13 @@ async function submitTest() {
     slideEls.forEach((slide, i) => {
       let slideAnswers = [];
       
-      // Non-interactive text blocks
-      const infos = slide.querySelectorAll('.content-text, .content-html');
+      // Non-interactive text blocks (paragraphs, reading passages, info boxes)
+      const infos = slide.querySelectorAll('.content-text, .content-html, p, div[style*="font-size"], ol.agenda');
       infos.forEach(txt => {
+        if (txt.closest('.question-block, .interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) return;
         if (!txt.querySelector('.interactive-input, .interactive-select, .interactive-radio-group, .interactive-checkbox-group, .interactive-wordbank, .interactive-match, .interactive-schedule')) {
           let textContent = txt.textContent.trim().replace(/\s+/g, ' ');
-          if (textContent.length > 0) {
+          if (textContent.length > 0 && !slideAnswers.some(a => a.node === txt)) {
             slideAnswers.push({ node: txt, type: 'info', question: textContent, answer: null });
           }
         }
@@ -1344,7 +1345,7 @@ async function submitTest() {
 
       // Formatting for display
       let formattedAnswer = slideAnswers.map(a => {
-        if (a.type === 'info') return `[Context]: ${a.question}`;
+        if (a.type === 'info') return `[Reading / Paragraph]: ${a.question}`;
         return `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`;
       }).join('\n\n');
       answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
