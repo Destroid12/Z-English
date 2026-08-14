@@ -2012,7 +2012,8 @@
                         : `<span style="color:var(--text-muted); font-size:0.8rem;">Empty</span>`}
                 </td>
                 <td>
-                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteStudentUI('${s.id}')">
+                    <button class="btn btn-outline btn-sm" onclick="changeStudentPasswordUI('${s.id}')" title="Change Password & Logout All Devices"><i class="fas fa-key"></i> Password</button>
+                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteStudentUI('${s.id}')" title="Delete Student">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -2025,7 +2026,7 @@
                 <th>Level Access</th>
                 <th>Device 1</th>
                 <th>Device 2</th>
-                <th></th>
+                <th>Actions</th>
             </tr></thead>
             <tbody>${rows}</tbody>
         </table>`;
@@ -2062,6 +2063,28 @@ async function deleteStudentUI(studentId) {
     } catch (err) {
         console.error(err);
         alert('Could not delete that student. Please try again.');
+    } finally { setLoading(false); }
+}
+
+async function changeStudentPasswordUI(studentId) {
+    const newPassword = prompt(`Enter a new password for student "${studentId}" (min 6 characters):\n\nNote: Changing password will immediately log out this student from ALL devices.`);
+    if (!newPassword) return;
+    if (newPassword.length < 6) {
+        alert('Password must be at least 6 characters long.');
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'changeStudentPassword', token: sessionToken, studentId, newPassword });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not change password.'); return; }
+        alert(`Password for "${studentId}" updated successfully! All logged-in devices have been logged out.`);
+        loadStudentsList();
+    } catch (err) {
+        console.error(err);
+        alert('Could not change password. Please try again.');
     } finally { setLoading(false); }
 }
 

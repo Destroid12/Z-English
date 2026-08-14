@@ -416,6 +416,43 @@ async function _deleteStudent(p) {
   return { success: true };
 }
 
+async function _changeStudentPassword(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const studentId = String(p.studentId || '').toLowerCase();
+  const newPassword = p.newPassword || '';
+
+  if (!studentId || !newPassword) {
+    return { success: false, message: 'Missing required fields.' };
+  }
+  if (newPassword.length < 6) {
+    return { success: false, message: 'New password must be at least 6 characters.' };
+  }
+
+  const { data: found } = await supabase
+    .from('users').select('id').eq('id', studentId).maybeSingle();
+  if (!found) return { success: false, message: 'Student not found.' };
+
+  const salt = _randomSalt();
+  const hash = _hashPassword(newPassword, salt);
+
+  // Invalidate active login session AND wipe all bound device slots (logging out every device)
+  const { error } = await supabase.from('users').update({
+    password_hash: hash,
+    salt: salt,
+    session_token_hash: '',
+    session_expiry: null,
+    device1_hash: '',
+    device1_name: '',
+    device2_hash: '',
+    device2_name: ''
+  }).eq('id', studentId);
+
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
 async function _freeDeviceSlot(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
@@ -3990,6 +4027,7 @@ const actions = {
   createStudent: _createStudent,
   listStudents: _listStudents,
   deleteStudent: _deleteStudent,
+  changeStudentPassword: _changeStudentPassword,
   freeDeviceSlot: _freeDeviceSlot,
   grantLevelAccess: _grantLevelAccess,
   revokeLevelAccess: _revokeLevelAccess,
