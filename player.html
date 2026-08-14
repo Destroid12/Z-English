@@ -1345,7 +1345,7 @@ async function submitTest() {
 
       // Formatting for display
       let formattedAnswer = slideAnswers.map(a => {
-        if (a.type === 'info') return `[Reading / Paragraph]: ${a.question}`;
+        if (a.type === 'info') return a.question;
         return `Q: ${a.question}\nA: ${a.answer ? a.answer : '(Unanswered)'}`;
       }).join('\n\n');
       answers.push({ type: `Slide ${i+1}`, answer: formattedAnswer });
