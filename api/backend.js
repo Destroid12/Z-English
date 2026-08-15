@@ -192,13 +192,22 @@ async function _loadLessonContent(track, level, sessionNumber) {
   return data.slides_json;
 }
 
-// Device binding ported from _checkAndBindDevice (backend_Code.gs.local).
+// Device binding with configurable per-student device limit (default 2).
 async function _checkAndBindDevice(user, deviceId, deviceName) {
   if (!deviceId) {
     return { ok: false, message: 'Missing device identifier. Please reload and try again.' };
   }
   const dHash = _hashDevice(deviceId);
+  const maxDevices = Math.max(1, parseInt(user.device_limit || 2, 10));
+
   if (user.device1_hash === dHash || user.device2_hash === dHash) return { ok: true };
+
+  // Check if student has already used up their configured limit
+  let activeCount = (user.device1_hash ? 1 : 0) + (user.device2_hash ? 1 : 0);
+  if (activeCount >= maxDevices) {
+    return { ok: false, message: `This account has reached its device limit (${maxDevices} device${maxDevices === 1 ? '' : 's'}). Ask your admin to free a slot or increase your limit.` };
+  }
+
   if (!user.device1_hash) {
     await supabase
       .from('users')
@@ -213,7 +222,7 @@ async function _checkAndBindDevice(user, deviceId, deviceName) {
       .eq('id', user.id);
     return { ok: true };
   }
-  return { ok: false, message: 'This account is already in use on 2 devices. Ask your admin to free a slot.' };
+  return { ok: false, message: `This account is already in use on ${maxDevices} device(s). Ask your admin to free a slot.` };
 }
 
 // ---------------------------------------------------------------------
@@ -348,6 +357,7 @@ async function _createStudent(p) {
   const name = String(p.name || '').trim();
   const password = p.password || '';
   const gender = p.gender === 'female' ? 'female' : 'male';
+  const deviceLimit = Math.max(1, parseInt(p.deviceLimit || 2, 10));
 
   if (!studentId || !name || !password) {
     return { success: false, message: 'Missing required fields.' };
@@ -371,6 +381,7 @@ async function _createStudent(p) {
     provider: 'password',
     session_token_hash: '',
     session_expiry: null,
+    device_limit: deviceLimit,
     device1_hash: '', device1_name: '', device2_hash: '', device2_name: ''
   });
   if (error) throw new Error(error.message);
@@ -392,6 +403,7 @@ async function _listStudents(p) {
       id: u.id,
       name: u.name,
       gender: u.gender,
+      deviceLimit: parseInt(u.device_limit || 2, 10),
       hasDevice1: !!u.device1_hash,
       hasDevice2: !!u.device2_hash,
       device1Name: u.device1_name || '',
@@ -400,6 +412,25 @@ async function _listStudents(p) {
     });
   }
   return { success: true, students: students };
+}
+
+async function _setStudentDeviceLimit(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const studentId = String(p.studentId || '').toLowerCase();
+  const deviceLimit = Math.max(1, parseInt(p.deviceLimit || 2, 10));
+
+  const { data: found } = await supabase
+    .from('users').select('id').eq('id', studentId).maybeSingle();
+  if (!found) return { success: false, message: 'Student not found.' };
+
+  const { error } = await supabase.from('users').update({
+    device_limit: deviceLimit
+  }).eq('id', studentId);
+
+  if (error) throw new Error(error.message);
+  return { success: true };
 }
 
 async function _deleteStudent(p) {
@@ -4028,6 +4059,7 @@ const actions = {
   listStudents: _listStudents,
   deleteStudent: _deleteStudent,
   changeStudentPassword: _changeStudentPassword,
+  setStudentDeviceLimit: _setStudentDeviceLimit,
   freeDeviceSlot: _freeDeviceSlot,
   grantLevelAccess: _grantLevelAccess,
   revokeLevelAccess: _revokeLevelAccess,

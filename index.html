@@ -659,6 +659,16 @@
                             <option value="female" data-i18n="genderFemale">Female</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label>Device Cap Limit</label>
+                        <select id="new-student-device-limit" class="input-control">
+                            <option value="1">1 Device</option>
+                            <option value="2" selected>2 Devices (Default)</option>
+                            <option value="3">3 Devices</option>
+                            <option value="4">4 Devices</option>
+                            <option value="5">5 Devices</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 10px;" id="create-student-btn" data-i18n="createStudentBtn">Create Account</button>
             </form>
@@ -1943,6 +1953,7 @@
             const name = document.getElementById('new-student-name').value.trim();
             const password = document.getElementById('new-student-password').value;
             const gender = document.getElementById('new-student-gender').value;
+            const deviceLimit = document.getElementById('new-student-device-limit') ? document.getElementById('new-student-device-limit').value : '2';
 
             if (!studentId || !name || !password) {
                 showElAlert('create-student-alert', 'create-student-alert-text', translations[currentLang].errCreateStudentFields);
@@ -1953,7 +1964,7 @@
             const btn = document.getElementById('create-student-btn');
             btn.disabled = true; setLoading(true);
             try {
-                const body = new URLSearchParams({ action: 'createStudent', token: sessionToken, studentId, name, password, gender });
+                const body = new URLSearchParams({ action: 'createStudent', token: sessionToken, studentId, name, password, gender, deviceLimit });
                 const result = await callBackend(body);
                 if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
                 if (!result.success) {
@@ -1983,8 +1994,9 @@
         const students = result.students || [];
         window.allStudentsCache = students;
         if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); } return; }
-        let rows = students.map(s => {
+            let rows = students.map(s => {
             const hasLevel = (t, l) => s.unlockedLevels && s.unlockedLevels.some(ul => String(ul.track) === String(t) && String(ul.level) === String(l));
+            const devCap = s.deviceLimit || 2;
             return `
             <tr>
                 <td>${escapeHtml(s.id)}</td>
@@ -2001,6 +2013,15 @@
                             <label style="margin-right:8px; font-size:0.8rem;"><input type="checkbox" onchange="toggleLevelAccess('${s.id}', 'advanced', ${l}, this.checked)" ${hasLevel('advanced', l) ? 'checked' : ''}> L${l}</label>
                         `).join('')}
                     </div>
+                </td>
+                <td>
+                    <select class="input-control small" style="width: auto; min-width: 90px; padding: 4px 8px; font-size: 0.85rem;" onchange="setStudentDeviceLimitUI('${s.id}', this.value)">
+                        <option value="1" ${devCap === 1 ? 'selected' : ''}>1 Device</option>
+                        <option value="2" ${devCap === 2 ? 'selected' : ''}>2 Devices</option>
+                        <option value="3" ${devCap === 3 ? 'selected' : ''}>3 Devices</option>
+                        <option value="4" ${devCap === 4 ? 'selected' : ''}>4 Devices</option>
+                        <option value="5" ${devCap === 5 ? 'selected' : ''}>5 Devices</option>
+                    </select>
                 </td>
                 <td>
                     ${s.hasDevice1
@@ -2025,6 +2046,7 @@
                 <th>ID</th>
                 <th>${translations[currentLang].studentNameField}</th>
                 <th>Level Access</th>
+                <th>Device Cap</th>
                 <th>Device 1</th>
                 <th>Device 2</th>
                 <th>Actions</th>
@@ -2086,6 +2108,20 @@ async function changeStudentPasswordUI(studentId) {
     } catch (err) {
         console.error(err);
         alert('Could not change password. Please try again.');
+    } finally { setLoading(false); }
+}
+
+async function setStudentDeviceLimitUI(studentId, deviceLimit) {
+    setLoading(true);
+    try {
+        const body = new URLSearchParams({ action: 'setStudentDeviceLimit', token: sessionToken, studentId, deviceLimit });
+        const result = await callBackend(body);
+        if (result.expired) { handleAuthOrLogoutOnExpiry(); return; }
+        if (!result.success) { alert(result.message || 'Could not update device limit.'); return; }
+        loadStudentsList();
+    } catch (err) {
+        console.error(err);
+        alert('Could not update device limit. Please try again.');
     } finally { setLoading(false); }
 }
 
