@@ -2019,7 +2019,7 @@
         if (students.length === 0) { wrap.innerHTML = `<p>${translations[currentLang].noStudentsYet}</p>`; if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> ' + (translations[currentLang].refreshBtn || 'Refresh'); } return; }
             let rows = students.map(s => {
             const hasLevel = (t, l) => s.unlockedLevels && s.unlockedLevels.some(ul => String(ul.track) === String(t) && String(ul.level) === String(l));
-            const devCap = s.deviceLimit || 2;
+            const devCap = (s.deviceLimit !== undefined && s.deviceLimit !== null) ? s.deviceLimit : 2;
             return `
             <tr>
                 <td>${escapeHtml(s.id)}</td>
@@ -2051,14 +2051,28 @@
                     </select>
                 </td>
                 <td>
-                    ${s.hasDevice1
-                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','1')">Free Slot 1</button><br><span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(s.device1Name)}</span>`
-                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Empty</span>`}
-                </td>
-                <td>
-                    ${s.hasDevice2
-                        ? `<button class="btn btn-outline btn-sm" onclick="freeSlot('${s.id}','2')">Free Slot 2</button><br><span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(s.device2Name)}</span>`
-                        : `<span style="color:var(--text-muted); font-size:0.8rem;">Empty</span>`}
+                    <button class="btn btn-outline btn-sm" onclick="toggleStudentDevicesPanel('${s.id}')"><i class="fas fa-mobile-screen"></i> Devices (${(s.hasDevice1?1:0)+(s.hasDevice2?1:0)}/${devCap <= 0 ? '∞' : devCap})</button>
+                    <div id="devices-panel-${s.id}" style="display:none; margin-top:10px; background:var(--bg-color); padding:12px; border-radius:10px; border:1px solid var(--border-color); text-align:left;">
+                        <div style="font-weight:bold; margin-bottom:8px; font-size:0.85rem; color:var(--text-main);">
+                            <i class="fas fa-shield-halved" style="color:var(--z-blue);"></i> Device Cap: <span class="badge ${devCap<=0?'unlocked':'admin'}">${devCap<=0?'∞ Unlimited':devCap+' Max Device(s)'}</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div style="padding:8px; background:var(--card-bg); border-radius:6px; border:1px solid var(--border-color);">
+                                <strong style="font-size:0.78rem; color:var(--text-muted);">Slot 1</strong><br>
+                                ${s.hasDevice1 
+                                    ? `<span style="font-size:0.82rem; font-weight:600;"><i class="fas fa-mobile-button"></i> ${escapeHtml(s.device1Name)}</span><br><button class="btn btn-outline btn-sm" style="margin-top:6px; padding:3px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="freeSlot('${s.id}','1')">Disconnect</button>` 
+                                    : `<span style="font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-circle-minus"></i> Unassigned</span>`}
+                            </div>
+                            <div style="padding:8px; background:var(--card-bg); border-radius:6px; border:1px solid var(--border-color);">
+                                <strong style="font-size:0.78rem; color:var(--text-muted);">Slot 2</strong><br>
+                                ${s.hasDevice2 
+                                    ? `<span style="font-size:0.82rem; font-weight:600;"><i class="fas fa-mobile-button"></i> ${escapeHtml(s.device2Name)}</span><br><button class="btn btn-outline btn-sm" style="margin-top:6px; padding:3px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="freeSlot('${s.id}','2')">Disconnect</button>` 
+                                    : `<span style="font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-circle-minus"></i> Unassigned</span>`}
+                            </div>
+                        </div>
+                        ${devCap > 2 ? `<p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:0;"><i class="fas fa-info-circle"></i> Additional slots (${devCap - 2} extra) bind dynamically on login.</p>` : ''}
+                        ${devCap <= 0 ? `<p style="font-size:0.75rem; color:var(--success); margin-top:8px; margin-bottom:0;"><i class="fas fa-infinity"></i> Unlimited devices allowed. Any device can sign in freely.</p>` : ''}
+                    </div>
                 </td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick="changeStudentPasswordUI('${s.id}')" title="Change Password & Logout All Devices"><i class="fas fa-key"></i> Password</button>
@@ -2074,8 +2088,7 @@
                 <th>${translations[currentLang].studentNameField}</th>
                 <th>Level Access</th>
                 <th>Device Cap</th>
-                <th>Device 1</th>
-                <th>Device 2</th>
+                <th>Assigned Devices</th>
                 <th>Actions</th>
             </tr></thead>
             <tbody>${rows}</tbody>
@@ -2136,6 +2149,11 @@ async function changeStudentPasswordUI(studentId) {
         console.error(err);
         alert('Could not change password. Please try again.');
     } finally { setLoading(false); }
+}
+
+function toggleStudentDevicesPanel(studentId) {
+    const el = document.getElementById(`devices-panel-${studentId}`);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 async function handleStudentTableDeviceLimitChange(studentId, value, selectEl) {

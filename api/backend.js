@@ -422,12 +422,16 @@ async function _listStudents(p) {
   const students = [];
   for (const u of data || []) {
     const unlockedLevels = await _getUnlockedLevels(u.id);
-    const rawLimit = parseInt(u.device_limit !== undefined && u.device_limit !== null ? u.device_limit : 2, 10);
+    let devLimit = 2;
+    if (u.device_limit !== undefined && u.device_limit !== null && u.device_limit !== '') {
+      const parsed = parseInt(u.device_limit, 10);
+      if (!isNaN(parsed)) devLimit = parsed;
+    }
     students.push({
       id: u.id,
       name: u.name,
       gender: u.gender,
-      deviceLimit: isNaN(rawLimit) ? 2 : rawLimit,
+      deviceLimit: devLimit,
       hasDevice1: !!u.device1_hash,
       hasDevice2: !!u.device2_hash,
       device1Name: u.device1_name || '',
