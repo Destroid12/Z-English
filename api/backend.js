@@ -192,17 +192,24 @@ async function _loadLessonContent(track, level, sessionNumber) {
   return data.slides_json;
 }
 
-// Device binding with configurable per-student device limit (default 2).
+// Device binding with configurable per-student device limit (supports custom numbers or 0/-1 for Unlimited).
 async function _checkAndBindDevice(user, deviceId, deviceName) {
   if (!deviceId) {
     return { ok: false, message: 'Missing device identifier. Please reload and try again.' };
   }
   const dHash = _hashDevice(deviceId);
-  const maxDevices = Math.max(1, parseInt(user.device_limit || 2, 10));
+  const rawLimit = parseInt(user.device_limit !== undefined && user.device_limit !== null ? user.device_limit : 2, 10);
+  const isUnlimited = rawLimit <= 0;
 
+  // Always allow existing registered devices
   if (user.device1_hash === dHash || user.device2_hash === dHash) return { ok: true };
 
-  // Check if student has already used up their configured limit
+  // If student has unlimited devices, grant access
+  if (isUnlimited) return { ok: true };
+
+  const maxDevices = Math.max(1, rawLimit);
+
+  // Check active registered device count
   let activeCount = (user.device1_hash ? 1 : 0) + (user.device2_hash ? 1 : 0);
   if (activeCount >= maxDevices) {
     return { ok: false, message: `This account has reached its device limit (${maxDevices} device${maxDevices === 1 ? '' : 's'}). Ask your admin to free a slot or increase your limit.` };
@@ -357,7 +364,7 @@ async function _createStudent(p) {
   const name = String(p.name || '').trim();
   const password = p.password || '';
   const gender = p.gender === 'female' ? 'female' : 'male';
-  const deviceLimit = Math.max(1, parseInt(p.deviceLimit || 2, 10));
+  const deviceLimit = parseInt(p.deviceLimit !== undefined && p.deviceLimit !== null ? p.deviceLimit : 2, 10);
 
   if (!studentId || !name || !password) {
     return { success: false, message: 'Missing required fields.' };
@@ -381,7 +388,7 @@ async function _createStudent(p) {
     provider: 'password',
     session_token_hash: '',
     session_expiry: null,
-    device_limit: deviceLimit,
+    device_limit: isNaN(deviceLimit) ? 2 : deviceLimit,
     device1_hash: '', device1_name: '', device2_hash: '', device2_name: ''
   });
   if (error) throw new Error(error.message);
@@ -399,11 +406,12 @@ async function _listStudents(p) {
   const students = [];
   for (const u of data || []) {
     const unlockedLevels = await _getUnlockedLevels(u.id);
+    const rawLimit = parseInt(u.device_limit !== undefined && u.device_limit !== null ? u.device_limit : 2, 10);
     students.push({
       id: u.id,
       name: u.name,
       gender: u.gender,
-      deviceLimit: parseInt(u.device_limit || 2, 10),
+      deviceLimit: isNaN(rawLimit) ? 2 : rawLimit,
       hasDevice1: !!u.device1_hash,
       hasDevice2: !!u.device2_hash,
       device1Name: u.device1_name || '',
@@ -419,14 +427,15 @@ async function _setStudentDeviceLimit(p) {
   if (gate.error) return gate.error;
 
   const studentId = String(p.studentId || '').toLowerCase();
-  const deviceLimit = Math.max(1, parseInt(p.deviceLimit || 2, 10));
+  const deviceLimit = parseInt(p.deviceLimit !== undefined && p.deviceLimit !== null ? p.deviceLimit : 2, 10);
+  const finalLimit = isNaN(deviceLimit) ? 2 : deviceLimit;
 
   const { data: found } = await supabase
     .from('users').select('id').eq('id', studentId).maybeSingle();
   if (!found) return { success: false, message: 'Student not found.' };
 
   const { error } = await supabase.from('users').update({
-    device_limit: deviceLimit
+    device_limit: finalLimit
   }).eq('id', studentId);
 
   if (error) throw new Error(error.message);

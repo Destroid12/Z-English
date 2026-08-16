@@ -661,13 +661,17 @@
                     </div>
                     <div class="input-group">
                         <label>Device Cap Limit</label>
-                        <select id="new-student-device-limit" class="input-control">
+                        <select id="new-student-device-limit" class="input-control" onchange="handleNewStudentDeviceLimitChange(this.value)">
                             <option value="1">1 Device</option>
                             <option value="2" selected>2 Devices (Default)</option>
                             <option value="3">3 Devices</option>
                             <option value="4">4 Devices</option>
                             <option value="5">5 Devices</option>
+                            <option value="10">10 Devices</option>
+                            <option value="0">∞ Unlimited</option>
+                            <option value="custom">Custom...</option>
                         </select>
+                        <input type="number" id="new-student-device-limit-custom" class="input-control" placeholder="Enter custom limit" style="display:none; margin-top:8px;" min="1">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 10px;" id="create-student-btn" data-i18n="createStudentBtn">Create Account</button>
@@ -1945,6 +1949,17 @@
             }
         }
 
+        function handleNewStudentDeviceLimitChange(val) {
+            const customInput = document.getElementById('new-student-device-limit-custom');
+            if (!customInput) return;
+            if (val === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
         async function handleCreateStudent(e) {
             e.preventDefault();
             hideElAlert('create-student-alert'); hideElAlert('create-student-success');
@@ -1953,7 +1968,13 @@
             const name = document.getElementById('new-student-name').value.trim();
             const password = document.getElementById('new-student-password').value;
             const gender = document.getElementById('new-student-gender').value;
-            const deviceLimit = document.getElementById('new-student-device-limit') ? document.getElementById('new-student-device-limit').value : '2';
+            
+            const selEl = document.getElementById('new-student-device-limit');
+            const customInput = document.getElementById('new-student-device-limit-custom');
+            let deviceLimit = selEl ? selEl.value : '2';
+            if (deviceLimit === 'custom' && customInput) {
+                deviceLimit = customInput.value.trim() || '2';
+            }
 
             if (!studentId || !name || !password) {
                 showElAlert('create-student-alert', 'create-student-alert-text', translations[currentLang].errCreateStudentFields);
@@ -1975,6 +1996,8 @@
                 document.getElementById('new-student-id').value = '';
                 document.getElementById('new-student-name').value = '';
                 document.getElementById('new-student-password').value = '';
+                if (customInput) { customInput.style.display = 'none'; customInput.value = ''; }
+                if (selEl) selEl.value = '2';
                 loadStudentsList();
             } catch (err) {
                 showElAlert('create-student-alert', 'create-student-alert-text', translations[currentLang].errNetwork);
@@ -2015,12 +2038,16 @@
                     </div>
                 </td>
                 <td>
-                    <select class="input-control small" style="width: auto; min-width: 90px; padding: 4px 8px; font-size: 0.85rem;" onchange="setStudentDeviceLimitUI('${s.id}', this.value)">
+                    <select class="input-control small" style="width: auto; min-width: 100px; padding: 4px 8px; font-size: 0.85rem;" onchange="handleStudentTableDeviceLimitChange('${s.id}', this.value, this)">
                         <option value="1" ${devCap === 1 ? 'selected' : ''}>1 Device</option>
                         <option value="2" ${devCap === 2 ? 'selected' : ''}>2 Devices</option>
                         <option value="3" ${devCap === 3 ? 'selected' : ''}>3 Devices</option>
                         <option value="4" ${devCap === 4 ? 'selected' : ''}>4 Devices</option>
                         <option value="5" ${devCap === 5 ? 'selected' : ''}>5 Devices</option>
+                        <option value="10" ${devCap === 10 ? 'selected' : ''}>10 Devices</option>
+                        <option value="0" ${devCap <= 0 ? 'selected' : ''}>∞ Unlimited</option>
+                        ${[1,2,3,4,5,10,0].indexOf(devCap) === -1 ? `<option value="${devCap}" selected>${devCap} Devices</option>` : ''}
+                        <option value="custom">Custom...</option>
                     </select>
                 </td>
                 <td>
@@ -2109,6 +2136,25 @@ async function changeStudentPasswordUI(studentId) {
         console.error(err);
         alert('Could not change password. Please try again.');
     } finally { setLoading(false); }
+}
+
+async function handleStudentTableDeviceLimitChange(studentId, value, selectEl) {
+    let targetVal = value;
+    if (value === 'custom') {
+        const input = prompt(`Enter custom device cap limit for student "${studentId}":\n\n(Tip: Enter 0 for Unlimited)`);
+        if (input === null) {
+            loadStudentsList();
+            return;
+        }
+        const parsed = parseInt(input.trim(), 10);
+        if (isNaN(parsed) || parsed < 0) {
+            alert('Please enter a valid non-negative number (0 or higher).');
+            loadStudentsList();
+            return;
+        }
+        targetVal = String(parsed);
+    }
+    await setStudentDeviceLimitUI(studentId, targetVal);
 }
 
 async function setStudentDeviceLimitUI(studentId, deviceLimit) {
