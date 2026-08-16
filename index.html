@@ -2149,72 +2149,112 @@ async function changeStudentPasswordUI(studentId) {
 
 function openStudentDevicesModal(studentId) {
     const student = (window.allStudentsCache || []).find(s => String(s.id).toLowerCase() === String(studentId).toLowerCase());
-    if (!student) return;
+    if (!student) {
+        alert('Student details not found. Please click Refresh and try again.');
+        return;
+    }
 
-    const devCap = (student.deviceLimit !== undefined && student.deviceLimit !== null) ? student.deviceLimit : 2;
-    const activeCount = (student.hasDevice1 ? 1 : 0) + (student.hasDevice2 ? 1 : 0);
+    const modalOverlay = document.getElementById('devices-modal-overlay');
+    const modalTitle = document.getElementById('devices-modal-student-name');
+    const modalBody = document.getElementById('devices-modal-body');
 
-    document.getElementById('devices-modal-student-name').textContent = `${student.name} (${student.id})`;
+    if (!modalOverlay || !modalBody) {
+        console.error('Modal DOM elements missing');
+        return;
+    }
+
+    const devCap = (student.deviceLimit !== undefined && student.deviceLimit !== null) ? parseInt(student.deviceLimit, 10) : 2;
+    const isInfinite = devCap <= 0;
     
+    // Build list of active registered devices
+    const activeDevices = [];
+    if (student.hasDevice1) activeDevices.push({ slot: '1', name: student.device1Name || 'Device 1' });
+    if (student.hasDevice2) activeDevices.push({ slot: '2', name: student.device2Name || 'Device 2' });
+
+    modalTitle.textContent = `${student.name} (${student.id})`;
+
     let html = `
         <div style="margin-bottom: 16px; font-size: 0.95rem;">
             <i class="fas fa-shield-halved" style="color: var(--z-blue); margin-right: 6px;"></i>
             <strong>Device Limit:</strong> 
-            <span class="badge ${devCap <= 0 ? 'unlocked' : 'admin'}" style="margin-left: 6px;">
-                ${devCap <= 0 ? '∞ Unlimited' : devCap + ' Max Device(s)'}
+            <span class="badge ${isInfinite ? 'unlocked' : 'admin'}" style="margin-left: 6px;">
+                ${isInfinite ? '∞ Unlimited' : devCap + ' Max Slot(s)'}
             </span>
             <span style="float: right; color: var(--text-muted); font-size: 0.88rem; font-weight: 700;">
-                Active: ${activeCount} / ${devCap <= 0 ? '∞' : devCap}
+                Active: ${activeDevices.length} ${isInfinite ? '' : '/ ' + devCap}
             </span>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="padding: 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid var(--border-color);">
-                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
-                    <i class="fas fa-mobile-screen"></i> Slot 1
-                </div>
-                ${student.hasDevice1 
-                    ? `<div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 8px;">
-                           ${escapeHtml(student.device1Name)}
-                       </div>
-                       <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 6px;" onclick="freeSlotFromModal('${student.id}', '1')">
-                           <i class="fas fa-plug-circle-xmark"></i> Disconnect
-                       </button>`
-                    : `<div style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">
-                           <i class="fas fa-circle-minus"></i> Unassigned
-                       </div>`}
-            </div>
-
-            <div style="padding: 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid var(--border-color);">
-                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
-                    <i class="fas fa-mobile-screen"></i> Slot 2
-                </div>
-                ${student.hasDevice2 
-                    ? `<div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 8px;">
-                           ${escapeHtml(student.device2Name)}
-                       </div>
-                       <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 6px;" onclick="freeSlotFromModal('${student.id}', '2')">
-                           <i class="fas fa-plug-circle-xmark"></i> Disconnect
-                       </button>`
-                    : `<div style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">
-                           <i class="fas fa-circle-minus"></i> Unassigned
-                       </div>`}
-            </div>
         </div>
     `;
 
-    if (devCap > 2) {
-        html += `<p style="font-size: 0.85rem; color: var(--text-muted); background: var(--z-blue-light); color: var(--z-blue-dark); padding: 10px 14px; border-radius: 8px; margin: 0;">
-                    <i class="fas fa-info-circle"></i> Additional device slots (${devCap - 2} remaining) bind dynamically when the student logs in.
+    if (isInfinite) {
+        // Infinite mode: display ONLY signed in devices
+        html += `<div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
+                    Signed In Devices (${activeDevices.length})
+                 </div>`;
+
+        if (activeDevices.length === 0) {
+            html += `<div style="padding: 16px; background: var(--bg-color); border-radius: 10px; border: 1.5px dashed var(--border-color); text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        <i class="fas fa-mobile-screen-button" style="font-size: 1.5rem; margin-bottom: 6px; display: block; opacity: 0.5;"></i>
+                        No active device sessions currently registered.
+                     </div>`;
+        } else {
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px;">`;
+            activeDevices.forEach(d => {
+                html += `
+                    <div style="padding: 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid var(--border-color);">
+                        <div style="font-size: 0.78rem; font-weight: 800; color: var(--z-blue); text-transform: uppercase; margin-bottom: 4px;">
+                            <i class="fas fa-mobile-screen"></i> Active Session (Slot ${d.slot})
+                        </div>
+                        <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 8px;">
+                            ${escapeHtml(d.name)}
+                        </div>
+                        <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 5px;" onclick="freeSlotFromModal('${student.id}', '${d.slot}')">
+                            <i class="fas fa-plug-circle-xmark"></i> Disconnect
+                        </button>
+                    </div>`;
+            });
+            html += `</div>`;
+        }
+
+        html += `<p style="font-size: 0.82rem; background: var(--success-light); color: var(--success); padding: 10px 14px; border-radius: 8px; margin-top: 14px; margin-bottom: 0;">
+                    <i class="fas fa-infinity"></i> Unlimited devices allowed. Any device can sign in freely without hitting a limit.
                  </p>`;
-    } else if (devCap <= 0) {
-        html += `<p style="font-size: 0.85rem; background: var(--success-light); color: var(--success); padding: 10px 14px; border-radius: 8px; margin: 0;">
-                    <i class="fas fa-infinity"></i> Unlimited devices allowed. Any new device can sign in freely.
-                 </p>`;
+    } else {
+        // Finite limit: display EXACT amount of slots configured for this student
+        html += `<div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
+                    Configured Device Slots (${devCap} Total)
+                 </div>`;
+        
+        html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; max-height: 320px; overflow-y: auto;">`;
+
+        for (let i = 1; i <= devCap; i++) {
+            const slotStr = String(i);
+            const activeDev = activeDevices.find(d => d.slot === slotStr);
+            const isAssigned = !!activeDev;
+
+            html += `
+                <div style="padding: 12px 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid ${isAssigned ? 'var(--border-color)' : 'var(--border-color)'}; opacity: ${isAssigned ? '1' : '0.85'};">
+                    <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">
+                        <i class="fas fa-mobile-screen"></i> Slot ${i}
+                    </div>
+                    ${isAssigned 
+                        ? `<div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main); margin-bottom: 8px;">
+                               ${escapeHtml(activeDev.name)}
+                           </div>
+                           <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 5px;" onclick="freeSlotFromModal('${student.id}', '${slotStr}')">
+                               <i class="fas fa-plug-circle-xmark"></i> Disconnect
+                           </button>`
+                        : `<div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; font-weight: 600;">
+                               <i class="fas fa-circle-minus"></i> Unassigned
+                           </div>`}
+                </div>`;
+        }
+
+        html += `</div>`;
     }
 
-    document.getElementById('devices-modal-body').innerHTML = html;
-    document.getElementById('devices-modal-overlay').classList.add('active');
+    modalBody.innerHTML = html;
+    modalOverlay.classList.add('active');
 }
 
 function closeStudentDevicesModal() {
