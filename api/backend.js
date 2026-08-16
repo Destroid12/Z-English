@@ -4169,7 +4169,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(result);
   } catch (err) {
     console.error('Z-English backend error:', err);
-    return res.status(200).json({ success: false, message: 'Server error' });
+    return res.status(200).json({ success: false, message: 'Server error: ' + (err.message || String(err)) });
   }
 };
 
