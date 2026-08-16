@@ -1031,29 +1031,27 @@
                     </div>
                 </div>
 
-                <div id="feed-container">
-                    </div>
+        </div>
+    </main>
+
+    <!-- Devices Modal -->
+    <div class="modal-overlay" id="devices-modal-overlay" onclick="if(event.target===this)closeStudentDevicesModal()">
+        <div class="modal" style="width: 520px; max-width: 92%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem;"><i class="fas fa-mobile-screen" style="color: var(--z-blue); margin-right: 8px;"></i> Registered Devices</h3>
+                    <p id="devices-modal-student-name" style="margin: 4px 0 0; font-size: 0.88rem; color: var(--text-muted); font-weight: 700;"></p>
+                </div>
+                <button type="button" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="closeStudentDevicesModal()">
+                    <i class="fas fa-xmark"></i>
+                </button>
             </div>
-        <!-- Devices Modal -->
-        <div class="modal-overlay" id="devices-modal-overlay" onclick="if(event.target===this)closeStudentDevicesModal()">
-            <div class="modal" style="width: 520px; max-width: 92%;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px;">
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.25rem;"><i class="fas fa-mobile-screen" style="color: var(--z-blue); margin-right: 8px;"></i> Registered Devices</h3>
-                        <p id="devices-modal-student-name" style="margin: 4px 0 0; font-size: 0.88rem; color: var(--text-muted); font-weight: 700;"></p>
-                    </div>
-                    <button type="button" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="closeStudentDevicesModal()">
-                        <i class="fas fa-xmark"></i>
-                    </button>
-                </div>
-                <div id="devices-modal-body"></div>
-                <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="closeStudentDevicesModal()">Close</button>
-                </div>
+            <div id="devices-modal-body"></div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeStudentDevicesModal()">Close</button>
             </div>
         </div>
-
-    </main>
+    </div>
 
     <footer>
         <p>&copy; 2026 Z-English Learning Academy.</p>
