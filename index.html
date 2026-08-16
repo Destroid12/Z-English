@@ -1034,7 +1034,24 @@
                 <div id="feed-container">
                     </div>
             </div>
-        </section>
+        <!-- Devices Modal -->
+        <div class="modal-overlay" id="devices-modal-overlay" onclick="if(event.target===this)closeStudentDevicesModal()">
+            <div class="modal" style="width: 520px; max-width: 92%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem;"><i class="fas fa-mobile-screen" style="color: var(--z-blue); margin-right: 8px;"></i> Registered Devices</h3>
+                        <p id="devices-modal-student-name" style="margin: 4px 0 0; font-size: 0.88rem; color: var(--text-muted); font-weight: 700;"></p>
+                    </div>
+                    <button type="button" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="closeStudentDevicesModal()">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="devices-modal-body"></div>
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeStudentDevicesModal()">Close</button>
+                </div>
+            </div>
+        </div>
 
     </main>
 
@@ -2051,28 +2068,7 @@
                     </select>
                 </td>
                 <td>
-                    <button class="btn btn-outline btn-sm" onclick="toggleStudentDevicesPanel('${s.id}')"><i class="fas fa-mobile-screen"></i> Devices (${(s.hasDevice1?1:0)+(s.hasDevice2?1:0)}/${devCap <= 0 ? '∞' : devCap})</button>
-                    <div id="devices-panel-${s.id}" style="display:none; margin-top:10px; background:var(--bg-color); padding:12px; border-radius:10px; border:1px solid var(--border-color); text-align:left;">
-                        <div style="font-weight:bold; margin-bottom:8px; font-size:0.85rem; color:var(--text-main);">
-                            <i class="fas fa-shield-halved" style="color:var(--z-blue);"></i> Device Cap: <span class="badge ${devCap<=0?'unlocked':'admin'}">${devCap<=0?'∞ Unlimited':devCap+' Max Device(s)'}</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                            <div style="padding:8px; background:var(--card-bg); border-radius:6px; border:1px solid var(--border-color);">
-                                <strong style="font-size:0.78rem; color:var(--text-muted);">Slot 1</strong><br>
-                                ${s.hasDevice1 
-                                    ? `<span style="font-size:0.82rem; font-weight:600;"><i class="fas fa-mobile-button"></i> ${escapeHtml(s.device1Name)}</span><br><button class="btn btn-outline btn-sm" style="margin-top:6px; padding:3px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="freeSlot('${s.id}','1')">Disconnect</button>` 
-                                    : `<span style="font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-circle-minus"></i> Unassigned</span>`}
-                            </div>
-                            <div style="padding:8px; background:var(--card-bg); border-radius:6px; border:1px solid var(--border-color);">
-                                <strong style="font-size:0.78rem; color:var(--text-muted);">Slot 2</strong><br>
-                                ${s.hasDevice2 
-                                    ? `<span style="font-size:0.82rem; font-weight:600;"><i class="fas fa-mobile-button"></i> ${escapeHtml(s.device2Name)}</span><br><button class="btn btn-outline btn-sm" style="margin-top:6px; padding:3px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="freeSlot('${s.id}','2')">Disconnect</button>` 
-                                    : `<span style="font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-circle-minus"></i> Unassigned</span>`}
-                            </div>
-                        </div>
-                        ${devCap > 2 ? `<p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:0;"><i class="fas fa-info-circle"></i> Additional slots (${devCap - 2} extra) bind dynamically on login.</p>` : ''}
-                        ${devCap <= 0 ? `<p style="font-size:0.75rem; color:var(--success); margin-top:8px; margin-bottom:0;"><i class="fas fa-infinity"></i> Unlimited devices allowed. Any device can sign in freely.</p>` : ''}
-                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="openStudentDevicesModal('${s.id}')"><i class="fas fa-mobile-screen"></i> Devices (${(s.hasDevice1?1:0)+(s.hasDevice2?1:0)}/${devCap <= 0 ? '∞' : devCap})</button>
                 </td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick="changeStudentPasswordUI('${s.id}')" title="Change Password & Logout All Devices"><i class="fas fa-key"></i> Password</button>
@@ -2151,9 +2147,83 @@ async function changeStudentPasswordUI(studentId) {
     } finally { setLoading(false); }
 }
 
-function toggleStudentDevicesPanel(studentId) {
-    const el = document.getElementById(`devices-panel-${studentId}`);
-    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+function openStudentDevicesModal(studentId) {
+    const student = (window.allStudentsCache || []).find(s => String(s.id).toLowerCase() === String(studentId).toLowerCase());
+    if (!student) return;
+
+    const devCap = (student.deviceLimit !== undefined && student.deviceLimit !== null) ? student.deviceLimit : 2;
+    const activeCount = (student.hasDevice1 ? 1 : 0) + (student.hasDevice2 ? 1 : 0);
+
+    document.getElementById('devices-modal-student-name').textContent = `${student.name} (${student.id})`;
+    
+    let html = `
+        <div style="margin-bottom: 16px; font-size: 0.95rem;">
+            <i class="fas fa-shield-halved" style="color: var(--z-blue); margin-right: 6px;"></i>
+            <strong>Device Limit:</strong> 
+            <span class="badge ${devCap <= 0 ? 'unlocked' : 'admin'}" style="margin-left: 6px;">
+                ${devCap <= 0 ? '∞ Unlimited' : devCap + ' Max Device(s)'}
+            </span>
+            <span style="float: right; color: var(--text-muted); font-size: 0.88rem; font-weight: 700;">
+                Active: ${activeCount} / ${devCap <= 0 ? '∞' : devCap}
+            </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="padding: 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid var(--border-color);">
+                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+                    <i class="fas fa-mobile-screen"></i> Slot 1
+                </div>
+                ${student.hasDevice1 
+                    ? `<div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 8px;">
+                           ${escapeHtml(student.device1Name)}
+                       </div>
+                       <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 6px;" onclick="freeSlotFromModal('${student.id}', '1')">
+                           <i class="fas fa-plug-circle-xmark"></i> Disconnect
+                       </button>`
+                    : `<div style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">
+                           <i class="fas fa-circle-minus"></i> Unassigned
+                       </div>`}
+            </div>
+
+            <div style="padding: 14px; background: var(--bg-color); border-radius: 10px; border: 1.5px solid var(--border-color);">
+                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+                    <i class="fas fa-mobile-screen"></i> Slot 2
+                </div>
+                ${student.hasDevice2 
+                    ? `<div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 8px;">
+                           ${escapeHtml(student.device2Name)}
+                       </div>
+                       <button class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); width: 100%; padding: 6px;" onclick="freeSlotFromModal('${student.id}', '2')">
+                           <i class="fas fa-plug-circle-xmark"></i> Disconnect
+                       </button>`
+                    : `<div style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">
+                           <i class="fas fa-circle-minus"></i> Unassigned
+                       </div>`}
+            </div>
+        </div>
+    `;
+
+    if (devCap > 2) {
+        html += `<p style="font-size: 0.85rem; color: var(--text-muted); background: var(--z-blue-light); color: var(--z-blue-dark); padding: 10px 14px; border-radius: 8px; margin: 0;">
+                    <i class="fas fa-info-circle"></i> Additional device slots (${devCap - 2} remaining) bind dynamically when the student logs in.
+                 </p>`;
+    } else if (devCap <= 0) {
+        html += `<p style="font-size: 0.85rem; background: var(--success-light); color: var(--success); padding: 10px 14px; border-radius: 8px; margin: 0;">
+                    <i class="fas fa-infinity"></i> Unlimited devices allowed. Any new device can sign in freely.
+                 </p>`;
+    }
+
+    document.getElementById('devices-modal-body').innerHTML = html;
+    document.getElementById('devices-modal-overlay').classList.add('active');
+}
+
+function closeStudentDevicesModal() {
+    document.getElementById('devices-modal-overlay').classList.remove('active');
+}
+
+async function freeSlotFromModal(studentId, slot) {
+    closeStudentDevicesModal();
+    await freeSlot(studentId, slot);
 }
 
 async function handleStudentTableDeviceLimitChange(studentId, value, selectEl) {
