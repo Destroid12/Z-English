@@ -378,7 +378,8 @@ async function _createStudent(p) {
 
   const salt = _randomSalt();
   const hash = _hashPassword(password, salt);
-  const { error } = await supabase.from('users').insert({
+  
+  const insertData = {
     id: studentId,
     name: name,
     password_hash: hash,
@@ -388,10 +389,25 @@ async function _createStudent(p) {
     provider: 'password',
     session_token_hash: '',
     session_expiry: null,
-    device_limit: isNaN(deviceLimit) ? 2 : deviceLimit,
     device1_hash: '', device1_name: '', device2_hash: '', device2_name: ''
-  });
-  if (error) throw new Error(error.message);
+  };
+
+  // Try inserting with device_limit, fallback without it if column doesn't exist yet in Supabase
+  let insErr;
+  try {
+    const res = await supabase.from('users').insert({ ...insertData, device_limit: isNaN(deviceLimit) ? 2 : deviceLimit });
+    insErr = res.error;
+  } catch (e) {
+    insErr = e;
+  }
+
+  if (insErr && insErr.message && insErr.message.includes('device_limit')) {
+    const { error: fallbackErr } = await supabase.from('users').insert(insertData);
+    if (fallbackErr) throw new Error(fallbackErr.message);
+  } else if (insErr) {
+    throw new Error(insErr.message);
+  }
+
   return { success: true };
 }
 
@@ -438,7 +454,12 @@ async function _setStudentDeviceLimit(p) {
     device_limit: finalLimit
   }).eq('id', studentId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.message && error.message.includes('device_limit')) {
+      return { success: false, message: "The 'device_limit' column has not been added to your Supabase database table yet. Please run the SQL command provided in chat." };
+    }
+    throw new Error(error.message);
+  }
   return { success: true };
 }
 
