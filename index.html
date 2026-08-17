@@ -1466,7 +1466,11 @@
         renderLevelList();
         loadCategoriesForDashboard();
     }
-    if (pageId === 'admin-dashboard') { loadInstructors(); loadStudentsList(); loadSessionsOverview(); loadCategories(); }
+    if (pageId === 'admin-dashboard') { 
+        loadInstructors().then(() => loadStudentsList()); 
+        loadSessionsOverview(); 
+        loadCategories(); 
+    }
     
     if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'instructor' || currentUser.role === 'student')) {
         checkUnreadNotifications();
