@@ -4292,9 +4292,7 @@ async function loadApiKeys() {
 async function handleAddApiKey(e) {
     e.preventDefault();
     const keyInput = document.getElementById('new-api-key');
-    const serviceInput = document.getElementById('new-api-service');
     const keyVal = keyInput.value.trim();
-    const serviceVal = serviceInput ? serviceInput.value : 'gemini';
     if (!keyVal) return;
     
     const alertBox = document.getElementById('apikey-alert');
@@ -4309,7 +4307,7 @@ async function handleAddApiKey(e) {
     btn.disabled = true;
     
     try {
-        const res = await callBackend({ action: 'addApiKey', token: sessionToken, apiKey: keyVal, service: serviceVal });
+        const res = await callBackend({ action: 'addApiKey', token: sessionToken, apiKey: keyVal, service: 'gemini' });
         if (res.success) {
             keyInput.value = '';
             successBox.style.display = 'flex';
@@ -4347,19 +4345,12 @@ async function deleteApiKey(id) {
 <!-- Modals -->
 <div class="modal-overlay" id="apiKeysModal">
   <div class="modal" style="max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto;">
-    <h3 style="margin-top: 0; margin-bottom: 20px;"><i class="fas fa-key"></i> API Library & Webhooks</h3>
+    <h3 style="margin-top: 0; margin-bottom: 20px;"><i class="fas fa-key"></i> API Library (Key Pool)</h3>
     <div class="alert-box error" id="apikey-alert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="apikey-alert-text"></span></div>
     <div class="alert-box success" id="apikey-success" style="display:none;"><i class="fas fa-circle-check"></i> <span id="apikey-success-text"></span></div>
     
     <form onsubmit="handleAddApiKey(event); return false;" style="display:flex; gap:10px; margin-bottom:20px;">
-        <select id="new-api-service" class="input-control" style="width:250px;">
-            <option value="gemini">Gemini API</option>
-            <option value="discord_community">Discord (Community)</option>
-            <option value="discord_contact">Discord (Contact Form)</option>
-            <option value="discord_zai">Discord (Z-AI Logs)</option>
-            <option value="discord_notifications">Discord (Notifications)</option>
-        </select>
-        <input type="text" id="new-api-key" class="input-control" placeholder="Enter Key or Webhook URL" required style="flex:1;">
+        <input type="text" id="new-api-key" class="input-control" placeholder="Enter new Gemini API key (AIza...)" required style="flex:1;">
         <button type="submit" class="btn btn-primary">Add Key</button>
     </form>
     
