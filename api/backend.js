@@ -2802,7 +2802,7 @@ async function _askSiteTutor(p) {
     return { success: true, reply: cleanReply, conversation_id: convId };
   } catch (err) {
     console.error('Site tutor call failed: ' + err.message);
-    return { success: false, message: "Couldn't reach the tutor. Please try again." };
+    return { success: false, message: "Tutor error: " + err.message };
   }
 }
 
