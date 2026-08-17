@@ -36,7 +36,7 @@ const TUTOR_MAX_SLIDE_CONTEXT_CHARS = 1500;
 const TUTOR_MAX_SESSION_CONTEXT_CHARS = 12000;
 const TUTOR_MAX_HISTORY_TURNS = 6;
 const SITE_TUTOR_MAX_QUESTION_CHARS = 800;
-const SITE_TUTOR_MAX_CONTEXT_CHARS = 600000;
+const SITE_TUTOR_MAX_CONTEXT_CHARS = 100000;
 const SITE_TUTOR_MAX_HISTORY_TURNS = 8;
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;                   // images
 const MAX_MEDIA_UPLOAD_BYTES = 64 * 1024 * 1024;            // audio/video
@@ -2582,18 +2582,32 @@ async function _callGemini(systemInstruction, contents, opts) {
   throw new Error('All Gemini API keys exhausted or failed. Last error: ' + lastErrText);
 }
 
-// Normalize conversation history from the frontend into Gemini contents.
 function _historyToContents(historyRaw, maxTurns) {
   let history = [];
   try {
     const parsed = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : historyRaw;
     if (Array.isArray(parsed)) {
       history = parsed
-        .filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'; })
+        .filter(function (m) { 
+          if (!m) return false;
+          const isRoleValid = m.role === 'user' || m.role === 'assistant' || m.role === 'model';
+          const hasContent = typeof m.content === 'string';
+          const hasParts = Array.isArray(m.parts) && m.parts[0] && typeof m.parts[0].text === 'string';
+          return isRoleValid && (hasContent || hasParts);
+        })
         .slice(-maxTurns)
-        .map(function (m) { return { role: m.role === 'assistant' ? 'model' : 'user', content: String(m.content).slice(0, 600) }; });
+        .map(function (m) { 
+          const text = typeof m.content === 'string' ? m.content : m.parts[0].text;
+          return { role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user', content: String(text).slice(0, 600) }; 
+        });
     }
   } catch (err) { history = []; }
+  
+  // Guarantee it starts with 'user' and alternates, dropping any dangling models at the start
+  while (history.length > 0 && history[0].role !== 'user') {
+    history.shift();
+  }
+  
   return history.map(function (m) { return { role: m.role, parts: [{ text: m.content }] }; });
 }
 
