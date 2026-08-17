@@ -24,6 +24,9 @@ const JSZip = require('jszip');
 // ---------------------------------------------------------------------
 // Constants (mirrors backend_Code.gs.local)
 // ---------------------------------------------------------------------
+
+let LAST_USED_KEY_ID = null;
+
 const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000;            // 12h login session
 const LESSON_TOKEN_LIFETIME_MS = 3 * 60 * 1000;             // 3min lesson access token
 const TUTOR_SESSION_LIFETIME_MS = 3 * 60 * 60 * 1000;       // 3h tutor session
@@ -1668,7 +1671,20 @@ async function _listApiKeys(p) {
     }
     throw new Error(error.message);
   }
-  return { success: true, keys: data || [] };
+  
+  const keys = data || [];
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) {
+    keys.unshift({
+      id: 'env',
+      api_key: envKey,
+      service: 'gemini (Vercel Env)',
+      status: 'active',
+      created_at: new Date().toISOString()
+    });
+  }
+  
+  return { success: true, keys: keys, lastUsedId: LAST_USED_KEY_ID };
 }
 
 async function _addApiKey(p) {
@@ -2517,6 +2533,8 @@ async function _callGemini(systemInstruction, contents, opts) {
       }
       throw new Error('Gemini API error (' + resp.status + '): ' + lastErrText);
     }
+    
+    LAST_USED_KEY_ID = keyObj.id;
     const data = await resp.json();
     const candidate = (data.candidates || [])[0];
     const reply = candidate && candidate.content && candidate.content.parts

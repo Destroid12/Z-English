@@ -629,7 +629,7 @@
         <button type="button" class="admin-tab" onclick="switchAdminPanel('publicsessions')">Public Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('paymob')"><i class="fas fa-credit-card" style="margin-right:6px;"></i> Paymob Links</button>
-        <button type="button" class="admin-tab" onclick="openApiKeysModal()"><i class="fas fa-key" style="margin-right:6px;"></i> API Library</button>
+        <button type="button" class="admin-tab" onclick="switchAdminPanel('apikeys')"><i class="fas fa-key" style="margin-right:6px;"></i> API Library</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
         <a href="agent.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-robot" style="margin-right:8px;"></i> AI Agent</a>
     </div>
@@ -993,6 +993,30 @@
         </div>
     </div>
 
+    <!-- API Library Panel -->
+    <div class="admin-panel" id="admin-panel-apikeys">
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 20px;">
+                <div>
+                    <h3 style="margin: 0 0 4px 0;"><i class="fas fa-key" style="color: var(--z-orange); margin-right: 8px;"></i> API Library (Key Pool)</h3>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Manage Gemini API keys. The system will automatically cycle through active Gemini keys.</p>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="loadApiKeys()"><i class="fas fa-rotate"></i> Refresh</button>
+            </div>
+            
+            <div class="alert-box error" id="apikey-alert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="apikey-alert-text"></span></div>
+            <div class="alert-box success" id="apikey-success" style="display:none;"><i class="fas fa-circle-check"></i> <span id="apikey-success-text"></span></div>
+            
+            <form onsubmit="handleAddApiKey(event); return false;" style="display:flex; gap:10px; margin-bottom:20px;">
+                <input type="text" id="new-api-key" class="input-control" placeholder="Enter new Gemini API key (AIza...)" required style="flex:1;">
+                <button type="submit" class="btn btn-primary">Add Key</button>
+            </form>
+            
+            <div id="apikeys-table-wrap">
+                <p style="color: var(--text-muted);">Loading...</p>
+            </div>
+        </div>
+    </div>
 </section>
         <section id="ai-tutor" class="page-section container">
     <div class="card" style="max-width: 700px; margin: 0 auto; display:flex; flex-direction:column; height: 70vh;">
@@ -4225,10 +4249,7 @@ function renderPaymobHistory() {
 // -------------------------------------------------------------
 // API Library (Key Pool)
 // -------------------------------------------------------------
-function openApiKeysModal() {
-    document.getElementById('apiKeysModal').classList.add('active');
-    loadApiKeys();
-}
+
 
 async function loadApiKeys() {
     const wrap = document.getElementById('apikeys-table-wrap');
@@ -4269,14 +4290,21 @@ async function loadApiKeys() {
                 ? `<span class="badge" style="background:#38a169; color:white;">Active</span>`
                 : `<span class="badge" style="background:#e53e3e; color:white;">Exhausted</span>`;
                 
+            const isLastUsed = res.lastUsedId === k.id;
+            const lastUsedBadge = isLastUsed ? `<span class="badge" style="background:var(--z-orange); color:white; margin-left:8px;"><i class="fas fa-fire"></i> Last Used</span>` : '';
+                
+            const deleteBtn = k.id === 'env' 
+                ? `<button class="btn btn-outline btn-sm" disabled title="Cannot delete Vercel environment key"><i class="fas fa-lock"></i></button>`
+                : `<button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="deleteApiKey('${k.id}')"><i class="fas fa-trash"></i></button>`;
+
             html += `
-            <tr style="border-bottom:1px solid var(--border-color);">
+            <tr style="border-bottom:1px solid var(--border-color); ${isLastUsed ? 'background:rgba(255, 140, 0, 0.05);' : ''}">
                 <td style="padding:12px 10px; font-size:13px;">${new Date(k.created_at).toLocaleDateString()}</td>
-                <td style="padding:12px 10px; font-family:monospace; color:var(--text-main); font-weight:700;">${masked}</td>
+                <td style="padding:12px 10px; font-family:monospace; color:var(--text-main); font-weight:700;">${masked} ${lastUsedBadge}</td>
                 <td style="padding:12px 10px; text-transform:capitalize;">${escapeHtml(k.service)}</td>
                 <td style="padding:12px 10px;">${statusBadge}</td>
                 <td style="padding:12px 10px; text-align:right;">
-                    <button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="deleteApiKey('${k.id}')"><i class="fas fa-trash"></i></button>
+                    ${deleteBtn}
                 </td>
             </tr>
             `;
@@ -4343,24 +4371,7 @@ async function deleteApiKey(id) {
 </script>
 
 <!-- Modals -->
-<div class="modal-overlay" id="apiKeysModal">
-  <div class="modal" style="max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto;">
-    <h3 style="margin-top: 0; margin-bottom: 20px;"><i class="fas fa-key"></i> API Library (Key Pool)</h3>
-    <div class="alert-box error" id="apikey-alert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="apikey-alert-text"></span></div>
-    <div class="alert-box success" id="apikey-success" style="display:none;"><i class="fas fa-circle-check"></i> <span id="apikey-success-text"></span></div>
-    
-    <form onsubmit="handleAddApiKey(event); return false;" style="display:flex; gap:10px; margin-bottom:20px;">
-        <input type="text" id="new-api-key" class="input-control" placeholder="Enter new Gemini API key (AIza...)" required style="flex:1;">
-        <button type="submit" class="btn btn-primary">Add Key</button>
-    </form>
-    
-    <div id="apikeys-table-wrap">Loading...</div>
-    
-    <div style="margin-top:20px; display:flex; gap:10px; justify-content: flex-end;">
-      <button class="btn btn-outline" onclick="document.getElementById('apiKeysModal').classList.remove('active')">Close</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="modal-overlay" id="submissionModal">
   <div class="modal" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;">
