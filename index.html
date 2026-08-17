@@ -1431,6 +1431,7 @@
 
     if (pageId === 'community') fetchAndRenderCommunity();
     if (pageId === 'login') initGoogleButton();
+    if (pageId === 'ai-tutor') loadSiteTutorHistory();
     if (pageId === 'student-dashboard') {
         if (currentUser && currentUser.role === 'admin') {
             setLoading(true);

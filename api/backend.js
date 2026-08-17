@@ -2678,18 +2678,19 @@ async function _askTutor(p) {
 }
 
 async function _getSiteTutorHistory(p) {
-  const gate = await _requireStudentSession(p.token);
-  if (gate.error) return gate.error;
+  const session = await _validateSession(p.token);
+  if (!session || session.expired) return { success: false, expired: true, message: 'Session expired.' };
+  const userId = session.user.id;
 
   const { data, error } = await supabase
     .from('zai_chat_history')
     .select('*')
-    .eq('student_id', String(gate.user.id))
+    .eq('student_id', String(userId))
     .order('created_at', { ascending: true })
     .limit(100);
     
   if (error) {
-    if (error.message.includes('relation "zai_chat_history" does not exist')) {
+    if (error.message.includes('does not exist')) {
       return { success: true, history: [] }; // Failsafe if not migrated yet
     }
     throw new Error(error.message);
@@ -2704,10 +2705,10 @@ async function _getSiteTutorHistory(p) {
 }
 
 async function _clearSiteTutorHistory(p) {
-  const gate = await _requireStudentSession(p.token);
-  if (gate.error) return gate.error;
+  const session = await _validateSession(p.token);
+  if (!session || session.expired) return { success: false, expired: true, message: 'Session expired.' };
   
-  await supabase.from('zai_chat_history').delete().eq('student_id', String(gate.user.id));
+  await supabase.from('zai_chat_history').delete().eq('student_id', String(session.user.id));
   return { success: true };
 }
 
