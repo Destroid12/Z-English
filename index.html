@@ -4277,6 +4277,7 @@ async function loadApiKeys() {
                         <th style="padding:10px;">Date Added</th>
                         <th style="padding:10px;">API Key</th>
                         <th style="padding:10px;">Service</th>
+                        <th style="padding:10px;">Usage</th>
                         <th style="padding:10px;">Status</th>
                         <th style="padding:10px; text-align:right;">Actions</th>
                     </tr>
@@ -4291,19 +4292,26 @@ async function loadApiKeys() {
                 : `<span class="badge" style="background:#e53e3e; color:white;">Exhausted</span>`;
                 
             const isLastUsed = res.lastUsedId === k.id;
+            const primaryBadge = k.is_primary ? `<span class="badge" style="background:#805ad5; color:white; margin-left:8px;"><i class="fas fa-star"></i> Primary</span>` : '';
             const lastUsedBadge = isLastUsed ? `<span class="badge" style="background:var(--z-orange); color:white; margin-left:8px;"><i class="fas fa-fire"></i> Last Used</span>` : '';
+                
+            const primaryBtn = k.id === 'env' || k.is_primary
+                ? `<button class="btn btn-outline btn-sm" disabled title="Cannot set this key as primary"><i class="fas fa-star"></i></button>`
+                : `<button class="btn btn-outline btn-sm" title="Set as Primary" onclick="setPrimaryApiKey('${k.id}')"><i class="fas fa-star"></i></button>`;
                 
             const deleteBtn = k.id === 'env' 
                 ? `<button class="btn btn-outline btn-sm" disabled title="Cannot delete Vercel environment key"><i class="fas fa-lock"></i></button>`
                 : `<button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="deleteApiKey('${k.id}')"><i class="fas fa-trash"></i></button>`;
 
             html += `
-            <tr style="border-bottom:1px solid var(--border-color); ${isLastUsed ? 'background:rgba(255, 140, 0, 0.05);' : ''}">
+            <tr style="border-bottom:1px solid var(--border-color); ${isLastUsed ? 'background:rgba(255, 140, 0, 0.05);' : ''} ${k.is_primary ? 'border-left: 4px solid #805ad5;' : ''}">
                 <td style="padding:12px 10px; font-size:13px;">${new Date(k.created_at).toLocaleDateString()}</td>
-                <td style="padding:12px 10px; font-family:monospace; color:var(--text-main); font-weight:700;">${masked} ${lastUsedBadge}</td>
+                <td style="padding:12px 10px; font-family:monospace; color:var(--text-main); font-weight:700;">${masked} ${primaryBadge} ${lastUsedBadge}</td>
                 <td style="padding:12px 10px; text-transform:capitalize;">${escapeHtml(k.service)}</td>
+                <td style="padding:12px 10px;">${k.usage_count || 0}</td>
                 <td style="padding:12px 10px;">${statusBadge}</td>
                 <td style="padding:12px 10px; text-align:right;">
+                    ${primaryBtn}
                     ${deleteBtn}
                 </td>
             </tr>
@@ -4352,6 +4360,20 @@ async function handleAddApiKey(e) {
     } finally {
         btn.innerHTML = origHtml;
         btn.disabled = false;
+    }
+}
+
+async function setPrimaryApiKey(id) {
+    if(!confirm('Are you sure you want to set this key as the primary key? The entire system will exclusively use this key.')) return;
+    try {
+        const res = await callBackend({ action: 'setPrimaryApiKey', token: sessionToken, keyId: id });
+        if(res.success) {
+            loadApiKeys();
+        } else {
+            alert(res.message);
+        }
+    } catch(err) {
+        alert(err.message);
     }
 }
 

@@ -1680,11 +1680,30 @@ async function _listApiKeys(p) {
       api_key: envKey,
       service: 'gemini (Vercel Env)',
       status: 'active',
+      is_primary: false,
+      usage_count: ENV_KEY_USAGE,
       created_at: new Date().toISOString()
     });
   }
   
   return { success: true, keys: keys, lastUsedId: LAST_USED_KEY_ID };
+}
+
+async function _setPrimaryApiKey(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+  
+  const id = String(p.keyId || '').trim();
+  
+  // First, set all to false
+  await supabase.from('api_keys').update({ is_primary: false }).neq('id', 'env');
+  
+  // Then set the selected to true
+  if (id && id !== 'env') {
+    await supabase.from('api_keys').update({ is_primary: true }).eq('id', id);
+  }
+  
+  return { success: true };
 }
 
 async function _addApiKey(p) {
@@ -2482,9 +2501,11 @@ async function _validateTutorToken(tutorToken, track, level, sessionNumber) {
   return { state: data };
 }
 
+let ENV_KEY_USAGE = 0;
+
 // Shared Gemini call with key pool fallback.
 async function _getActiveGeminiKeys() {
-  const { data } = await supabase.from('api_keys').select('id, api_key').eq('status', 'active').eq('service', 'gemini');
+  const { data } = await supabase.from('api_keys').select('*').eq('status', 'active').eq('service', 'gemini').order('is_primary', { ascending: false });
   let keys = (data || []).map(function (r) { return { id: r.id, key: r.api_key }; });
   const envKey = process.env.GEMINI_API_KEY;
   if (envKey && !keys.some(function (k) { return k.key === envKey; })) {
@@ -2535,6 +2556,18 @@ async function _callGemini(systemInstruction, contents, opts) {
     }
     
     LAST_USED_KEY_ID = keyObj.id;
+    if (keyObj.id === 'env') {
+      ENV_KEY_USAGE++;
+    } else {
+      // Async increment the usage count in the database
+      supabase.rpc('increment_usage', { key_id: keyObj.id }).then(() => {}).catch(() => {
+        // Fallback if RPC doesn't exist: fetch and update
+        supabase.from('api_keys').select('usage_count').eq('id', keyObj.id).single().then(res => {
+          if (res.data) supabase.from('api_keys').update({ usage_count: (res.data.usage_count || 0) + 1 }).eq('id', keyObj.id).then();
+        });
+      });
+    }
+
     const data = await resp.json();
     const candidate = (data.candidates || [])[0];
     const reply = candidate && candidate.content && candidate.content.parts
@@ -4396,6 +4429,7 @@ const actions = {
   listApiKeys: _listApiKeys,
   addApiKey: _addApiKey,
   deleteApiKey: _deleteApiKey,
+  setPrimaryApiKey: _setPrimaryApiKey,
   createCategory: _createCategory,
   listCategories: _listCategories,
   deleteCategory: _deleteCategory,
