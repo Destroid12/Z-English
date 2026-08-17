@@ -1022,9 +1022,14 @@
     <div class="card" style="max-width: 700px; margin: 0 auto; display:flex; flex-direction:column; height: 70vh;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px;">
             <h2 style="margin:0;"><i class="fas fa-graduation-cap" style="color:var(--z-blue);"></i> Z-AI Tutor</h2>
-            <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
-                <i class="fas fa-volume-high"></i> Read aloud: off
-            </button>
+            <div style="display:flex; gap:8px;">
+                <button id="siteTutorClearBtn" class="btn btn-outline btn-sm" onclick="clearSiteTutorHistory()" title="Clear Chat History">
+                    <i class="fas fa-trash" style="color:var(--danger);"></i>
+                </button>
+                <button id="siteTutorSpeakToggle" class="btn btn-outline btn-sm" onclick="toggleSiteTutorSpeak()">
+                    <i class="fas fa-volume-high"></i> Read aloud: off
+                </button>
+            </div>
         </div>
 
         <div id="siteTutorMsgs" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:10px 4px; background: var(--bg-color); border-radius: var(--radius-sm); margin-bottom:14px;"></div>
@@ -1584,6 +1589,7 @@
                 navigate('admin-dashboard');
             } else {
                 updateGreeting();
+                loadSiteTutorHistory(); // Load Z-AI chat history
                 navigate('student-dashboard');
             }
         }
@@ -2628,6 +2634,35 @@ function generateLiveMeetingLink() {
 }
 
 let siteTutorHistory = [];
+
+async function loadSiteTutorHistory() {
+  if (!currentUser || !sessionToken) return;
+  try {
+    const res = await callBackend({ action: 'getSiteTutorHistory', token: sessionToken });
+    if (res.success && res.history) {
+      siteTutorHistory = res.history;
+      document.getElementById('siteTutorMsgs').innerHTML = '';
+      siteTutorHistory.forEach(h => {
+        const text = h.parts[0].text;
+        siteTutorAddMsg(h.role, text);
+      });
+      // Add welcome message if empty
+      if (siteTutorHistory.length === 0) {
+        siteTutorAddMsg('bot', "Hi! I am Z-AI, your English Tutor. How can I help you today?");
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function clearSiteTutorHistory() {
+  if (!confirm('Are you sure you want to clear your chat history with Z-AI?')) return;
+  try {
+    await callBackend({ action: 'clearSiteTutorHistory', token: sessionToken });
+    siteTutorHistory = [];
+    document.getElementById('siteTutorMsgs').innerHTML = '';
+    siteTutorAddMsg('bot', "Hi! I am Z-AI, your English Tutor. How can I help you today?");
+  } catch(e) { console.error(e); }
+}
 function siteTutorAddMsg(role, text) {
   const wrap = document.getElementById('siteTutorMsgs');
   const row = document.createElement('div');
@@ -3221,6 +3256,7 @@ async function deletePostUI(postId) {
                     await fetchAdminSessions();
                 } else if (currentUser.role === 'student' || currentUser.role === 'instructor') {
                     updateGreeting();
+                    if(currentUser.role === 'student') loadSiteTutorHistory();
                 }
                 // Always stay on the landing page — user clicks "Start Learning" to proceed
             }

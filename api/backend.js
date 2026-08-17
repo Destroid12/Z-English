@@ -2677,6 +2677,40 @@ async function _askTutor(p) {
   }
 }
 
+async function _getSiteTutorHistory(p) {
+  const gate = await _requireStudentSession(p.token);
+  if (gate.error) return gate.error;
+
+  const { data, error } = await supabase
+    .from('zai_chat_history')
+    .select('*')
+    .eq('student_id', String(gate.user.id))
+    .order('created_at', { ascending: true })
+    .limit(100);
+    
+  if (error) {
+    if (error.message.includes('relation "zai_chat_history" does not exist')) {
+      return { success: true, history: [] }; // Failsafe if not migrated yet
+    }
+    throw new Error(error.message);
+  }
+  
+  const formatted = (data || []).map(r => ({
+    role: r.role,
+    parts: [{ text: r.content }]
+  }));
+  
+  return { success: true, history: formatted };
+}
+
+async function _clearSiteTutorHistory(p) {
+  const gate = await _requireStudentSession(p.token);
+  if (gate.error) return gate.error;
+  
+  await supabase.from('zai_chat_history').delete().eq('student_id', String(gate.user.id));
+  return { success: true };
+}
+
 async function _askSiteTutor(p) {
   const session = await _validateSession(p.token);
   if (!session || session.expired) {
@@ -2717,7 +2751,15 @@ async function _askSiteTutor(p) {
 
   try {
     const reply = await _callGemini(systemPrompt, contents, { temperature: 0.7 });
-    return { success: true, reply: _cleanMarkdownReply(reply) };
+    const cleanReply = _cleanMarkdownReply(reply);
+    
+    // Save to history asynchronously
+    supabase.from('zai_chat_history').insert([
+      { student_id: String(session.user.id), role: 'user', content: question },
+      { student_id: String(session.user.id), role: 'model', content: cleanReply }
+    ]).then();
+
+    return { success: true, reply: cleanReply };
   } catch (err) {
     console.error('Site tutor call failed: ' + err.message);
     return { success: false, message: "Couldn't reach the tutor. Please try again." };
@@ -4462,7 +4504,10 @@ const actions = {
   listTestSubmissions: _listTestSubmissions,
   deleteTestSubmission: _deleteTestSubmission,
   askTutor: _askTutor,
+  getSiteTutorHistory: _getSiteTutorHistory,
+  clearSiteTutorHistory: _clearSiteTutorHistory,
   askSiteTutor: _askSiteTutor,
+  adminAskAgent: _adminAskAgent,
   autoFixSlide: _autoFixSlide,
   autoFixSession: _autoFixSession,
   analyzePPTXImage: _analyzePPTXImage,
