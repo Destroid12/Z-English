@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-English Live Meeting</title>
+    <!-- Z-English Shared Styles -->
+    <style>
+        :root {
+            --z-blue: #4CA8DD;
+            --z-blue-dark: #1E6FA6;
+            --bg-color: #F8FAFC;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            overflow: hidden;
+        }
+        #meet-container {
+            width: 100%;
+            height: 100%;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.5rem;
+            color: var(--z-blue-dark);
+            flex-direction: column;
+            gap: 16px;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(76,168,221,0.3);
+            border-top-color: var(--z-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+    <script src="https://meet.jit.si/external_api.js"></script>
+</head>
+<body>
+
+<div id="meet-container">
+    <div class="loading" id="loading-view">
+        <div class="spinner"></div>
+        <div>Joining Live Session...</div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get('room') || 'ZEnglish_' + Math.random().toString(36).substring(7);
+        const userName = urlParams.get('name') || 'Guest';
+        
+        // Hide loading after a short delay to let iframe take over
+        setTimeout(() => {
+            document.getElementById('loading-view').style.display = 'none';
+        }, 1500);
+
+        const domain = 'meet.jit.si';
+        const options = {
+            roomName: roomName,
+            width: '100%',
+            height: '100%',
+            parentNode: document.getElementById('meet-container'),
+            userInfo: {
+                displayName: userName
+            },
+            configOverwrite: {
+                startWithAudioMuted: true,
+                startWithVideoMuted: true,
+                prejoinPageEnabled: false
+            },
+            interfaceConfigOverwrite: {
+                SHOW_CHROME_EXTENSION_BANNER: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                    'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                    'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                    'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+                    'e2ee'
+                ],
+            }
+        };
+
+        try {
+            const api = new JitsiMeetExternalAPI(domain, options);
+            
+            api.addEventListener('videoConferenceLeft', () => {
+                // Return to dashboard when user leaves
+                window.location.href = 'index.html';
+            });
+        } catch(e) {
+            console.error("Jitsi failed to load:", e);
+            document.getElementById('loading-view').innerHTML = "Failed to load live session. Check your connection.";
+        }
+    });
+</script>
+
+</body>
+</html>

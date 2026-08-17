@@ -96,6 +96,22 @@ function _nowIso() {
 function _uuid() {
   return crypto.randomUUID();
 }
+// Discord Webhook integration
+async function _getApiKeyOrEnv(service, envVarName) {
+  const { data } = await supabase.from('api_keys').select('api_key').eq('service', service).eq('status', 'active').maybeSingle();
+  if (data && data.api_key) return data.api_key;
+  return process.env[envVarName] || null;
+}
+
+async function _dispatchDiscordWebhook(service, envVarName, payload) {
+  const url = await _getApiKeyOrEnv(service, envVarName);
+  if (!url) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(err => console.error('Discord webhook failed:', err.message));
+}
 // Short codes for temp ('T-...') / public sessions. Skips I/O/0/1.
 function _generateShortCode(prefix) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -356,6 +372,15 @@ async function _googleLogin(p) {
   };
 }
 
+async function _listInstructors(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+  
+  const { data, error } = await supabase.from('users').select('id, name, gender').eq('role', 'instructor').order('name');
+  if (error) throw new Error(error.message);
+  return { success: true, instructors: data || [] };
+}
+
 async function _createStudent(p) {
   const gate = await _requireAdminSession(p.token);
   if (gate.error) return gate.error;
@@ -431,6 +456,7 @@ async function _listStudents(p) {
       id: u.id,
       name: u.name,
       gender: u.gender,
+      instructorId: u.instructor_id || '',
       deviceLimit: devLimit,
       hasDevice1: !!u.device1_hash,
       hasDevice2: !!u.device2_hash,
@@ -440,6 +466,108 @@ async function _listStudents(p) {
     });
   }
   return { success: true, students: students };
+}
+
+async function _assignInstructor(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const studentId = String(p.studentId || '').trim();
+  const instructorId = String(p.instructorId || '').trim(); // if empty, removes assignment
+  
+  const updateData = { instructor_id: instructorId || null };
+  const { error } = await supabase.from('users').update(updateData).eq('id', studentId);
+  
+  if (error) {
+    if (error.message.includes('instructor_id')) {
+      return { success: false, message: 'The "instructor_id" column is missing in Supabase. Please run the migration SQL.' };
+    }
+    throw new Error(error.message);
+  }
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------
+// Instructor Notifications / Schedules
+// ---------------------------------------------------------------------
+async function _sendNotification(p) {
+  const session = await _validateSession(p.token);
+  if (!session || session.expired || (session.user.role !== 'admin' && session.user.role !== 'instructor')) {
+    return { success: false, message: 'Unauthorized' };
+  }
+  const studentId = String(p.studentId || '').trim();
+  const message = String(p.message || '').trim();
+  const link = String(p.link || '').trim();
+  const scheduledAt = p.scheduledAt ? String(p.scheduledAt).trim() : null;
+  
+  if (!studentId || !message) return { success: false, message: 'Student ID and message are required.' };
+  
+  const { error } = await supabase.from('notifications').insert({
+    id: _uuid(),
+    student_id: studentId,
+    instructor_id: session.user.id,
+    message: message,
+    link: link,
+    scheduled_at: scheduledAt,
+    is_read: false,
+    created_at: _nowIso()
+  });
+  if (error) {
+    if (error.message.includes('relation "notifications" does not exist')) {
+      return { success: false, message: 'The notifications table has not been created in Supabase. Please run the SQL migration.' };
+    }
+    throw new Error(error.message);
+  }
+
+  await _dispatchDiscordWebhook('discord_notifications', 'DISCORD_WEBHOOK_NOTIFICATIONS', {
+    username: 'Z-English Notifications',
+    embeds: [{
+      title: 'New Notification Sent',
+      description: message,
+      color: 0x4CA8DD,
+      fields: [
+        { name: 'To Student ID', value: studentId, inline: true },
+        { name: 'From', value: `${session.user.name} (${session.user.role})`, inline: true },
+        ...(link ? [{ name: 'Link', value: link }] : [])
+      ],
+      timestamp: new Date().toISOString()
+    }]
+  });
+
+  return { success: true };
+}
+
+async function _listNotifications(p) {
+  const session = await _validateSession(p.token);
+  if (!session || session.expired) return { success: false, message: 'Unauthorized' };
+  
+  // If instructor, list notifications they sent. If student, list notifications they received.
+  let q = supabase.from('notifications').select('*').order('created_at', { ascending: false });
+  if (session.user.role === 'student') {
+    q = q.eq('student_id', session.user.id);
+  } else if (session.user.role === 'instructor') {
+    q = q.eq('instructor_id', session.user.id);
+  } else {
+    // Admin sees all? Let's limit to 50 for admin
+    q = q.limit(50);
+  }
+  
+  const { data, error } = await q;
+  if (error) {
+    if (error.message.includes('relation "notifications" does not exist')) return { success: true, notifications: [] };
+    throw new Error(error.message);
+  }
+  return { success: true, notifications: data || [] };
+}
+
+async function _markNotificationRead(p) {
+  const session = await _validateSession(p.token);
+  if (!session || session.expired || session.user.role !== 'student') return { success: false, message: 'Unauthorized' };
+  
+  const id = String(p.notificationId || '').trim();
+  const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id).eq('student_id', session.user.id);
+  if (error) throw new Error(error.message);
+  return { success: true };
 }
 
 async function _setStudentDeviceLimit(p) {
@@ -1243,6 +1371,16 @@ async function _createPost(p) {
     date: _nowIso()
   });
   if (error) throw new Error(error.message);
+
+  await _dispatchDiscordWebhook('discord_community', 'DISCORD_WEBHOOK_COMMUNITY', {
+    username: 'Z-English Community',
+    embeds: [{
+      title: `New Post by ${session.user.name} (${session.user.role})`,
+      description: content,
+      color: session.user.role === 'admin' ? 0xff0000 : 0x00a8ff
+    }]
+  });
+
   return { success: true, id: id };
 }
 
@@ -1500,8 +1638,68 @@ async function _contactMessage(p) {
     message: message
   });
   if (error) throw new Error(error.message);
+
+  await _dispatchDiscordWebhook('discord_contact', 'DISCORD_WEBHOOK_CONTACT', {
+    username: 'Z-English Contact Form',
+    embeds: [{
+      title: 'New Contact Submission',
+      fields: [
+        { name: 'Name', value: name, inline: true },
+        { name: 'Email', value: email, inline: true },
+        { name: 'Message', value: message }
+      ],
+      color: 0x00ff00
+    }]
+  });
+
   return { success: true };
 }
+// ---------------------------------------------------------------------
+// API Library (Key Pool)
+// ---------------------------------------------------------------------
+async function _listApiKeys(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+
+  const { data, error } = await supabase.from('api_keys').select('*').order('created_at');
+  if (error) {
+    if (error.message.includes('relation "api_keys" does not exist')) {
+      return { success: false, message: 'The "api_keys" table is missing in Supabase. Please run the migration SQL.' };
+    }
+    throw new Error(error.message);
+  }
+  return { success: true, keys: data || [] };
+}
+
+async function _addApiKey(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+  
+  const keyStr = String(p.apiKey || '').trim();
+  const service = String(p.service || 'gemini').trim();
+  if (!keyStr) return { success: false, message: 'API Key is empty.' };
+
+  const { error } = await supabase.from('api_keys').insert({
+    id: _uuid(),
+    service: service,
+    api_key: keyStr,
+    status: 'active',
+    created_at: _nowIso()
+  });
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+async function _deleteApiKey(p) {
+  const gate = await _requireAdminSession(p.token);
+  if (gate.error) return gate.error;
+  
+  const id = String(p.keyId || '').trim();
+  const { error } = await supabase.from('api_keys').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
 // ---------------------------------------------------------------------
 // Custom sessions (practice sections beyond Basic/Advanced)
 // ---------------------------------------------------------------------
@@ -2268,13 +2466,27 @@ async function _validateTutorToken(tutorToken, track, level, sessionNumber) {
   return { state: data };
 }
 
-// Shared Gemini call. Throws on API failure so callers can decide the message.
+// Shared Gemini call with key pool fallback.
+async function _getActiveGeminiKeys() {
+  const { data } = await supabase.from('api_keys').select('id, api_key').eq('status', 'active').eq('service', 'gemini');
+  let keys = (data || []).map(function (r) { return { id: r.id, key: r.api_key }; });
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey && !keys.some(function (k) { return k.key === envKey; })) {
+    keys.push({ id: 'env', key: envKey });
+  }
+  return keys;
+}
+
+async function _exhaustGeminiKey(id) {
+  if (id === 'env') return;
+  await supabase.from('api_keys').update({ status: 'exhausted' }).eq('id', id);
+}
+
 async function _callGemini(systemInstruction, contents, opts) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('The tutor is not configured yet. An administrator needs to set GEMINI_API_KEY.');
+  const keys = await _getActiveGeminiKeys();
+  if (keys.length === 0) throw new Error('The tutor is not configured yet. An administrator needs to set GEMINI_API_KEY or add keys to the API Library.');
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
-    ':generateContent?key=' + encodeURIComponent(apiKey);
+  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=';
 
   const generationConfig = {
     maxOutputTokens: (opts && opts.maxOutputTokens) || 8192,
@@ -2282,26 +2494,38 @@ async function _callGemini(systemInstruction, contents, opts) {
   };
   if (opts && opts.jsonMode) generationConfig.responseMimeType = 'application/json';
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: contents,
-      generationConfig: generationConfig
-    })
+  const bodyStr = JSON.stringify({
+    system_instruction: { parts: [{ text: systemInstruction }] },
+    contents: contents,
+    generationConfig: generationConfig
   });
-  if (resp.status !== 200) {
-    const errText = (await resp.text()).slice(0, 500);
-    throw new Error('Gemini API error (' + resp.status + '): ' + errText);
+
+  let lastErrText = '';
+  for (const keyObj of keys) {
+    const url = baseUrl + encodeURIComponent(keyObj.key);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: bodyStr
+    });
+
+    if (resp.status !== 200) {
+      lastErrText = (await resp.text()).slice(0, 500);
+      if (resp.status === 429 || resp.status === 403 || resp.status === 400) {
+        await _exhaustGeminiKey(keyObj.id);
+        continue;
+      }
+      throw new Error('Gemini API error (' + resp.status + '): ' + lastErrText);
+    }
+    const data = await resp.json();
+    const candidate = (data.candidates || [])[0];
+    const reply = candidate && candidate.content && candidate.content.parts
+      ? candidate.content.parts.map(function (part) { return part.text || ''; }).join('\n').trim()
+      : '';
+    if (!reply) throw new Error('Gemini returned no response.');
+    return reply;
   }
-  const data = await resp.json();
-  const candidate = (data.candidates || [])[0];
-  const reply = candidate && candidate.content && candidate.content.parts
-    ? candidate.content.parts.map(function (part) { return part.text || ''; }).join('\n').trim()
-    : '';
-  if (!reply) throw new Error('Gemini returned no response.');
-  return reply;
+  throw new Error('All Gemini API keys exhausted or failed. Last error: ' + lastErrText);
 }
 
 // Normalize conversation history from the frontend into Gemini contents.
@@ -2380,7 +2604,22 @@ async function _askTutor(p) {
       .from('tutor_sessions')
       .update({ message_count: (tokenState.state.message_count || 0) + 1 })
       .eq('token_hash', _sha256(tutorToken));
-    return { success: true, reply: _cleanMarkdownReply(reply) };
+      
+    const finalReply = _cleanMarkdownReply(reply);
+
+    await _dispatchDiscordWebhook('discord_zai', 'DISCORD_WEBHOOK_ZAI', {
+      username: 'Z-AI Chat History',
+      embeds: [{
+        title: `Z-AI Interaction (Track: ${track}, L${level}, S${sessionNumber})`,
+        fields: [
+          { name: 'Student Question', value: question.slice(0, 1024) },
+          { name: 'Z-AI Response', value: finalReply.slice(0, 1024) }
+        ],
+        color: 0x9b59b6
+      }]
+    });
+
+    return { success: true, reply: finalReply };
   } catch (err) {
     console.error('Tutor call failed: ' + err.message);
     return { success: false, message: "Couldn't reach the tutor. Please try again." };
@@ -3231,40 +3470,53 @@ function _pcmToWav(pcmBuffer, sampleRate) {
 }
 
 async function _callGeminiTTS(text, voiceName, languageCode) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_TTS_MODEL +
-    ':generateContent?key=' + encodeURIComponent(apiKey);
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: String(text).slice(0, 4000) }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          languageCode: languageCode,
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } }
-        }
+  const keys = await _getActiveGeminiKeys();
+  if (keys.length === 0) throw new Error('GEMINI_API_KEY is not configured.');
+  
+  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_TTS_MODEL + ':generateContent?key=';
+
+  const bodyStr = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: String(text).slice(0, 4000) }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        languageCode: languageCode,
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } }
       }
-    })
+    }
   });
-  if (resp.status !== 200) {
-    const errText = (await resp.text()).slice(0, 500);
-    throw new Error('Gemini TTS error (' + resp.status + '): ' + errText);
+
+  let lastErrText = '';
+  for (const keyObj of keys) {
+    const url = baseUrl + encodeURIComponent(keyObj.key);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: bodyStr
+    });
+
+    if (resp.status !== 200) {
+      lastErrText = (await resp.text()).slice(0, 500);
+      if (resp.status === 429 || resp.status === 403 || resp.status === 400) {
+        await _exhaustGeminiKey(keyObj.id);
+        continue;
+      }
+      throw new Error('Gemini TTS error (' + resp.status + '): ' + lastErrText);
+    }
+    const data = await resp.json();
+    const candidate = (data.candidates || [])[0];
+    const part = candidate && candidate.content && candidate.content.parts
+      ? candidate.content.parts.find(p => p && p.inlineData && p.inlineData.data)
+      : null;
+    if (!part) throw new Error('Gemini TTS returned no audio.');
+    const mimeType = String(part.inlineData.mimeType || '');
+    const rateMatch = mimeType.match(/rate=(\d+)/);
+    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+    const pcm = Buffer.from(part.inlineData.data, 'base64');
+    const wav = _pcmToWav(pcm, sampleRate);
+    return { buffer: wav, mimeType: 'audio/wav' };
   }
-  const data = await resp.json();
-  const candidate = (data.candidates || [])[0];
-  const part = candidate && candidate.content && candidate.content.parts
-    ? candidate.content.parts.find(p => p && p.inlineData && p.inlineData.data)
-    : null;
-  if (!part) throw new Error('Gemini TTS returned no audio.');
-  const mimeType = String(part.inlineData.mimeType || '');
-  const rateMatch = mimeType.match(/rate=(\d+)/);
-  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-  const pcm = Buffer.from(part.inlineData.data, 'base64');
-  const wav = _pcmToWav(pcm, sampleRate);
-  return { buffer: wav, mimeType: 'audio/wav' };
+  throw new Error('All Gemini TTS keys exhausted or failed. Last error: ' + lastErrText);
 }
 
 async function _storeAgentAudio(buffer, mimeType, filename) {
@@ -4089,10 +4341,15 @@ async function _agentApplyChanges(p) {
 const actions = {
   login: _login,
   googleLogin: _googleLogin,
+  listInstructors: _listInstructors,
   createStudent: _createStudent,
   listStudents: _listStudents,
   deleteStudent: _deleteStudent,
   changeStudentPassword: _changeStudentPassword,
+  assignInstructor: _assignInstructor,
+  sendNotification: _sendNotification,
+  listNotifications: _listNotifications,
+  markNotificationRead: _markNotificationRead,
   setStudentDeviceLimit: _setStudentDeviceLimit,
   freeDeviceSlot: _freeDeviceSlot,
   grantLevelAccess: _grantLevelAccess,
@@ -4118,6 +4375,9 @@ const actions = {
   getComments: _getComments,
   deleteComment: _deleteComment,
   contactMessage: _contactMessage,
+  listApiKeys: _listApiKeys,
+  addApiKey: _addApiKey,
+  deleteApiKey: _deleteApiKey,
   createCategory: _createCategory,
   listCategories: _listCategories,
   deleteCategory: _deleteCategory,
