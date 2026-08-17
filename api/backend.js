@@ -2677,15 +2677,36 @@ async function _askTutor(p) {
   }
 }
 
+async function _listConversations(p) {
+  const session = await _validateSession(p.token);
+  if (!session || session.expired) return { success: false, expired: true, message: 'Session expired.' };
+  
+  const { data, error } = await supabase
+    .from('zai_conversations')
+    .select('id, title, updated_at')
+    .eq('student_id', String(session.user.id))
+    .order('updated_at', { ascending: false });
+    
+  if (error) {
+    if (error.message.includes('does not exist')) return { success: true, conversations: [] };
+    throw new Error(error.message);
+  }
+  
+  return { success: true, conversations: data || [] };
+}
+
 async function _getSiteTutorHistory(p) {
   const session = await _validateSession(p.token);
   if (!session || session.expired) return { success: false, expired: true, message: 'Session expired.' };
   const userId = session.user.id;
 
+  if (!p.conversation_id) return { success: true, history: [] };
+
   const { data, error } = await supabase
     .from('zai_chat_history')
     .select('*')
     .eq('student_id', String(userId))
+    .eq('conversation_id', String(p.conversation_id))
     .order('created_at', { ascending: true })
     .limit(100);
     
@@ -2708,7 +2729,9 @@ async function _clearSiteTutorHistory(p) {
   const session = await _validateSession(p.token);
   if (!session || session.expired) return { success: false, expired: true, message: 'Session expired.' };
   
-  await supabase.from('zai_chat_history').delete().eq('student_id', String(session.user.id));
+  if (!p.conversation_id) return { success: false, message: 'Missing conversation ID' };
+  
+  await supabase.from('zai_conversations').delete().eq('id', String(p.conversation_id)).eq('student_id', String(session.user.id));
   return { success: true };
 }
 
@@ -2754,13 +2777,26 @@ async function _askSiteTutor(p) {
     const reply = await _callGemini(systemPrompt, contents, { temperature: 0.7 });
     const cleanReply = _cleanMarkdownReply(reply);
     
-    // Save to history asynchronously
-    supabase.from('zai_chat_history').insert([
-      { student_id: String(session.user.id), role: 'user', content: question },
-      { student_id: String(session.user.id), role: 'model', content: cleanReply }
-    ]).then();
+    let convId = String(p.conversation_id || '').trim();
+    if (!convId) {
+      const title = question.length > 30 ? question.slice(0, 30) + '...' : question;
+      const { data: convData } = await supabase
+        .from('zai_conversations')
+        .insert([{ student_id: String(session.user.id), title }])
+        .select('id')
+        .single();
+      if (convData) convId = convData.id;
+    }
 
-    return { success: true, reply: cleanReply };
+    if (convId) {
+      supabase.from('zai_chat_history').insert([
+        { conversation_id: convId, student_id: String(session.user.id), role: 'user', content: question },
+        { conversation_id: convId, student_id: String(session.user.id), role: 'model', content: cleanReply }
+      ]).then();
+      supabase.from('zai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convId).then();
+    }
+
+    return { success: true, reply: cleanReply, conversation_id: convId };
   } catch (err) {
     console.error('Site tutor call failed: ' + err.message);
     return { success: false, message: "Couldn't reach the tutor. Please try again." };
@@ -4507,6 +4543,7 @@ const actions = {
   askTutor: _askTutor,
   getSiteTutorHistory: _getSiteTutorHistory,
   clearSiteTutorHistory: _clearSiteTutorHistory,
+  listConversations: _listConversations,
   askSiteTutor: _askSiteTutor,
   autoFixSlide: _autoFixSlide,
   autoFixSession: _autoFixSession,
