@@ -4507,7 +4507,6 @@ const actions = {
   getSiteTutorHistory: _getSiteTutorHistory,
   clearSiteTutorHistory: _clearSiteTutorHistory,
   askSiteTutor: _askSiteTutor,
-  adminAskAgent: _adminAskAgent,
   autoFixSlide: _autoFixSlide,
   autoFixSession: _autoFixSession,
   analyzePPTXImage: _analyzePPTXImage,
