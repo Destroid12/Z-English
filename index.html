@@ -629,7 +629,7 @@
         <button type="button" class="admin-tab" onclick="switchAdminPanel('publicsessions')">Public Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('testsessions')">Test Sessions</button>
         <button type="button" class="admin-tab" onclick="switchAdminPanel('paymob')"><i class="fas fa-credit-card" style="margin-right:6px;"></i> Paymob Links</button>
-        <button type="button" class="admin-tab" onclick="switchAdminPanel('apikeys')"><i class="fas fa-key" style="margin-right:6px;"></i> API Library</button>
+        <button type="button" class="admin-tab" onclick="openApiKeysModal()"><i class="fas fa-key" style="margin-right:6px;"></i> API Library</button>
         <a href="editor.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen-to-square" style="margin-right:8px;"></i> Slide Editor</a>
         <a href="agent.html" class="admin-tab" style="text-decoration:none; display:flex; align-items:center; justify-content:center;"><i class="fas fa-robot" style="margin-right:8px;"></i> AI Agent</a>
     </div>
@@ -992,37 +992,7 @@
             </div>
         </div>
     </div>
-    <!-- API Library Panel -->
-    <div class="admin-panel" id="admin-panel-apikeys">
-        <div class="card" style="margin-bottom: 24px;">
-            <div class="flex justify-between items-center" style="margin-bottom: 20px;">
-                <div>
-                    <h3 style="margin: 0 0 4px 0;"><i class="fas fa-key" style="color: var(--z-orange); margin-right: 8px;"></i> API Library & Webhooks</h3>
-                    <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Manage Gemini API keys and Discord webhooks. The system will automatically cycle through active Gemini keys.</p>
-                </div>
-                <button class="btn btn-outline btn-sm" onclick="loadApiKeys()"><i class="fas fa-rotate"></i> Refresh</button>
-            </div>
-            
-            <div class="alert-box error" id="apikey-alert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="apikey-alert-text"></span></div>
-            <div class="alert-box success" id="apikey-success" style="display:none;"><i class="fas fa-circle-check"></i> <span id="apikey-success-text"></span></div>
-            
-            <form onsubmit="handleAddApiKey(event); return false;" style="display:flex; gap:10px; margin-bottom:20px;">
-                <select id="new-api-service" class="input-control" style="width:200px;">
-                    <option value="gemini">Gemini API</option>
-                    <option value="discord_community">Discord (Community)</option>
-                    <option value="discord_contact">Discord (Contact Form)</option>
-                    <option value="discord_zai">Discord (Z-AI Logs)</option>
-                    <option value="discord_notifications">Discord (Notifications)</option>
-                </select>
-                <input type="text" id="new-api-key" class="input-control" placeholder="Enter Key or Webhook URL" required style="flex:1;">
-                <button type="submit" class="btn btn-primary">Add Key</button>
-            </form>
-            
-            <div id="apikeys-table-wrap">
-                <p style="color: var(--text-muted);">Loading...</p>
-            </div>
-        </div>
-    </div>
+
 </section>
         <section id="ai-tutor" class="page-section container">
     <div class="card" style="max-width: 700px; margin: 0 auto; display:flex; flex-direction:column; height: 70vh;">
@@ -4255,13 +4225,18 @@ function renderPaymobHistory() {
 // -------------------------------------------------------------
 // API Library (Key Pool)
 // -------------------------------------------------------------
+function openApiKeysModal() {
+    document.getElementById('apiKeysModal').classList.add('active');
+    loadApiKeys();
+}
+
 async function loadApiKeys() {
     const wrap = document.getElementById('apikeys-table-wrap');
     if (!wrap) return;
     wrap.innerHTML = '<p style="color:var(--text-muted);">Loading...</p>';
     
     try {
-        const res = await callBackend('listApiKeys', { token: sessionToken });
+        const res = await callBackend({ action: 'listApiKeys', token: sessionToken });
         if (!res.success) {
             wrap.innerHTML = `<p style="color:var(--danger);">${escapeHtml(res.message)}</p>`;
             return;
@@ -4334,7 +4309,7 @@ async function handleAddApiKey(e) {
     btn.disabled = true;
     
     try {
-        const res = await callBackend('addApiKey', { token: sessionToken, apiKey: keyVal, service: serviceVal });
+        const res = await callBackend({ action: 'addApiKey', token: sessionToken, apiKey: keyVal, service: serviceVal });
         if (res.success) {
             keyInput.value = '';
             successBox.style.display = 'flex';
@@ -4357,7 +4332,7 @@ async function handleAddApiKey(e) {
 async function deleteApiKey(id) {
     if (!confirm('Are you sure you want to delete this API key?')) return;
     try {
-        const res = await callBackend('deleteApiKey', { token: sessionToken, keyId: id });
+        const res = await callBackend({ action: 'deleteApiKey', token: sessionToken, keyId: id });
         if (res.success) {
             loadApiKeys();
         } else {
@@ -4370,6 +4345,32 @@ async function deleteApiKey(id) {
 </script>
 
 <!-- Modals -->
+<div class="modal-overlay" id="apiKeysModal">
+  <div class="modal" style="max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;"><i class="fas fa-key"></i> API Library & Webhooks</h3>
+    <div class="alert-box error" id="apikey-alert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="apikey-alert-text"></span></div>
+    <div class="alert-box success" id="apikey-success" style="display:none;"><i class="fas fa-circle-check"></i> <span id="apikey-success-text"></span></div>
+    
+    <form onsubmit="handleAddApiKey(event); return false;" style="display:flex; gap:10px; margin-bottom:20px;">
+        <select id="new-api-service" class="input-control" style="width:250px;">
+            <option value="gemini">Gemini API</option>
+            <option value="discord_community">Discord (Community)</option>
+            <option value="discord_contact">Discord (Contact Form)</option>
+            <option value="discord_zai">Discord (Z-AI Logs)</option>
+            <option value="discord_notifications">Discord (Notifications)</option>
+        </select>
+        <input type="text" id="new-api-key" class="input-control" placeholder="Enter Key or Webhook URL" required style="flex:1;">
+        <button type="submit" class="btn btn-primary">Add Key</button>
+    </form>
+    
+    <div id="apikeys-table-wrap">Loading...</div>
+    
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content: flex-end;">
+      <button class="btn btn-outline" onclick="document.getElementById('apiKeysModal').classList.remove('active')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="submissionModal">
   <div class="modal" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;">
     <div id="submissionModalBody"></div>
