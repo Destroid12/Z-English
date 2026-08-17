@@ -2442,7 +2442,10 @@ async function _getSessionContextText(track, level, sessionNumber) {
 // Digest across every track/level/session the user is allowed to see.
 async function _getAllSessionsContextText(user) {
   const { data, error } = await supabase
-    .from('lesson_content').select('track, level, session_number, slides_json');
+    .from('lesson_content').select('track, level, session_number, slides_json')
+    .order('track', { ascending: true })
+    .order('level', { ascending: true })
+    .order('session_number', { ascending: true });
   if (error) throw new Error(error.message);
 
   let allowed = null;
